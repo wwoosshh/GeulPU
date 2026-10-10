@@ -1,0 +1,152 @@
+{
+ "GPU": "RTX 4070 Ti",
+ "14b 숨은 손실 — 평가글 (GGUF 참값 대비)": {
+  "평가글 토큰": 461,
+  "글": {
+   "KL 평균": 2.237631706805832e-06,
+   "고른 토큰 일치": 0.9978308026030369,
+   "상대차 중앙값": 0.0007125607134991626
+  },
+  "llama.cpp (기준14)": {
+   "KL 평균": 0.001377294090399383,
+   "고른 토큰 일치": 0.9761388286334056,
+   "상대차 중앙값": 0.02219605797511534
+  },
+  "KL 비 (글 / llama.cpp)": 0.0016246578870871154
+ },
+ "14b 생성 64 걸음 — GGUF 참값 대비": {
+  "What is the capital of France? Answer in one word.": {
+   "답": "Paris",
+   "글 — 걸음마다 상대차 중앙값": 0.0022066910909092343,
+   "글 — 참값과 고른 토큰이 다른 걸음": 0,
+   "llama.cpp — 걸음마다 상대차 중앙값": 0.032561798587760045,
+   "llama.cpp 답": "Paris",
+   "비 (글 / llama.cpp)": 0.06776932438058651
+  },
+  "대한민국의 수도는 어디야? 한 단어로 답해.": {
+   "답": "대한민국의 수도는 서울입니다.",
+   "글 — 걸음마다 상대차 중앙값": 0.0014459438813892657,
+   "글 — 참값과 고른 토큰이 다른 걸음": 0,
+   "llama.cpp — 걸음마다 상대차 중앙값": 0.030953950396044212,
+   "llama.cpp 답": "대한민국의 수도는 서울입니다.",
+   "비 (글 / llama.cpp)": 0.04671274143975017
+  },
+  "Write a short poem about the sea.": {
+   "답": "The sea, a vast and deep,\nA place of endless blue,\nA place where the waves dance,\nA place where the winds blow.\n\nIt's a place of mystery,\nA place of wonder,\nA place where the sun sets,\nA place where the stars shine.\n\nIt's a place of peace,\nA place of",
+   "글 — 걸음마다 상대차 중앙값": 0.000648131591901413,
+   "글 — 참값과 고른 토큰이 다른 걸음": 0,
+   "llama.cpp — 걸음마다 상대차 중앙값": 0.01812449888201509,
+   "llama.cpp 답": "The sea, a vast and deep,\nA place of endless blue,\nA place where the waves dance,\nA place where the winds blow.\n\nIt's a place of mystery,\nA place of wonder,\nA place where the sun sets,\nA place where the moon shines.\n\nIt's a place of peace,\nA place of",
+   "비 (글 / llama.cpp)": 0.035759973068527316
+  }
+ },
+ "오류 칸 (정확도)": 0,
+ "실패": {},
+ "llama.cpp 문맥": [
+  "llama_context: n_seq_max             = 1",
+  "llama_context: n_ctx                 = 16384",
+  "llama_context: n_ubatch              = 512",
+  "llama_context: flash_attn            = auto",
+  "llama_context: kv_unified            = false",
+  "llama_kv_cache: size =  192.00 MiB ( 16384 cells,  24 layers,  1/1 seqs), K (f16):   96.00 MiB, V (f16):   96.00 MiB",
+  "resolve_fused_ops: Flash Attention enabled"
+ ],
+ "14d 프롬프트 ms (처리 + 첫 토큰)": {
+  "128": {
+   "중앙값 ms": {
+    "글": 3.7748,
+    "llama.cpp": 5.779
+   },
+   "세 묶음": [
+    {
+     "글": 3.7752,
+     "llama.cpp": 5.8084
+    },
+    {
+     "글": 3.7748,
+     "llama.cpp": 5.779
+    },
+    {
+     "글": 3.7744,
+     "llama.cpp": 5.7782
+    }
+   ]
+  },
+  "512": {
+   "중앙값 ms": {
+    "글": 6.8599,
+    "llama.cpp": 10.6835
+   },
+   "세 묶음": [
+    {
+     "글": 6.8599,
+     "llama.cpp": 10.6835
+    },
+    {
+     "글": 6.867,
+     "llama.cpp": 10.7172
+    },
+    {
+     "글": 6.8408,
+     "llama.cpp": 10.6567
+    }
+   ]
+  },
+  "2048": {
+   "중앙값 ms": {
+    "글": 24.2854,
+    "llama.cpp": 44.4361
+   },
+   "세 묶음": [
+    {
+     "글": 24.2977,
+     "llama.cpp": 44.4218
+    },
+    {
+     "글": 24.2672,
+     "llama.cpp": 44.4361
+    },
+    {
+     "글": 24.2854,
+     "llama.cpp": 44.5832
+    }
+   ]
+  },
+  "8192": {
+   "중앙값 ms": {
+    "글": 160.8241,
+    "llama.cpp": 195.9604
+   },
+   "세 묶음": [
+    {
+     "글": 160.8241,
+     "llama.cpp": 196.7697
+    },
+    {
+     "글": 161.0452,
+     "llama.cpp": 195.4896
+    },
+    {
+     "글": 160.2568,
+     "llama.cpp": 195.9604
+    }
+   ]
+  }
+ },
+ "14c 생성 ms/토큰": {
+  "채팅 질문": {
+   "글": 1.6232,
+   "llama.cpp": 2.0243
+  },
+  "문맥 1024": {
+   "글": 1.695,
+   "llama.cpp": 2.0636
+  },
+  "문맥 8192": {
+   "글": 1.9989,
+   "llama.cpp": 2.2935
+  }
+ },
+ "오류 칸 (속도)": 0,
+ "초": 60.8
+}

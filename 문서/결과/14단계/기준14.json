@@ -1,0 +1,53 @@
+{
+ "모델": "qwen2.5-0.5b-instruct-q8_0.gguf",
+ "llama.cpp": "b11496 (000bee54a), 기본 설정(KV F16, 플래시 어텐션 자동)",
+ "llama.cpp 문맥": [
+  "llama_context: n_seq_max             = 1",
+  "llama_context: n_ctx                 = 16384",
+  "llama_context: n_ubatch              = 512",
+  "llama_context: flash_attn            = auto",
+  "llama_context: kv_unified            = false",
+  "llama_kv_cache: size =  192.00 MiB ( 16384 cells,  24 layers,  1/1 seqs), K (f16):   96.00 MiB, V (f16):   96.00 MiB",
+  "resolve_fused_ops: Flash Attention enabled"
+ ],
+ "숨은 손실 — 평가글 512 토큰 (GGUF 참값 대비)": {
+  "KL 평균": 0.001377294090399383,
+  "고른 토큰 일치": 0.9761388286334056,
+  "상대차 중앙값": 0.02219605797511534
+ },
+ "생성 64 걸음 — GGUF 참값 대비": {
+  "What is the capital of France? Answer in one word.": {
+   "답": "Paris",
+   "걸음마다 상대차 중앙값": 0.032561798587760045,
+   "참값과 고른 토큰이 다른 걸음": 0
+  },
+  "대한민국의 수도는 어디야? 한 단어로 답해.": {
+   "답": "대한민국의 수도는 서울입니다.",
+   "걸음마다 상대차 중앙값": 0.030953950396044212,
+   "참값과 고른 토큰이 다른 걸음": 0
+  },
+  "Write a short poem about the sea.": {
+   "답": "The sea, a vast and deep,\nA place of endless blue,\nA place where the waves dance,\nA place where the winds blow.\n\nIt's a place of mystery,\nA place of wonder,\nA place where the sun sets,\nA place where the moon shines.\n\nIt's a place of peace,\nA place of",
+   "걸음마다 상대차 중앙값": 0.01812449888201509,
+   "참값과 고른 토큰이 다른 걸음": 1
+  }
+ },
+ "프롬프트 ms (처리 + 첫 토큰, 일곱 번 중앙값)": {
+  "128": 5.723,
+  "512": 10.522,
+  "2048": 43.622,
+  "8192": 196.05
+ },
+ "생성 ms/토큰": {
+  "채팅 질문": 2.0342,
+  "문맥 1024": 2.0702,
+  "문맥 8192": 2.2865
+ },
+ "바닥": {
+  "생성 가중치 바이트": 524833792,
+  "생성 바닥 ms (KV 빼고)": 1.041,
+  "위치마다 KV 바이트 (f16)": 12288,
+  "프롬프트 n 의 선형 층 int8 일 (자리 둘, 곱 + 합)": "2 · 2 · 층값 · n / 3.2e14 초",
+  "프롬프트 2048 선형 바닥 ms (자리 둘)": 9.16
+ }
+}
