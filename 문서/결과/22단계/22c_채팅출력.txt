@@ -1,0 +1,16 @@
+모델을 올리는 중…
+올림 2.5 초 — qwen2.5-7b-instruct-q8_0.gguf · 문맥 8192. /새로 · /끝
+
+> Paris
+[첫 토큰까지 24.4 ms · 생성 2 토큰 50.3 토큰/초 · 문맥 43 · 그 앞에 올림 뒤의 일을 기다림 4365.4 ms]
+
+> 서울
+[첫 토큰까지 21.7 ms · 생성 3 토큰 36.4 토큰/초 · 문맥 72]
+
+> Whispering waves embrace the shore,
+Mystic dance under the moon's allure.
+Ancient tales in foam are told,
+Sea, your secrets never grow old.
+[첫 토큰까지 22.9 ms · 생성 35 토큰 40.6 토큰/초 · 문맥 124]
+
+> 

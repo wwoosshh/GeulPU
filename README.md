@@ -25,12 +25,12 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 | | |
 |---|---|
-| 모델 | **Qwen2.5-0.5B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA) — 공식 GGUF Q8_0. GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
+| 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — 공식 GGUF Q8_0. 7B 는 22단계부터: CPU 참조와 비트까지 같고, llama.cpp 대비 생성 1.05 ~ 1.07배 · 프롬프트 1.14(2048) · 1.30배(8192) 시간([22단계](문서/22단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
 | 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
-| 아직 없는 것 | 더 큰 Llama 계열(머리 128 · 다른 크기 — 커널이 모델의 모양으로 만들어지므로 모양마다 모듈이 필요하다), k-양자화(Q4_K_M 등), 샘플링(지금은 탐욕), Linux |
+| 아직 없는 것 | 다른 크기의 Llama 계열(14B 등 — 커널이 모델의 모양으로 만들어지므로 모양마다 모듈이 필요하다; 생성기는 글이라 설정을 넓히면 된다), k-양자화(Q4_K_M 등), 샘플링(지금은 탐욕), Linux |
 
-다음은 더 많은 모델 모양 · k-양자화 · 샘플링이다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
+다음은 7B 의 속도(생성 · 프롬프트의 남은 거리), 더 많은 모델 모양 · k-양자화 · 샘플링이다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
 글의 자체 호스팅 컴파일러로 빌드한 실행 파일 하나이고, 가져오는 DLL 은 `kernel32` · `shell32`(글 런타임)과 `nvcuda.dll` 뿐이다. GPU 커널의 PTX 는
 글로 쓴 PTX 뒷단이 만든다(17단계). 파이썬 호스트(`엔진/` · `실행.py`)와 견줘 GPU 에 올리는 것 · 토큰 · 걸음마다 로짓 · KV 캐시 · 대화가 바이트까지
 같고 속도도 같다([문서/18단계.md](문서/18단계.md)). **빌드에도 파이썬이 들지 않는다**(19단계): 커널 소스(글)를 만드는 생성기도 글 언어
@@ -80,7 +80,14 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
    ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2Q8.gl -o 빌드/글/qwen2Q8.ptx
    빌드/글/실행기.exe qwen2.5-0.5b-instruct-q8_0.gguf
    ```
-   입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기. 파이썬 실행기(`python 실행.py 모델.gguf`)도 같은 답을 낸다.
+   7B(Hugging Face `Qwen/Qwen2.5-7B-Instruct-GGUF` 의 `qwen2.5-7b-instruct-q8_0*.gguf` — 나뉜 파일은 llama.cpp 의 `llama-gguf-split --merge` 로
+   하나로)는 7B 모듈을 더 만든다. 실행기가 GGUF 의 설정을 읽고 옆의 PTX 를 고른다(22단계).
+   ```
+   빌드/글/커널생성.exe qwen2Q8_7b 빌드/글/qwen2Q8_7b.gl
+   ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2Q8_7b.gl -o 빌드/글/qwen2Q8_7b.ptx
+   빌드/글/실행기.exe qwen2.5-7b-instruct-q8_0.gguf
+   ```
+   입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기. 파이썬 실행기(`python 실행.py 모델.gguf` — 0.5B 만)도 같은 답을 낸다.
    시험(`시험/qwen2.py`)은 이 파일을 `모델/qwen2.5-0.5b-instruct-gguf/` 에서, 토크나이저 대조 · 참값은 원본(`Qwen/Qwen2.5-0.5B-Instruct`)을
    `모델/qwen2.5-0.5b-instruct/` 에서 찾는다.
 4. **GPT-2 모델**: `모델/` 에 둔다(저장소에는 없다).
@@ -107,7 +114,7 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 [문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [14단계](문서/14단계.md) ·
 [15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md) ·
 [18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md) · [20단계 — 퍼플렉시티로 본 숨은 손실](문서/20단계.md) ·
-[21단계 — 7B 의 행렬곱](문서/21단계.md).
+[21단계 — 7B 의 행렬곱](문서/21단계.md) · [22단계 — 7B 전체](문서/22단계.md).
 
 ## 라이선스
 
@@ -130,4 +137,6 @@ it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) an
 1.21x the weight-read floor), while its hidden loss
 against an fp64 reference with the same weights is 1/615 of llama.cpp's (1/385 over wikitext-2). In perplexity GeulPU is
 indistinguishable from the fp64 reference while llama.cpp is 0.34% higher, which is about the size of the Q8_0 weight-quantization loss itself
-(0.24%), so the difference is real but not one a user would notice.
+(0.24%), so the difference is real but not one a user would notice. Since stage 22 it also runs Qwen2.5-7B-Instruct (Q8_0, head size 128)
+bit-exact to the CPU reference along every path; there it takes 1.05-1.07x llama.cpp's decode time and 1.14x / 1.30x its prompt time
+(2048 / 8192 tokens).

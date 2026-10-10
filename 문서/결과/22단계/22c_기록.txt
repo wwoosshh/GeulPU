@@ -1,0 +1,10 @@
+시작 2026-10-11 04:18:51
+PATH = C:\Windows\System32;C:\Windows · python 찾음: False · py 찾음: False
+채팅 종료 코드 0
+끝 2026-10-11 04:18:59
+33c1dad308a878b57a3a7d2e1e4a7f86c49e5c45daf0278a5ed1d93773d6eda2  291328  실행기.exe
+f67cd971ddfa327b0d9ab7c9309a369bbf2865c206e7890f76e95b3f867af511  37687892  qwen2Q8_7b.ptx
+d85f7ec7b66f15243ab82e690ea1d05641d4dc5767a3471e1673405c34ba69da  52494659  qwen2Q8.ptx
+kernel32.dll 38
+nvcuda.dll 31
+shell32.dll 1
