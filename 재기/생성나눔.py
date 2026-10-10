@@ -1,12 +1,12 @@
-"""생성 그래프의 시간 나누기(개발용): 생성 그래프에서 커널 종류 하나만 남긴(층 24 개 모두 — 실제 DRAM 읽기) 그래프의 시간, 그리고 종류 하나를 뺀
-그래프의 시간. 값은 틀린다(재는 데만). 인자: 문맥 길이(기본 채팅 질문)."""
+"""15단계 판정 전에 잰 것 — 14단계 생성 그래프의 시간 나누기(문서/15단계.md): 생성 그래프에서 커널 종류 하나만 남긴(층 24 개 모두 — 실제
+DRAM 읽기) 그래프의 시간, 그리고 종류 하나를 뺀 그래프의 시간. 값은 틀린다(재는 데만). 인자: 문맥 길이(기본 채팅 질문)."""
 import ctypes
 import os
 import sys
 import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-ROOT = r"C:\Users\s0105\Desktop\프로젝트\geul\GeulPU"
+ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.insert(0, os.path.join(ROOT, "시험"))
 import numpy as np            # noqa: E402
 import qwen2공통 as Q         # noqa: E402
