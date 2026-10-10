@@ -83,6 +83,9 @@
     쿠다할당들 = 정수목록_만들기().
 }
 
+(* 다른 스레드가 연 쿠다 문맥을 이 스레드에서도 쓴다 *)
+[쿠다이스레드]는 { cuCtxSetCurrent(쿠다문맥)를 "cuCtxSetCurrent"으로 쿠다확인하다. }
+
 [중간정수 속성을 장치속성]는 -> 정수 {
     중간정수 v = 0.
     cuDeviceGetAttribute(&v, 속성, 쿠다장치)를 "cuDeviceGetAttribute"으로 쿠다확인하다.
