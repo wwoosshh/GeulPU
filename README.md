@@ -27,16 +27,18 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 | 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 호스트는 Python 3.12 + numpy |
 | 아직 없는 것 | 더 큰 Llama 계열(머리 128 · 다른 크기 — 커널이 모델의 모양으로 만들어지므로 모양마다 모듈이 필요하다), k-양자화(Q4_K_M 등), 샘플링(지금은 탐욕), Linux |
 
-다음은 더 많은 모델 모양 · k-양자화 · 샘플링이다. 지금 GPU 커널은 글 참조 구현의 앞단과 파이썬으로 쓴 PTX 뒷단([컴파일러/](컴파일러/))이
-컴파일하고, 호스트도 파이썬이다. 자체 호스팅 네이티브 글 컴파일러에 PTX 뒷단을 넣고 호스트를 글로 옮겨 "글 실행 파일 하나 + 드라이버" 로
-만드는 것이 목표다. 16단계에서 그 첫걸음을 했다 — 자체 컴파일러의 글 PTX 뒷단이 탐침 커널 넷의 PTX 를 파이썬판과 바이트까지 같게 내고,
-글로 쓴 실행기가 GPU 에서 돌린다([문서/16단계.md](문서/16단계.md)). 모델의 커널은 아직 옮기지 않은 규칙(정수 범위 증명 등)에서 멈춘다.
+다음은 더 많은 모델 모양 · k-양자화 · 샘플링이다. **GPU 커널의 PTX 는 글의 자체 호스팅 컴파일러가 만든다**(17단계): 자체 앞단과
+글로 쓴 PTX 뒷단(글 저장소 `research/gpu` 가지의 `research/gpu/자체PTX/PTX.gl`)을 그 컴파일러로 빌드한 실행 파일이다. 엔진이 올리는
+모듈 23 개(GPT-2 22 · Qwen2 1) 모두에서 그 PTX 가 1~16단계에 쓴 파이썬판([컴파일러/](컴파일러/) — 이제 대조용)과 바이트까지 같다
+([문서/17단계.md](문서/17단계.md)). 그래서 14 · 15단계의 비트 · 속도는 글 컴파일러가 낸 PTX 의 것과 같다 — 드라이버가 받는 입력이
+바이트까지 같다. 아직 파이썬인 것은 커널 소스(글)를 만드는 생성기([커널/커널생성.py](커널/커널생성.py))와 호스트(GGUF 읽기 · 토크나이저 ·
+커널 띄우기 · 실행기)다. 이것들을 글로 옮겨 "글 실행 파일 하나 + 드라이버" 로 만드는 것이 목표다.
 
 ## 구조
 
 | 폴더 | 무엇 |
 |---|---|
-| [컴파일러/](컴파일러/) | `글ptx.py` — 글 소스 → (글 앞단: 파서 · 의미 분석) → 타입 IR → PTX. 글 앞단은 [글 참조 구현](https://github.com/wwoosshh/geul-lang)의 고정 사본(`ref/`) |
+| [컴파일러/](컴파일러/) | 파이썬판 `글ptx.py`(1~16단계의 PTX 를 냈다 — 이제 대조용) — 글 소스 → (글 앞단: 파서 · 의미 분석) → 타입 IR → PTX. 글 앞단은 [글 참조 구현](https://github.com/wwoosshh/geul-lang)의 고정 사본(`ref/`). 엔진이 쓰는 PTX 는 글로 쓴 뒷단(글 저장소 [research/gpu/자체PTX/](https://github.com/wwoosshh/geul-lang/tree/research/gpu/research/gpu/자체PTX))이 만든다 |
 | [커널/](커널/) | `커널생성.py` — 모델의 커널 모듈(글 소스)을 만드는 생성기, `gpt2.gl` — 손으로 쓴 작은 커널들 |
 | [엔진/](엔진/) | `글qwen2.py` — Qwen2 호스트(프롬프트 · 줄 길 · 생성 메가커널 · 대조용 생성 그래프), `글gpt2.py` — 드라이버 · 가중치 · 계획 · CUDA 그래프 · 생성 메가커널(GPT-2), `토크나이저.py` — Qwen2 BPE · 채팅 틀(GGUF 안의 것으로), `gguf읽기.py`, `커널모듈.py` — 모듈을 만들고 PTX 를 캐시 |
 | [계약/](계약/) | `정수계약.py` — 계약의 CPU 참조 구현(행렬곱 · 바꾸기 · KV 캐시 · 어텐션 — 모든 비트 대조의 기준) |
@@ -50,22 +52,30 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 1. **준비물**: Windows, NVIDIA 드라이버(Ampere 이상), Python 3.12, `pip install numpy`. (시험의 일부와 재기는 `torch`, 견주기는
    llama.cpp b11496 Windows CUDA 배포본을 `도구/llama-b11496/` 에.)
-2. **채팅**: Hugging Face `Qwen/Qwen2.5-0.5B-Instruct-GGUF` 의 `qwen2.5-0.5b-instruct-q8_0.gguf` (676 MB)를 받아
+2. **글 PTX 뒷단**: 글 저장소의 `research/gpu` 가지를 이 저장소 옆 `../geul-lang-v2` 에 받고, 자체 호스팅 컴파일러를 만든 뒤(고정점 확인)
+   그것으로 PTX 뒷단을 빌드한다. 다른 자리에 두면 환경변수 `GEULPU_글뒷단` 에 실행 파일의 경로를 준다.
+   ```
+   git clone -b research/gpu https://github.com/wwoosshh/geul-lang ../geul-lang-v2
+   cd ../geul-lang-v2
+   python build.py selfhost 컴파일러
+   GEUL_ROOT=. build/self_컴파일러.exe research/gpu/자체PTX/PTX.gl -o build/자체PTX.exe
+   ```
+3. **채팅**: Hugging Face `Qwen/Qwen2.5-0.5B-Instruct-GGUF` 의 `qwen2.5-0.5b-instruct-q8_0.gguf` (676 MB)를 받아
    ```
    python 실행.py qwen2.5-0.5b-instruct-q8_0.gguf
    ```
-   처음에는 커널 모듈을 만들고 컴파일한다(1 분 남짓 — `빌드/` 에 캐시). 입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기.
+   처음에는 커널 모듈을 만들고 글 뒷단으로 컴파일한다(30 초 안팎 — `빌드/` 에 캐시). 입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기.
    시험(`시험/qwen2.py`)은 이 파일을 `모델/qwen2.5-0.5b-instruct-gguf/` 에서, 토크나이저 대조 · 참값은 원본(`Qwen/Qwen2.5-0.5B-Instruct`)을
    `모델/qwen2.5-0.5b-instruct/` 에서 찾는다.
-3. **GPT-2 모델**: `모델/` 에 둔다(저장소에는 없다).
+4. **GPT-2 모델**: `모델/` 에 둔다(저장소에는 없다).
    - `모델/gpt2/` — Hugging Face `openai-community/gpt2` 의 `model.safetensors` · `config.json` · `vocab.json` · `merges.txt`
      (XL 은 `openai-community/gpt2-xl` → `모델/gpt2-xl/`)
    - GGUF: `python 준비/gguf쓰기.py 모델/gpt2-f32.gguf` (XL 은 `--모델 모델/gpt2-xl`) → llama.cpp 의
      `llama-quantize 모델/gpt2-f32.gguf 모델/gpt2-q8_0.gguf q8_0` (q4_0 도 같게)
    - 합성 긴 모델(속도 · 비트 시험용): `python 준비/gguf쓰기.py 모델/gpt2-long/gpt2-long100k-f32.gguf --합성 102400` → `q8_0` 로
-4. **시험**: `python 시험/모두.py 빠르게` — 있는 GPT-2 모델로 비트 시험을 모두 돌린다(마지막 줄 "모두 통과"). Qwen2 는
+5. **시험**: `python 시험/모두.py 빠르게` — 있는 GPT-2 모델로 비트 시험을 모두 돌린다(마지막 줄 "모두 통과"). Qwen2 는
    `python 시험/qwen2.py 빠르게`(CPU 참조의 전체 앞으로를 돌려 몇 분 걸린다 — torch 가 필요 없다).
-5. **GPT-2 생성** (파이썬에서):
+6. **GPT-2 생성** (파이썬에서):
    ```python
    import sys; sys.path[:0] = ["엔진", "시험"]
    import 공통 as T
@@ -78,7 +88,8 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 이 엔진은 2026-10-08 ~ 10-10 의 연구 0~13단계에서 나왔다. 단계마다 판정 기준을 실험보다 먼저 적고, 모든 변형을 비트 대조한 뒤에
 시간을 적었다. 판정 · 측정 · 실패한 시도의 전문은 글 저장소의 `research/gpu` 가지(docs/17 · research/gpu/N단계)에 있고, 요약은
-[문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [문서/14단계.md](문서/14단계.md).
+[문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [14단계](문서/14단계.md) ·
+[15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md).
 
 ## 라이선스
 
@@ -87,9 +98,12 @@ MIT — [LICENSE](LICENSE). 글 앞단 사본(`컴파일러/ref/`)도 같은 저
 ---
 
 **In short (English).** GeulPU is an LLM inference engine whose GPU kernels are written in the Korean programming language *geul* and
-compiled to PTX by geul's own compiler; it runs on the NVIDIA driver alone (no CUDA toolkit, cuBLAS, or PyTorch). Precision is a
+compiled to PTX by geul's self-hosted compiler (a PTX backend written in geul; its output is byte-identical to the earlier Python
+prototype on all 23 engine modules); it runs on the NVIDIA driver alone (no CUDA toolkit, cuBLAS, or PyTorch). The kernel-source
+generator and the host (GGUF loading, tokenizer, launches) are still Python. Precision is a
 written contract (2-digit block integers for activations and the KV cache, exact integer tensor-core sums, a written exp polynomial), so
 GPU results match a CPU reference bit for bit and stay identical however the input is split or batched. It runs the chat model
 Qwen2.5-0.5B-Instruct (official GGUF Q8_0) with a terminal runner (`python 실행.py model.gguf`) and GPT-2 (small/XL); on an RTX 4070 Ti
-it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) and decode context (0.80-0.87x), while its hidden loss
+it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) and decode context (0.63-0.65x, a decode megakernel at
+1.21x the weight-read floor), while its hidden loss
 against an fp64 reference with the same weights is 1/615 of llama.cpp's.
