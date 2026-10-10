@@ -11,10 +11,13 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
   코어의 정확한 합, 지수 함수는 적어 둔 다항식(적힌지수). 그래서 GPU 의 결과가 CPU 참조 구현([계약/정수계약.py](계약/정수계약.py))과
   **비트까지** 같다. 손실은 모델 파일의 형식(Q8_0 · Q4_0)과 이 계약이 밝힌 만큼뿐이다.
 - **어느 길로 계산해도 같은 비트.** 프롬프트를 한 번에 넣든, 나눠 넣든, 하나씩 넣든, 대화로 이어 가든, 여러 문장을 묶든 결과가 같다.
-  흔한 엔진(llama.cpp · PyTorch)은 함께 계산하는 양에 따라 결과 비트가 바뀐다.
+  흔한 엔진(llama.cpp · PyTorch)은 함께 계산하는 양에 따라 결과 비트가 바뀐다. 퍼플렉시티(wikitext-2)도 llama.cpp 는 배치 설정에 따라
+  15.8171 ~ 15.8200 으로 바뀌고, 글은 어느 방식으로 넣어도 마지막 비트까지 같다([20단계](문서/20단계.md)).
 - **빠르다.** (RTX 4070 Ti) 채팅 모델 Qwen2.5-0.5B-Instruct(Q8_0)에서 llama.cpp 보다 프롬프트 128 ~ 8192 토큰이 0.55~0.82배 시간,
   생성 토큰당 0.63~0.65배(생성 메가커널 — 1.26 ms, 가중치를 한 번 읽는 바닥의 1.21배) — 그러면서 숨은 손실(같은 가중치의 fp64 참값 대비
-  KL)이 llama.cpp 의 1/615 다. GPT-2 XL 프롬프트는
+  KL)이 llama.cpp 의 1/615(평가글 461 토큰) · 1/385(wikitext-2 148,920 토큰)다. 퍼플렉시티로 보면 글은 참값과 구별되지 않고(상대
+  −6.6 × 10⁻⁶), llama.cpp 는 0.34% 높다 — 가중치를 Q8_0 으로 줄인 손실(0.24%)과 같은 급이라 체감할 만큼은 아니다([20단계](문서/20단계.md)).
+  GPT-2 XL 프롬프트는
   llama.cpp 의 0.78~0.87배 · PyTorch f16 의 0.71~0.81배, 합성 긴 모델(위치 10만)의 덩이 넣기 23 칸 모두 llama.cpp 보다 짧다.
   숫자와 재는 법은 [문서/단계기록.md](문서/단계기록.md) · [문서/14단계.md](문서/14단계.md) · [문서/15단계.md](문서/15단계.md).
 
@@ -103,7 +106,8 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 시간을 적었다. 판정 · 측정 · 실패한 시도의 전문은 글 저장소의 `research/gpu` 가지(docs/17 · research/gpu/N단계)에 있고, 요약은
 [문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [14단계](문서/14단계.md) ·
 [15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md) ·
-[18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md).
+[18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md) · [20단계 — 퍼플렉시티로 본 숨은 손실](문서/20단계.md) ·
+[21단계 — 7B 의 행렬곱](문서/21단계.md).
 
 ## 라이선스
 
@@ -124,4 +128,6 @@ GPU results match a CPU reference bit for bit and stay identical however the inp
 Qwen2.5-0.5B-Instruct (official GGUF Q8_0) with a terminal runner (`빌드/글/실행기.exe model.gguf`) and GPT-2 (small/XL); on an RTX 4070 Ti
 it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) and decode context (0.63-0.65x, a decode megakernel at
 1.21x the weight-read floor), while its hidden loss
-against an fp64 reference with the same weights is 1/615 of llama.cpp's.
+against an fp64 reference with the same weights is 1/615 of llama.cpp's (1/385 over wikitext-2). In perplexity GeulPU is
+indistinguishable from the fp64 reference while llama.cpp is 0.34% higher, which is about the size of the Q8_0 weight-quantization loss itself
+(0.24%), so the difference is real but not one a user would notice.

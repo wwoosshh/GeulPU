@@ -9,9 +9,12 @@ PyTorch(인텔 OpenMP, libiomp5md.dll)와 llama.cpp 의 CPU 백엔드(LLVM OpenM
 돌린다). 큰 배열(로짓)은 .npy 파일로 넘긴다. 시간은 일꾼 안에서 잰다 — 프로세스 사이를 오가는 값은 llama.cpp 를 쓰는 사람이 치르지
 않으므로 뺀다.
 
-명령: 열기(키, gguf, kv형식, n_ctx, n_batch, n_ubatch, n_seq_max, 모델원, flash) · 프롬프트(키, ids) → ms · 생성(키, ids, n, 파일) → 토큰, ms
-      · 로짓들(키, seqs, 방식, 조각, 파일) · 닫기(키) · 끝
+명령: 열기(키, gguf, kv형식, n_ctx, n_batch, n_ubatch, n_seq_max, 모델원, flash, 통합) · 프롬프트(키, ids) → ms · 생성(키, ids, n, 파일) → 토큰, ms
+      · 로짓들(키, seqs, 방식, 조각, 파일) · 토큰(키, 글, 파일) · 퍼플배치(키, seqs, 첫, 파일) · 닫기(키) · 끝
+      (20단계: 토큰 — llama_tokenize(BOS 는 모델대로, 특수 토큰은 풀지 않는다 — llama-perplexity 와 같다), 퍼플배치 — llama-perplexity 의
+      배치(덩이 여럿을 시퀀스로 한 llama_decode, 위치 첫 이상의 로짓) 그대로)
 """
+import ctypes
 import json
 import os
 import sys
@@ -27,9 +30,9 @@ import 라마                 # noqa: E402
 
 
 class 엔진:
-    def __init__(self, gguf, kv형식=1, n_ctx=1024, n_batch=1024, n_ubatch=512, n_seq_max=1, 모델=None, flash=-1):
+    def __init__(self, gguf, kv형식=1, n_ctx=1024, n_batch=1024, n_ubatch=512, n_seq_max=1, 모델=None, flash=-1, 통합=False):
         self.lm = 라마.라마(gguf, n_ctx=n_ctx, n_batch=n_batch, n_ubatch=n_ubatch, n_seq_max=n_seq_max, kv형식=kv형식, 모델=모델,
-                          flash=flash)
+                          flash=flash, 통합KV=통합)
         self.n_batch = n_batch
         self.문맥 = [l.strip() for l in self.lm.문맥로그.splitlines()
                    if any(x in l for x in ("flash", "Flash", "K (", "n_ctx ", "n_ubatch", "n_seq_max", "kv_unified"))]
@@ -118,6 +121,37 @@ class 엔진:
             out.append(lm.모든로짓(len(c)))
         return np.concatenate(out, 0)
 
+    def 토큰(self, 글바이트):
+        """llama_tokenize — add_special 참(BOS 는 모델의 설정대로), parse_special 거짓(llama-perplexity 의 common_tokenize 와 같다)."""
+        L = self.lm.L
+        L.llama_tokenize.restype = ctypes.c_int32
+        L.llama_tokenize.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int32, ctypes.POINTER(ctypes.c_int32), ctypes.c_int32,
+                                     ctypes.c_bool, ctypes.c_bool]
+        vocab = L.llama_model_get_vocab(self.lm.model)
+        n_max = len(글바이트) + 16
+        buf = (ctypes.c_int32 * n_max)()
+        n = L.llama_tokenize(vocab, 글바이트, len(글바이트), buf, n_max, True, False)
+        assert n >= 0, f"llama_tokenize 실패 {n}"
+        return np.frombuffer(buf, dtype=np.int32, count=n).copy()
+
+    def 퍼플배치(self, seqs, 첫):
+        """llama-perplexity 의 한 배치: 덩이 여럿(시퀀스 0, 1, …)을 캐시를 비운 뒤 한 llama_decode 로 — 위치 첫 이상의 행만 로짓을 낸다.
+        덩이마다 위치 첫 … n − 2 의 로짓 [덩이][n − 1 − 첫][어휘] (llama-perplexity 의 process_logits 가 읽는 행)."""
+        lm = self.lm
+        lm.지우기()
+        토, 위, 시, 로 = [], [], [], []
+        n = len(seqs[0])
+        for s, ids in enumerate(seqs):
+            assert len(ids) == n
+            토 += list(ids)
+            위 += list(range(n))
+            시 += [s] * n
+            로 += [1 if p >= 첫 else 0 for p in range(n)]
+        lm.넣기(토, 위, 시, 로)
+        k = n - 첫
+        x = lm.모든로짓(len(seqs) * k).reshape(len(seqs), k, lm.V)
+        return np.ascontiguousarray(x[:, :k - 1])
+
 
 def main():
     sys.stdin.reconfigure(encoding="utf-8")
@@ -134,7 +168,8 @@ def main():
                 break
             if op == "열기":
                 원 = 엔진들[c["모델원"]].lm.model if c.get("모델원") else None
-                e = 엔진(c["gguf"], c["kv형식"], c["n_ctx"], c["n_batch"], c["n_ubatch"], c["n_seq_max"], 원, c.get("flash", -1))
+                e = 엔진(c["gguf"], c["kv형식"], c["n_ctx"], c["n_batch"], c["n_ubatch"], c["n_seq_max"], 원, c.get("flash", -1),
+                        c.get("통합", False))
                 엔진들[c["키"]] = e
                 r = {"문맥": e.문맥}
             elif op == "프롬프트":
@@ -154,6 +189,15 @@ def main():
                 r = {"차례": 엔진들[c["키"]].대화(c["덩이들"], c["n"], c.get("처음", True))}
             elif op == "로짓들":
                 x = 엔진들[c["키"]].로짓들(c["seqs"], c["방식"], c["조각"])
+                np.save(c["파일"], x)
+                r = {"모양": list(x.shape)}
+            elif op == "토큰":
+                with open(c["글"], "rb") as f:
+                    x = 엔진들[c["키"]].토큰(f.read())
+                np.save(c["파일"], x)
+                r = {"수": int(len(x))}
+            elif op == "퍼플배치":
+                x = 엔진들[c["키"]].퍼플배치(c["seqs"], c["첫"])
                 np.save(c["파일"], x)
                 r = {"모양": list(x.shape)}
             elif op == "닫기":
