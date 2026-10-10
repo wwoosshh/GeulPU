@@ -1,0 +1,30 @@
+Hello, world! It's a test. I'M HERE, you'RE there, they'LL go, we'VE done, he'D say, 'S and 'tIs.
+don't can't won't shan't it's ’s 's 'x '
+한국어 문장입니다. 대한민국의 수도는 서울입니다! 숫자 12345와 영어 ABC가 섞였어요.
+풀어 쓴 한글: 각가 한글 그리고 ᄀ가 ㄱㅏㅎㅣ
+é ǟ ộ ́abc Å Å Ω ̈́ ཱི ཱུ
+Å Ω ﬁ ½ ² ① Ⅻ ٣ ༣ 𝟙 ¼ ⅔ ٠١٢
+क़ क़ क़ ড় ଡ଼
+が が ガ ｶﾞ ぱ 日本語のテキスト。
+Ελληνικά Русский язык العربية مرحبا بالعالم שלום עולם
+😀👍🏽 👨‍👩‍👧‍👦 🇰🇷 ❤️ a‍b‌c ﻿BOM
+a	b c　d ef  g   h
+ij
+
+
+k 
+ l
+end   
+   lead
+abc123def 4.56 7,890 1e10 0x1F 1234567890
+...!!!??? ---- ==== "quoted" (paren) [bracket] {brace} <angle> @#$%^&*
+def f(x):
+    return x**2  # comment
+
+
+text<|im_start|>more<|im_end|>tail<|endoftext|><|fim_prefix|> <|im_start <|im_start|><|im_start|>
+中文测试，这是一个句子。
+ภาษาไทยเป็นภาษาที่
+supercalifragilisticexpialidocious Supercalifragilistic
+̀́̂ x̣̂́̀
+각ᆨ 각 각ᆨ
