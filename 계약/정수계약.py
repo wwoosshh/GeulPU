@@ -123,19 +123,25 @@ def 거듭제곱(E):
     return ((np.asarray(E, np.int64) + 114) << 23).astype(np.int32).view(f32)
 
 
+def 점수눈금(hd):
+    """점수의 눈금 — 머리 64 는 0.125(정확), 머리 128 은 짧은실수(1/√128)(가까운 반올림 — 22단계 계약). 점수 합 뒤에 곱 한 번."""
+    return f32(0.125) if hd == 64 else f32(1.0 / np.sqrt(np.float64(hd)))
+
+
 def _조각몫(nq, nk, nv, Pq, Pk, Pv, Rr, 시작, n):
     """행 Rr(위치 — 모두 시작 이상)의 키 조각 [시작, 시작 + 64) 몫 (m, l, o) — 9단계 계약의 1~4(점수 · 최댓값 · 적힌지수 · 합 · e′ 자리 ·
-    가중합)."""
+    가중합). 머리 크기 hd = nq 의 열 수(64 · 128 — 블록 hd/32 개를 b 오름차순으로, 22단계)."""
+    hd = nq.shape[1]
     keys = np.arange(시작, min(시작 + 64, n))
     valid = keys[None, :] <= Rr[:, None]                         # [R][keys]
     # 1. 점수
     s = None
-    for b in range(2):
+    for b in range(hd // 32):
         sl = slice(32 * b, 32 * b + 32)
         u = (nq[Rr][:, sl] @ nk[keys][:, sl].T).astype(f32)        # 정확한 정수 합 → 반올림 하나
         부분 = (u * Pq[Rr, b][:, None]).astype(f32)                 # 정확
         s = (부분 * Pk[keys, b][None, :]).astype(f32) if b == 0 else fma32(부분, np.broadcast_to(Pk[keys, b][None, :], 부분.shape), s)
-    s = (s * f32(0.125)).astype(f32)
+    s = (s * 점수눈금(hd)).astype(f32)
     s = np.where(valid, s, f32(-3.0e38)).astype(f32)
     # 2. 최댓값 · 지수
     m = s.max(1)
@@ -143,8 +149,8 @@ def _조각몫(nq, nk, nv, Pq, Pk, Pv, Rr, 시작, n):
     # 3. 합 — 2⁻²³ 눈금의 정수 합, 반올림 하나
     l = (np.rint((e * f32(8388608.0)).astype(f32)).astype(np.int64).sum(1).astype(f32) * f32(2.0 ** -23)).astype(f32)
     # 4. 가중합 — 값의 블록 b 마다 e′ = e · 2^(E_v − 13), 키 32 개 블록 j 마다 자리 둘
-    o = np.zeros((len(Rr), 64), f32)
-    for b in range(2):
+    o = np.zeros((len(Rr), hd), f32)
+    for b in range(hd // 32):
         ep = (e * Pv[keys, b][None, :]).astype(f32)                 # 정확
         uj = []
         for j in range(0, len(keys), 32):
@@ -170,7 +176,8 @@ def _접기(M, L, O, m, l, o):
 
 
 def 어텐션(q, k, v, 조각=64, 묶음=16, 첫행=0):
-    """머리 하나의 어텐션(원인 가림, × 0.125) — 정수 KV 계약의 참조. q · k · v [n][64] 짧은실수 → 출력 [n − 첫행][64] 짧은실수(O / L).
+    """머리 하나의 어텐션(원인 가림, × 점수눈금(hd) — 머리 64 는 0.125) — 정수 KV 계약의 참조. q · k · v [n][hd] 짧은실수(hd 64 · 128) →
+    출력 [n − 첫행][hd] 짧은실수(O / L).
     프롬프트 판(mma)과 생성 판(dp4a) 모두와 비트까지 같아야 한다(9a).
     접기(13단계 계약): 키 조각(위치 64)을 묶음(조각 `묶음` 개 = 위치 1024 — 묶음 g 는 위치 [1024g, 1024g + 1024))으로 나눠, 묶음 안에서
     조각을 차례로 접어 묶음의 (M_g, L_g, O_g) 를 만들고(묶음의 첫 조각이 처음 값), 묶음들을 차례로 같은 식으로 접는다(첫 묶음이 처음 값).
@@ -179,18 +186,19 @@ def 어텐션(q, k, v, 조각=64, 묶음=16, 첫행=0):
     q, k, v = (np.asarray(x, f32) for x in (q, k, v))
     n = q.shape[0]
     (Dq, Eq), (Dk, Ek), (Dv, Ev) = 자리로(q, 2), 자리로(k, 2), 자리로(v, 2)
-    nq, nk, nv = (D[1] * 256 + D[0] for D in (Dq, Dk, Dv))          # [n][64] int64
-    Pq, Pk, Pv = 거듭제곱(Eq), 거듭제곱(Ek), 거듭제곱(Ev)              # [n][2]
+    nq, nk, nv = (D[1] * 256 + D[0] for D in (Dq, Dk, Dv))          # [n][hd] int64
+    Pq, Pk, Pv = 거듭제곱(Eq), 거듭제곱(Ek), 거듭제곱(Ev)              # [n][hd/32]
+    hd = q.shape[1]
     R_ = np.arange(첫행, n)
     M = np.zeros(len(R_), f32)
     L = np.zeros(len(R_), f32)
-    O = np.zeros((len(R_), 64), f32)
+    O = np.zeros((len(R_), hd), f32)
     폭 = 조각 * 묶음 if 묶음 else n + 조각                              # 묶음 하나의 위치 수
     for g0 in range(0, n, 폭):
         selg = R_ >= g0                                              # 이 묶음에 유효한 키가 있는 행
         Mg = np.zeros(int(selg.sum()), f32)
         Lg = np.zeros(int(selg.sum()), f32)
-        Og = np.zeros((int(selg.sum()), 64), f32)
+        Og = np.zeros((int(selg.sum()), hd), f32)
         for 시작 in range(g0, min(g0 + 폭, n), 조각):
             sel = R_ >= 시작
             m, l, o = _조각몫(nq, nk, nv, Pq, Pk, Pv, R_[sel], 시작, n)
@@ -213,30 +221,31 @@ def 낱말차례(바이트):
 
 
 def 키캐시(k, 최대길이):
-    """머리 하나의 키 캐시 바이트 — [자리 2][최대길이][64 바이트](위치 n 뒤는 0) 와 지수 [최대길이][2] (E + 114, uint8). k [n][64]."""
+    """머리 하나의 키 캐시 바이트 — [자리 2][최대길이][hd 바이트](위치 n 뒤는 0) 와 지수 [최대길이][hd/32] (E + 114, uint8). k [n][hd]
+    (hd 64 · 128 — 22단계)."""
     D, E = 자리로(np.asarray(k, f32), 2)
-    n = D.shape[1]
-    out = np.zeros((2, 최대길이, 64), np.int8)
-    out[:, :n] = 낱말차례(D.reshape(2, n, 2, 32)).reshape(2, n, 64)
-    ex = np.zeros((최대길이, 2), np.uint8)
+    n, hd = D.shape[1], D.shape[2]
+    out = np.zeros((2, 최대길이, hd), np.int8)
+    out[:, :n] = 낱말차례(D.reshape(2, n, hd // 32, 32)).reshape(2, n, hd)
+    ex = np.zeros((최대길이, hd // 32), np.uint8)
     ex[:n] = E + 114
     return out, ex
 
 
 def 값캐시(v, 최대길이):
-    """머리 하나의 값 캐시 바이트 — [키 블록 최대길이/32][자리 2][d 64][낱말 8][4 바이트]: 낱말 2c + h 의 바이트 i 는 키 16h + 2c + i (i < 2),
-    16h + 8 + 2c + (i − 2) (i ≥ 2) 의 d 번째 자리. 지수 [최대길이][2] (int8). v [n][64]."""
+    """머리 하나의 값 캐시 바이트 — [키 블록 최대길이/32][자리 2][d hd][낱말 8][4 바이트]: 낱말 2c + h 의 바이트 i 는 키 16h + 2c + i (i < 2),
+    16h + 8 + 2c + (i − 2) (i ≥ 2) 의 d 번째 자리. 지수 [최대길이][hd/32] (int8). v [n][hd] (hd 64 · 128 — 22단계)."""
     D, E = 자리로(np.asarray(v, f32), 2)
-    n = D.shape[1]
+    n, hd = D.shape[1], D.shape[2]
     키 = np.zeros(32, np.int64)
     for h in range(2):
         for c in range(4):
             키[(2 * c + h) * 4:(2 * c + h) * 4 + 4] = [16 * h + 2 * c, 16 * h + 2 * c + 1, 16 * h + 8 + 2 * c, 16 * h + 8 + 2 * c + 1]
-    Dp = np.zeros((2, 최대길이, 64), np.int64)
+    Dp = np.zeros((2, 최대길이, hd), np.int64)
     Dp[:, :n] = D
-    blk = Dp.reshape(2, 최대길이 // 32, 32, 64)[:, :, 키, :]                  # [자리][블록][자리 32 (낱말 차례)][d]
+    blk = Dp.reshape(2, 최대길이 // 32, 32, hd)[:, :, 키, :]                  # [자리][블록][자리 32 (낱말 차례)][d]
     out = np.ascontiguousarray(blk.transpose(1, 0, 3, 2)).astype(np.int8)    # [블록][자리][d][32 바이트]
-    ex = np.zeros((최대길이, 2), np.uint8)
+    ex = np.zeros((최대길이, hd // 32), np.uint8)
     ex[:n] = E + 114
     return out, ex
 
@@ -348,11 +357,13 @@ def rope표(최대길이, theta=1e6, hd=64):
 
 
 def rope(x, cos, sin, 위치):
-    """RoPE(NeoX — 반쪽 돌리기) 를 머리 [n][64] 에: i < 32 에서 x′_i = 곱해더하기(x_i, cos, −(x_{i+32} · sin)), x′_{i+32} = 곱해더하기(x_{i+32}, cos,
-    x_i · sin) — cos · sin 은 표의 [위치][i]."""
+    """RoPE(NeoX — 반쪽 돌리기) 를 머리 [n][hd] 에(hd 64 · 128, 반 = hd/2): i < 반 에서 x′_i = 곱해더하기(x_i, cos, −(x_{i+반} · sin)),
+    x′_{i+반} = 곱해더하기(x_{i+반}, cos, x_i · sin) — cos · sin 은 표의 [위치][i] (표의 폭 = 반)."""
     x = np.asarray(x, f32)
-    c, s = cos[위치], sin[위치]                                      # [n][32]
-    a, b = x[:, :32], x[:, 32:]
+    반 = x.shape[1] // 2
+    c, s = cos[위치], sin[위치]                                      # [n][반]
+    assert c.shape[1] == 반, "RoPE 표의 폭이 머리 크기의 반과 다르다"
+    a, b = x[:, :반], x[:, 반:]
     return np.concatenate([fma32(a, c, -(b * s).astype(f32)), fma32(b, c, (a * s).astype(f32))], 1).astype(f32)
 
 
@@ -383,11 +394,41 @@ def 행렬곱빠른(x, q, d, 치우침):
     return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
 
 
+def 행렬곱블라스(x, qNK, dNK, 치우침, 일꾼=8, 칸한도=1 << 25):
+    """행렬곱(…, 자리수=2) 와 같은 값(22단계 — 7B 의 CPU 참조). 가중치는 GGUF 의 배치 그대로: qNK [N][K] int8, dNK [N][K/32] 짧은실수.
+    블록 합 S_j 를 짧은실수 행렬곱(BLAS)으로 — |D_j| ≤ 128, |q| ≤ 128 이라 |S_j| ≤ 32 · 128 · 128 = 2¹⁹ 이고 부분합도 정수로 2²⁴ 아래라 어느
+    순서로 더해도 정확하다. 블록들을 한 번의 묶음 행렬곱으로, 열을 덩이로 나눠 일꾼(스레드 — numpy 가 GIL 을 놓는다)에게. v_j = S_j · 2^(8j + E − 13)
+    (정확), u = v₁ + v₀ (반올림 하나), y ← 곱해더하기(u, d, y) 를 블록 차례로 — 행렬곱 과 같은 식."""
+    from concurrent.futures import ThreadPoolExecutor
+    D, E = 자리로(np.asarray(x, f32), 2)
+    M, K = D.shape[1:]
+    KB = K // 32
+    N = qNK.shape[0]
+    Df = D.astype(f32).reshape(2, M, KB, 32).transpose(0, 2, 1, 3).copy()      # [2][KB][M][32]
+    배 = [np.ldexp(f32(1), (8 * j + E - 13)).astype(f32).T[:, :, None] for j in range(2)]   # [KB][M][1]
+    덩이 = max(32, min(4096, 칸한도 // max(1, KB * M)) // 32 * 32)
+    y = np.zeros((M, N), f32)
+
+    def 열(n0):
+        n1 = min(N, n0 + 덩이)
+        qb = np.ascontiguousarray(np.asarray(qNK[n0:n1], f32).reshape(n1 - n0, KB, 32).transpose(1, 2, 0))   # [KB][32][n]
+        u = (np.matmul(Df[1], qb) * 배[1] + np.matmul(Df[0], qb) * 배[0]).astype(f32)                       # [KB][M][n]
+        db = np.asarray(dNK[n0:n1], f32).T                                                                     # [KB][n]
+        yy = np.zeros((M, n1 - n0), f32)
+        for b in range(KB):
+            yy = fma32(u[b], np.broadcast_to(db[b][None, :], yy.shape), yy)
+        y[:, n0:n1] = yy
+    with ThreadPoolExecutor(일꾼) as ex:
+        list(ex.map(열, range(0, N, 덩이)))
+    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+
+
 def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=16, 끝행=None):
     """정수 계약의 Qwen2 앞으로 — 토큰 ids(위치 첫위치 …)의 모든 행 로짓 [n][어휘] (짧은실수). W: 이름 → 정수 가중치 (q [K][N] 정수, d [KB][N]
     짧은실수) 또는 짧은실수 배열 — embed(q [어휘][D], d [어휘][D/32] — 행 = 토큰), head(q [D][어휘], d [D/32][어휘]), 층 l 의 wq · wk · wv · wo ·
     wg · wu · wd (q [K][N], d [K/32][N]) 와 bq · bk · bv,
-    n1 · n2 · norm. 캐시(사전, 없으면 새로): 층마다 k · v (RoPE 뒤 짧은실수 [위치][KV머리][64]) — 이어 계산(대화)을 위해 첫위치 앞의 키 · 값을 담는다.
+    n1 · n2 · norm. 캐시(사전, 없으면 새로): 층마다 k · v (RoPE 뒤 짧은실수 [위치][KV머리][hd]) — 이어 계산(대화)을 위해 첫위치 앞의 키 · 값을 담는다.
+    머리 크기 hd = D / 머리 수 (cos · sin 표의 폭은 hd/2 — rope표(…, hd=hd)).
     끝행: 로짓을 마지막 끝행 행만(긴 열의 CPU 시간 — 행마다의 값은 같다)."""
     NH, NKV, NL = 설정["머리"], 설정["KV머리"], 설정["층"]
     eps = 설정["eps"]
@@ -398,19 +439,20 @@ def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=1
     위치 = np.arange(첫위치, 첫위치 + n)
     캐시 = {} if 캐시 is None else 캐시
     G = NH // NKV
+    hd = x.shape[1] // NH                                          # 머리 크기(0.5B 64, 7B 128)
     for l in range(NL):
         h = rms정규화(x, W[f"{l}.n1"], eps)
         q = 행렬곱빠른(h, *W[f"{l}.wq"], W[f"{l}.bq"])
         k = 행렬곱빠른(h, *W[f"{l}.wk"], W[f"{l}.bk"])
         v = 행렬곱빠른(h, *W[f"{l}.wv"], W[f"{l}.bv"])
-        q = np.stack([rope(q[:, 64 * a:64 * a + 64], cos, sin, 위치) for a in range(NH)], 1)       # [n][NH][64]
-        k = np.stack([rope(k[:, 64 * a:64 * a + 64], cos, sin, 위치) for a in range(NKV)], 1)
-        v = v.reshape(n, NKV, 64)
+        q = np.stack([rope(q[:, hd * a:hd * a + hd], cos, sin, 위치) for a in range(NH)], 1)       # [n][NH][hd]
+        k = np.stack([rope(k[:, hd * a:hd * a + hd], cos, sin, 위치) for a in range(NKV)], 1)
+        v = v.reshape(n, NKV, hd)
         if l in 캐시:
             k = np.concatenate([캐시[l][0], k], 0)
             v = np.concatenate([캐시[l][1], v], 0)
         캐시[l] = (k, v)
-        y = np.concatenate([어텐션(np.concatenate([np.zeros((첫위치, 64), f32), q[:, a]], 0), k[:, a // G], v[:, a // G], 묶음=묶음, 첫행=첫위치)
+        y = np.concatenate([어텐션(np.concatenate([np.zeros((첫위치, hd), f32), q[:, a]], 0), k[:, a // G], v[:, a // G], 묶음=묶음, 첫행=첫위치)
                             for a in range(NH)], 1)
         x = (x + 행렬곱빠른(y, *W[f"{l}.wo"], np.zeros(y.shape[1], f32))).astype(f32)
         h = rms정규화(x, W[f"{l}.n2"], eps)
