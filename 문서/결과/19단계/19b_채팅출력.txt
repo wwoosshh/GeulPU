@@ -1,0 +1,26 @@
+모델을 올리는 중…
+올림 0.3 초 — qwen2.5-0.5b-instruct-q8_0.gguf · 문맥 8192. /새로 · /끝
+
+> Paris
+[첫 토큰까지 3.9 ms · 생성 2 토큰 387.8 토큰/초 · 문맥 43 · 그 앞에 올림 뒤의 일을 기다림 581.9 ms]
+
+> 대구
+[첫 토큰까지 3.6 ms · 생성 3 토큰 480.9 토큰/초 · 문맥 72]
+
+> The sea is vast and deep,
+A place of endless blue.
+Its waves dance and sway,
+A symphony of nature's call.
+
+The sun sets on the horizon,
+A sight to behold.
+The sea is a place of peace,
+A place where dreams are made.
+
+The sea is a place of wonder,
+A place where the heart beats.
+It's a place where the soul finds its home,
+A place where the spirit finds its home.
+[첫 토큰까지 3.6 ms · 생성 90 토큰 722.7 토큰/초 · 문맥 179]
+
+> 

@@ -1,0 +1,11 @@
+19단계 뒤의 확인 (판정 밖) — 배포판 글 컴파일러로 빌드 · 2026-10-11 00:54
+컴파일러: 글 1.2.1 배포 폴더의 geulc.exe(geul-lang-v2/dist/geul-1.2.1-windows-x64 — build.py release 가 만든 자기 컴파일 실행 파일, 512,000 B, sha256 96ed336546b1c911…)
+  이 PC 의 zip(179,410 B, 7831e957…)은 GitHub 의 2g-1.2.1 배포물(179,055 B, 861469a1…)과 바이트가 다르다(build.py wheel 이 release 를 다시 돌려 zip 을 다시 썼다) — GitHub 쪽 geulc.exe 와의 대조는 하지 않았다(내려받기가 든다)
+PATH = C:\Windows\System32;C:\Windows
+생성기 · 실행기: GEUL_ROOT 없이(배포판의 표준/). 자체PTX: GEUL_ROOT = geul-lang-v2(research/gpu — PTX.gl 이 self/ 의 소스를 포함한다)
+
+d824ee83690a9b249af187f565a7f2c5dafbcc719687a0f741a2de5c5a121853  279040  실행기.exe
+8fed7b7846489128986b3f299dfc6dbff8c8874a2b4b7e34e92f30c5941af08b  493056  자체PTX.exe
+5aa1ada5de1586b5d880949eee8e3a3b6e46f75c7c3d8b692866674b18ceb2df  325120  커널생성.exe
+
+19b 의 공식 빌드(연구 가지의 build/self_컴파일러.exe — 514,048 B, bd8f3381…)와 견줌: 커널생성.exe 5aa1ada5… · 실행기.exe d824ee83… · 자체PTX.exe 8fed7b78… — 셋 모두 같다

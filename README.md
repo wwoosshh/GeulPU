@@ -24,21 +24,22 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 |---|---|
 | 모델 | **Qwen2.5-0.5B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA) — 공식 GGUF Q8_0. GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
-| 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 커널 소스 만들기(생성기) · 시험 · 재기는 Python 3.12 + numpy |
+| 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
 | 아직 없는 것 | 더 큰 Llama 계열(머리 128 · 다른 크기 — 커널이 모델의 모양으로 만들어지므로 모양마다 모듈이 필요하다), k-양자화(Q4_K_M 등), 샘플링(지금은 탐욕), Linux |
 
 다음은 더 많은 모델 모양 · k-양자화 · 샘플링이다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
 글의 자체 호스팅 컴파일러로 빌드한 실행 파일 하나이고, 가져오는 DLL 은 `kernel32` · `shell32`(글 런타임)과 `nvcuda.dll` 뿐이다. GPU 커널의 PTX 는
 글로 쓴 PTX 뒷단이 만든다(17단계). 파이썬 호스트(`엔진/` · `실행.py`)와 견줘 GPU 에 올리는 것 · 토큰 · 걸음마다 로짓 · KV 캐시 · 대화가 바이트까지
-같고 속도도 같다([문서/18단계.md](문서/18단계.md)). 남은 파이썬은 커널 소스(글)를 만드는 생성기([커널/커널생성.py](커널/커널생성.py))와 대조 · 재기
-도구다 — 생성기를 글로 옮기는 것이 다음이다.
+같고 속도도 같다([문서/18단계.md](문서/18단계.md)). **빌드에도 파이썬이 들지 않는다**(19단계): 커널 소스(글)를 만드는 생성기도 글 언어
+([커널/커널생성.gl](커널/커널생성.gl))로 옮겼다. 파이썬 생성기와 바이트까지 같은 소스를 0.04 초에 낸다(파이썬판은 0.09 초) — Qwen2 채팅은
+빌드부터 실행까지 글 컴파일러와 nvcuda.dll 만으로 된다([문서/19단계.md](문서/19단계.md)). 남은 파이썬은 대조 · 시험 · 재기 도구와 GPT-2 연구 엔진이다.
 
 ## 구조
 
 | 폴더 | 무엇 |
 |---|---|
 | [컴파일러/](컴파일러/) | 파이썬판 `글ptx.py`(1~16단계의 PTX 를 냈다 — 이제 대조용) — 글 소스 → (글 앞단: 파서 · 의미 분석) → 타입 IR → PTX. 글 앞단은 [글 참조 구현](https://github.com/wwoosshh/geul-lang)의 고정 사본(`ref/`). 엔진이 쓰는 PTX 는 글로 쓴 뒷단(글 저장소 [research/gpu/자체PTX/](https://github.com/wwoosshh/geul-lang/tree/research/gpu/research/gpu/자체PTX))이 만든다 |
-| [커널/](커널/) | `커널생성.py` — 모델의 커널 모듈(글 소스)을 만드는 생성기, `gpt2.gl` — 손으로 쓴 작은 커널들 |
+| [커널/](커널/) | `커널생성.gl` · `생성*.gl` — Qwen2 커널 모듈(글 소스)을 만드는 글 언어 생성기(19단계 — 파이썬판과 바이트까지 같다), `커널생성.py` — 파이썬 생성기(GPT-2 모듈 · 파이썬 엔진 · 정답지), `gpt2.gl` — 손으로 쓴 작은 커널들 |
 | [엔진/](엔진/) | `글qwen2.py` — Qwen2 호스트(프롬프트 · 줄 길 · 생성 메가커널 · 대조용 생성 그래프), `글gpt2.py` — 드라이버 · 가중치 · 계획 · CUDA 그래프 · 생성 메가커널(GPT-2), `토크나이저.py` — Qwen2 BPE · 채팅 틀(GGUF 안의 것으로), `gguf읽기.py`, `커널모듈.py` — 모듈을 만들고 PTX 를 캐시 |
 | [계약/](계약/) | `정수계약.py` — 계약의 CPU 참조 구현(행렬곱 · 바꾸기 · KV 캐시 · 어텐션 — 모든 비트 대조의 기준) |
 | [시험/](시험/) | 비트 시험 — 판 모두 대 CPU 참조, 길끼리(한 번에 · 하나씩 · 나눠 넣기 · 대화 · 메가커널), 캐시 바이트, 긴 문맥 |
@@ -50,21 +51,30 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 ## 빠른 시작
 
-1. **준비물**: Windows, NVIDIA 드라이버(Ampere 이상), Python 3.12, `pip install numpy`. (시험의 일부와 재기는 `torch`, 견주기는
-   llama.cpp b11496 Windows CUDA 배포본을 `도구/llama-b11496/` 에.)
-2. **글 PTX 뒷단**: 글 저장소의 `research/gpu` 가지를 이 저장소 옆 `../geul-lang-v2` 에 받고, 자체 호스팅 컴파일러를 만든 뒤(고정점 확인)
-   그것으로 PTX 뒷단을 빌드한다. 다른 자리에 두면 환경변수 `GEULPU_글뒷단` 에 실행 파일의 경로를 준다.
+1. **준비물**: Windows, NVIDIA 드라이버(Ampere 이상). 채팅만 하려면 이것과 글 컴파일러로 충분하다. 시험 · 재기 · GPT-2 는 Python 3.12 와
+   `pip install numpy` 가 더 든다(시험의 일부와 재기는 `torch`, 견주기는 llama.cpp b11496 Windows CUDA 배포본을 `도구/llama-b11496/` 에).
+2. **글 컴파일러와 PTX 뒷단**: 글 저장소의 `research/gpu` 가지를 이 저장소 옆 `../geul-lang-v2` 에 받는다(PTX 뒷단의 소스). 컴파일러는 둘 중
+   하나를 쓴다.
+   - 자체 호스팅 컴파일러를 소스에서 만든다(아래 `python build.py selfhost 컴파일러` — 1세대는 파이썬 참조 구현이 만들고 고정점을 확인한다).
+   - 글 배포판([Releases](https://github.com/wwoosshh/geul-lang/releases) — 1.2.1)의 `geulc.exe`(자기 컴파일한 실행 파일)를 쓴다. 이때는 파이썬이
+     들지 않는다. 아래의 `build/self_컴파일러.exe` 자리에 `geulc.exe` 를 쓰면 되고, 만든 실행 파일은 바이트까지 같다(이 PC 의 1.2.1 배포 폴더로
+     확인 — 19단계).
+
+   PTX 뒷단을 다른 자리에 두면 파이썬 엔진이 찾도록 환경변수 `GEULPU_글뒷단` 에 실행 파일의 경로를 준다.
    ```
    git clone -b research/gpu https://github.com/wwoosshh/geul-lang ../geul-lang-v2
    cd ../geul-lang-v2
    python build.py selfhost 컴파일러
    GEUL_ROOT=. build/self_컴파일러.exe research/gpu/자체PTX/PTX.gl -o build/자체PTX.exe
    ```
-3. **채팅**: Hugging Face `Qwen/Qwen2.5-0.5B-Instruct-GGUF` 의 `qwen2.5-0.5b-instruct-q8_0.gguf` (676 MB)를 받는다. 글 실행기를 빌드하고
-   커널 PTX 를 그 옆에 둔다 — 커널 소스(`qwen2Q8.gl`)는 아직 파이썬 생성기가 만든다(한 번, `빌드/` 에 캐시; 19단계에서 글로).
+3. **채팅**: Hugging Face `Qwen/Qwen2.5-0.5B-Instruct-GGUF` 의 `qwen2.5-0.5b-instruct-q8_0.gguf` (676 MB)를 받는다. 글 언어의 커널 생성기와
+   실행기를 빌드하고, 생성기가 낸 커널 소스를 PTX 뒷단으로 PTX 로 바꿔 실행기 옆에 둔다. 생성은 0.04 초, PTX 는 약 26 초가 걸린다.
    ```
+   mkdir -p 빌드/글
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러.exe 커널/커널생성.gl -o 빌드/글/커널생성.exe
    GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러.exe 호스트/실행기.gl -o 빌드/글/실행기.exe
-   python -c "import sys, shutil; sys.path.insert(0, '엔진'); import 커널모듈 as M; shutil.copy(M.ptx('qwen2Q8.gl'), '빌드/글/qwen2Q8.ptx')"
+   빌드/글/커널생성.exe qwen2Q8 빌드/글/qwen2Q8.gl
+   ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2Q8.gl -o 빌드/글/qwen2Q8.ptx
    빌드/글/실행기.exe qwen2.5-0.5b-instruct-q8_0.gguf
    ```
    입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기. 파이썬 실행기(`python 실행.py 모델.gguf`)도 같은 답을 낸다.
@@ -92,7 +102,8 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 이 엔진은 2026-10-08 ~ 10-10 의 연구 0~13단계에서 나왔다. 단계마다 판정 기준을 실험보다 먼저 적고, 모든 변형을 비트 대조한 뒤에
 시간을 적었다. 판정 · 측정 · 실패한 시도의 전문은 글 저장소의 `research/gpu` 가지(docs/17 · research/gpu/N단계)에 있고, 요약은
 [문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [14단계](문서/14단계.md) ·
-[15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md).
+[15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md) ·
+[18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md).
 
 ## 라이선스
 
@@ -105,10 +116,12 @@ compiled to PTX by geul's self-hosted compiler (a PTX backend written in geul; i
 prototype on all 23 engine modules); it runs on the NVIDIA driver alone (no CUDA toolkit, cuBLAS, or PyTorch). The host (GGUF
 loading, weight layout, RoPE tables, tokenizer, CUDA graphs, decode megakernel, terminal runner) is also written in geul: the runner is a
 single executable built by the self-hosted compiler that imports only kernel32, shell32 and nvcuda.dll, and matches the Python host bit for
-bit at the same speed. Only the kernel-source generator is still Python. Precision is a
+bit at the same speed. The kernel-source generator is geul too: it emits source byte-identical to the earlier Python generator in 0.04 s, so
+the Qwen2 chat builds and runs with only the geul compiler and nvcuda.dll (Python remains for tests, benchmarks and the GPT-2 research
+engine). Precision is a
 written contract (2-digit block integers for activations and the KV cache, exact integer tensor-core sums, a written exp polynomial), so
 GPU results match a CPU reference bit for bit and stay identical however the input is split or batched. It runs the chat model
-Qwen2.5-0.5B-Instruct (official GGUF Q8_0) with a terminal runner (`python 실행.py model.gguf`) and GPT-2 (small/XL); on an RTX 4070 Ti
+Qwen2.5-0.5B-Instruct (official GGUF Q8_0) with a terminal runner (`빌드/글/실행기.exe model.gguf`) and GPT-2 (small/XL); on an RTX 4070 Ti
 it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) and decode context (0.63-0.65x, a decode megakernel at
 1.21x the weight-read floor), while its hidden loss
 against an fp64 reference with the same weights is 1/615 of llama.cpp's.

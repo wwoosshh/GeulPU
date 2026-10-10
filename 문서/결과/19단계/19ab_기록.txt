@@ -1,0 +1,16 @@
+﻿폴더 (작업 폴더)\19공식_004332
+시작 2026-10-11 00:43:32
+PATH = C:\Windows\System32;C:\Windows · python 찾음: False · py 찾음: False
+자체PTX 빌드 종료 0
+생성기 빌드 종료 0
+실행기 빌드 종료 0
+생성 종료 0 · 73 ms
+PTX 종료 0 · 25.6 초
+채팅 종료 코드 0
+끝 00:44:00
+0f3153c8901003883ae299287848ebd67a2f8e4d27d94a7ceb37902b37d7f3cd  6779678  (새로 빌드)\qwen2Q8.gl
+d85f7ec7b66f15243ab82e690ea1d05641d4dc5767a3471e1673405c34ba69da  52494659  (새로 빌드)\qwen2Q8.ptx
+8fed7b7846489128986b3f299dfc6dbff8c8874a2b4b7e34e92f30c5941af08b  493056  (새로 빌드)\자체PTX.exe
+8fed7b7846489128986b3f299dfc6dbff8c8874a2b4b7e34e92f30c5941af08b  493056  geul-lang-v2\build\자체PTX.exe
+5aa1ada5de1586b5d880949eee8e3a3b6e46f75c7c3d8b692866674b18ceb2df  325120  (새로 빌드)\커널생성.exe
+d824ee83690a9b249af187f565a7f2c5dafbcc719687a0f741a2de5c5a121853  279040  (새로 빌드)\실행기.exe
