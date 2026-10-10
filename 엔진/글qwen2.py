@@ -561,8 +561,10 @@ class 글Qwen2(글GPT2):
         """탐욕 생성(문장 하나): 프롬프트를 한 번에 처리하고(첫 토큰까지) 나머지 n − 1 개는 생성 그래프로. 토큰 n 개."""
         p = len(ids)
         assert p + n - 1 <= self.최대길이 and n <= self.생성최대
-        self.토큰넣기(ids)
-        self.계산(1, p, 0, "끝", 출력자리=self.생성칸)
+        for a in range(0, p, self.최대행):               # 최대행보다 긴 프롬프트는 나눠 넣는다(같은 비트 — 계약)
+            조각 = ids[a:a + self.최대행]
+            self.토큰넣기(조각)
+            self.계산(1, len(조각), a, "끝", 출력자리=self.생성칸)
         if n > 1:
             self._걸음두기(p)
             self._걸음띄우기(n - 1)
