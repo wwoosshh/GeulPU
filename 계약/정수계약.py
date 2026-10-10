@@ -264,9 +264,50 @@ def rms정규화(x, w, eps=1e-6):
     return ((x * r[:, None]).astype(f32) * np.asarray(w, f32)[None, :]).astype(f32)
 
 
+def _십진파이():
+    """π 를 지금 십진 문맥의 자리로(파이썬 decimal 문서의 recipe — 급수가 더 바뀌지 않을 때까지)."""
+    import decimal
+    c = decimal.getcontext()
+    c.prec += 2
+    three = decimal.Decimal(3)
+    lasts, t, s, n, na, d, da = 0, three, 3, 1, 0, 0, 24
+    while s != lasts:
+        lasts = s
+        n, na = n + na, na + 8
+        d, da = d + da, da + 32
+        t = (t * n) / d
+        s += t
+    c.prec -= 2
+    return +s
+
+
+def _십진cos_sin(x):
+    """(cos x, sin x) 를 지금 십진 문맥의 자리로 — x 를 2π 로 줄인 뒤 테일러 급수(decimal 문서의 recipe)."""
+    import decimal
+    c = decimal.getcontext()
+    c.prec += 10
+    두파이 = 2 * _십진파이()
+    r = x - 두파이 * (x / 두파이).to_integral_value(rounding=decimal.ROUND_HALF_EVEN)
+
+    def 급수(첫, 처음):
+        i, lasts, s, fact, num, sign = 첫, 0, 처음, 1, 처음, 1
+        while s != lasts:
+            lasts = s
+            i += 2
+            fact *= i * (i - 1)
+            num *= r * r
+            sign *= -1
+            s += num / fact * sign
+        return s
+    co, si = 급수(0, decimal.Decimal(1)), 급수(1, r)
+    c.prec -= 10
+    return +co, +si
+
+
 def _바른반올림32(값, 정밀식):
     """fp64 값들(배열)을 짧은실수로 — 값이 짧은실수 두 수의 한가운데에 아주 가까우면(fp64 의 오차로 반올림이 갈릴 수 있으면) 정밀식(i) 으로
-    다시 구해(mpmath 50 자리) 바르게 반올림한다. 그래서 결과는 참값의 바른 반올림(libm 의 fp64 오차와 상관없다)."""
+    다시 구해(파이썬 decimal 80 자리) 바르게 반올림한다. 그래서 결과는 참값의 바른 반올림(libm 의 fp64 오차와 상관없다)."""
+    import decimal
     v = np.asarray(값, np.float64)
     f = v.astype(f32)
     fd = f.astype(np.float64)
@@ -275,33 +316,35 @@ def _바른반올림32(값, 정밀식):
     가운데 = (아래 + 위) / 2
     위험 = np.abs(v - 가운데) <= 8 * np.spacing(np.abs(v))
     if 위험.any():
-        import mpmath
-        mpmath.mp.dps = 50
         out = f.reshape(-1).copy()
         lo32, hi32 = 아래.reshape(-1).astype(f32), 위.reshape(-1).astype(f32)
-        for i in np.flatnonzero(위험.reshape(-1)):
-            x = 정밀식(int(i))
-            m = (mpmath.mpf(float(lo32[i])) + mpmath.mpf(float(hi32[i]))) / 2
-            if x == m:                                       # 정확히 한가운데 — 가수의 끝 비트가 0 인 쪽
-                out[i] = lo32[i] if int(lo32[i:i + 1].view(np.int32)[0]) % 2 == 0 else hi32[i]
-            else:
-                out[i] = lo32[i] if x < m else hi32[i]
+        with decimal.localcontext() as c:
+            c.prec = 80
+            for i in np.flatnonzero(위험.reshape(-1)):
+                x = 정밀식(int(i))
+                m = (decimal.Decimal(float(lo32[i])) + decimal.Decimal(float(hi32[i]))) / 2
+                if x == m:                                       # 정확히 한가운데 — 가수의 끝 비트가 0 인 쪽
+                    out[i] = lo32[i] if int(lo32[i:i + 1].view(np.int32)[0]) % 2 == 0 else hi32[i]
+                else:
+                    out[i] = lo32[i] if x < m else hi32[i]
         f = out.reshape(f.shape)
     return f
 
 
 def rope표(최대길이, theta=1e6, hd=64):
-    """RoPE 의 cos · sin 표 [위치][hd/2] (짧은실수) — θ_i = θ^(−2i/hd) 를 fp64 로 바르게 반올림, 각 = 위치 · θ_i (fp64 곱 — IEEE 반올림 하나),
-    cos(각) · sin(각) 을 짧은실수로 바르게 반올림(정확한 값의 반올림 하나 — 플랫폼의 수학 함수와 상관없다)."""
-    import mpmath
-    mpmath.mp.dps = 50
-    i = np.arange(hd // 2)
-    inv = np.array([float(mpmath.power(mpmath.mpf(theta), mpmath.mpf(-2 * int(k)) / hd)) for k in i], np.float64)
+    """RoPE 의 cos · sin 표 [위치][hd/2] (짧은실수) — θ_i = θ^(−2i/hd) 를 fp64 로 바르게 반올림(decimal 60 자리의 거듭제곱 → fp64), 각 = 위치 · θ_i
+    (fp64 곱 — IEEE 반올림 하나), cos(각) · sin(각) 을 짧은실수로 바르게 반올림(정확한 값의 반올림 하나 — 플랫폼의 수학 함수와 상관없다).
+    표준 라이브러리(decimal)만 쓴다 — 14단계의 처음 판(mpmath 50 자리)과 같은 표임을 위치 32768 까지 확인했다."""
+    import decimal
+    with decimal.localcontext() as c:
+        c.prec = 60
+        inv = np.array([float(decimal.Decimal(repr(float(theta))) ** (decimal.Decimal(-2 * k) / decimal.Decimal(hd))) for k in range(hd // 2)],
+                       np.float64)
     각 = np.arange(최대길이, dtype=np.float64)[:, None] * inv[None, :]
     평 = 각.reshape(-1)
-    c = _바른반올림32(np.cos(각), lambda j: mpmath.cos(mpmath.mpf(float(평[j]))))
-    s = _바른반올림32(np.sin(각), lambda j: mpmath.sin(mpmath.mpf(float(평[j]))))
-    return c, s
+    c_ = _바른반올림32(np.cos(각), lambda j: _십진cos_sin(decimal.Decimal(float(평[j])))[0])
+    s_ = _바른반올림32(np.sin(각), lambda j: _십진cos_sin(decimal.Decimal(float(평[j])))[1])
+    return c_, s_
 
 
 def rope(x, cos, sin, 위치):
