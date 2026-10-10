@@ -20,7 +20,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 DLL = os.environ.get("GEULPU_LLAMA", os.path.join(ROOT, "도구", "llama-b11496"))     # llama.cpp b11496 Windows CUDA 배포본(견주기에만)
-V = 50257
+V = 50257                # GPT-2 — 모델마다의 어휘 수는 라마.V(모델에서 읽는다)
 c_p = ctypes.c_void_p
 로그 = []            # llama.cpp 의 로그 줄 (조용히 = 참이면 화면 대신 여기에 — 플래시 어텐션이 켜졌는지 같은 것을 읽는다)
 _불러옴 = None       # (llama.dll, ggml.dll, 로그 콜백) — 프로세스에 한 번 (콜백이 먼저 사라지면 llama.cpp 가 죽은 함수를 부른다)
@@ -76,6 +76,10 @@ class 라마:
         L.llama_get_logits.argtypes = [c_p]
         L.llama_free.argtypes = [c_p]
         L.llama_model_free.argtypes = [c_p]
+        L.llama_model_get_vocab.restype = c_p
+        L.llama_model_get_vocab.argtypes = [c_p]
+        L.llama_vocab_n_tokens.restype = ctypes.c_int32
+        L.llama_vocab_n_tokens.argtypes = [c_p]
         if 모델 is None:
             mp = ctypes.create_string_buffer(256)
             L.llama_model_default_params(mp)
@@ -86,6 +90,7 @@ class 라마:
             self.내모델 = True
         else:
             self.model, self.내모델 = 모델, False
+        self.V = L.llama_vocab_n_tokens(L.llama_model_get_vocab(self.model))      # 어휘 수(로짓의 길이)
         cp = ctypes.create_string_buffer(512)
         L.llama_context_default_params(cp)
         기본 = struct.unpack_from("<IIII", cp.raw, 0) + struct.unpack_from("<ii", cp.raw, 104)
@@ -136,7 +141,7 @@ class 라마:
     def 모든로짓(self, n):
         """마지막 llama_decode 에서 로짓을 낸 줄 n 개의 로짓 [n][어휘] (낸 차례대로)."""
         p = self.L.llama_get_logits(self.ctx)
-        return np.ctypeslib.as_array(p, shape=(n, V)).copy()
+        return np.ctypeslib.as_array(p, shape=(n, self.V)).copy()
 
     def 닫기(self):
         self.L.llama_free(self.ctx)
@@ -145,7 +150,7 @@ class 라마:
 
     def 로짓(self, i):
         p = self.L.llama_get_logits_ith(self.ctx, i)
-        return np.ctypeslib.as_array(p, shape=(V,)).copy()
+        return np.ctypeslib.as_array(p, shape=(self.V,)).copy()
 
     def 맞추기(self):
         self.L.llama_synchronize(self.ctx)

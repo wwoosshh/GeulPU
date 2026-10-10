@@ -24,7 +24,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import 라마                 # noqa: E402
 
-V = 50257
 
 
 class 엔진:
@@ -36,7 +35,7 @@ class 엔진:
                    if any(x in l for x in ("flash", "Flash", "K (", "n_ctx ", "n_ubatch", "n_seq_max", "kv_unified"))]
 
     def _마지막로짓(self):
-        return np.ctypeslib.as_array(self.lm.L.llama_get_logits_ith(self.lm.ctx, -1), shape=(V,))
+        return np.ctypeslib.as_array(self.lm.L.llama_get_logits_ith(self.lm.ctx, -1), shape=(self.lm.V,))
 
     def _프롬(self, ids):
         """프롬프트를 n_batch 씩 llama_decode — 마지막 토큰의 로짓만 낸다 (llama-cli · llama-server 와 같다)."""

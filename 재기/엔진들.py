@@ -95,6 +95,10 @@ class 일꾼:
             raise RuntimeError(r["오류"])
         return r
 
+    def 파일(self):
+        self.번호 += 1
+        return os.path.join(self.임시, f"{self.번호}.npy")
+
     def 끝(self):
         self.p.stdin.write(json.dumps({"op": "끝"}) + "\n")
         self.p.stdin.flush()
@@ -125,6 +129,23 @@ class 라마엔진:
 
     def 대화(self, 덩이들, n, 처음=True):
         return self.일.부르기("대화", 키=self.키, 덩이들=덩이들, n=n, 처음=처음)["차례"]
+
+    def _읽기(self, f):
+        x = np.load(f)
+        os.remove(f)
+        return x
+
+    def 생성로짓(self, ids, n):
+        """탐욕 n 토큰과 걸음마다의 로짓 [n][어휘] (첫 걸음 = 프롬프트의 마지막 행)."""
+        f = self.일.파일()
+        toks = self.일.부르기("생성", 키=self.키, ids=ids, n=n, 파일=f)["토큰"]
+        return toks, self._읽기(f)
+
+    def 로짓들(self, seqs, 방식="한번에", 조각=64):
+        """토큰열의 모든 행 로짓 [행][어휘]."""
+        f = self.일.파일()
+        self.일.부르기("로짓들", 키=self.키, seqs=seqs, 방식=방식, 조각=조각, 파일=f)
+        return self._읽기(f)
 
     def 닫기(self):
         self.일.부르기("닫기", 키=self.키)
