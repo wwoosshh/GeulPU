@@ -4,6 +4,7 @@
   gpt2.gl            — 손으로 쓴 GPT-2 small 의 작은 커널들(커널/gpt2.gl)
   gpt2XL.gl          — 커널생성.gpt2_source("XL")
   커널프롬.gl         — 커널생성.프롬소스() (프롬프트 메가커널 — 짧은실수 KV 판의 실험)
+  qwen2Q8.gl         — 커널생성.qwen2_source() (14단계 — Qwen2: RMSNorm · RoPE · SwiGLU · GQA)
   그 밖               — 커널생성.source(*커널생성.모듈들[이름])
 """
 import hashlib
@@ -63,6 +64,8 @@ def 소스(이름):
             글 = K.gpt2_source("XL")
         elif 이름 == "커널프롬.gl":
             글 = K.프롬소스()
+        elif 이름 == "qwen2Q8.gl":                  # 14단계 — Qwen2(Llama 계열 블록)
+            글 = K.qwen2_source()
         else:
             글 = K.source(*K.모듈들[이름])
         _쓰기(경로, 글.encode("utf-8"))

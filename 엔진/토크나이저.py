@@ -103,15 +103,26 @@ def _앞자르기(t):
 
 
 class Qwen토크나이저:
-    def __init__(self, 폴더):
-        self.낱말 = json.load(open(os.path.join(폴더, "vocab.json"), encoding="utf-8"))
+    def __init__(self, 폴더=None, gguf=None):
+        """폴더: Hugging Face 모델 폴더(vocab.json · merges.txt · tokenizer_config.json), 또는 gguf: GGUF 파일(경로 또는 gguf읽기.GGUF —
+        tokenizer.ggml.tokens · merges · token_type; 14단계에서 같은 낱말 · 병합 · 특수 토큰 22 개임을 확인함)."""
+        if gguf is not None:
+            import gguf읽기
+            meta = (gguf if isinstance(gguf, gguf읽기.GGUF) else gguf읽기.GGUF(gguf)).meta
+            assert meta["tokenizer.ggml.model"] == "gpt2" and meta["tokenizer.ggml.pre"] == "qwen2", "Qwen2 의 바이트 BPE 가 아니다"
+            toks, 종류 = meta["tokenizer.ggml.tokens"], meta["tokenizer.ggml.token_type"]
+            self.낱말 = {t: i for i, t in enumerate(toks) if 종류[i] == 1}
+            병합 = meta["tokenizer.ggml.merges"]
+            self.특수 = {toks[i]: i for i in range(len(toks)) if 종류[i] in (3, 4)}       # 제어 · 사용자 정의(added tokens)
+        else:
+            self.낱말 = json.load(open(os.path.join(폴더, "vocab.json"), encoding="utf-8"))
+            병합 = [l for l in open(os.path.join(폴더, "merges.txt"), encoding="utf-8").read().split("\n") if l and not l.startswith("#version")]
+            설정 = json.load(open(os.path.join(폴더, "tokenizer_config.json"), encoding="utf-8"))
+            self.특수 = {v["content"]: int(k) for k, v in 설정["added_tokens_decoder"].items()}
         self.순위 = {}
-        for i, l in enumerate(open(os.path.join(폴더, "merges.txt"), encoding="utf-8").read().split("\n")):
-            if l and not l.startswith("#version"):
-                a, b = l.split(" ")
-                self.순위[(a, b)] = len(self.순위)
-        설정 = json.load(open(os.path.join(폴더, "tokenizer_config.json"), encoding="utf-8"))
-        self.특수 = {v["content"]: int(k) for k, v in 설정["added_tokens_decoder"].items()}
+        for l in 병합:
+            a, b = l.split(" ")
+            self.순위[(a, b)] = len(self.순위)
         self.특수차례 = sorted(self.특수, key=len, reverse=True)
         self.거꾸로 = {v: k for k, v in self.낱말.items()}
         self.거꾸로.update({v: k for k, v in self.특수.items()})

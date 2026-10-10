@@ -239,3 +239,142 @@ def 값캐시(v, 최대길이):
     ex = np.zeros((최대길이, 2), np.uint8)
     ex[:n] = E + 114
     return out, ex
+
+
+# ── 14단계 — Llama 계열 블록(Qwen2): RMSNorm · RoPE · SwiGLU · GQA (문서/14단계.md 의 계약) ──────────────────────────────────
+
+def rms정규화(x, w, eps=1e-6):
+    """RMSNorm (행마다, 너비 D) — 가닥 t (0 … 255)의 부분합 p_t = Σ_{c ≡ t (mod 256), c 오름차순} x_c · x_c (곱 · 합마다 반올림), p 를 128 부터
+    반씩 접어(p_t ← p_t + p_{t+접기}) 합 S, r = 1 / 제곱근(S / D + eps) (IEEE 가까운 반올림, eps 는 짧은실수), y_c = (x_c · r) · w_c (반올림 둘).
+    x [행][D] → y [행][D] (짧은실수)."""
+    x = np.asarray(x, f32)
+    R, D = x.shape
+    p = np.zeros((R, 256), f32)
+    with np.errstate(over="ignore"):                               # 넘치면 IEEE 대로 무한(GPU 와 같다)
+        for c0 in range(0, D, 256):
+            b = x[:, c0:c0 + 256]
+            n = b.shape[1]
+            p[:, :n] = (p[:, :n] + (b * b).astype(f32)).astype(f32)
+    접기 = 128
+    while 접기 > 0:
+        p[:, :접기] = (p[:, :접기] + p[:, 접기:2 * 접기]).astype(f32)
+        접기 //= 2
+    평균 = (p[:, 0] / f32(D)).astype(f32)
+    r = (f32(1) / np.sqrt((평균 + f32(eps)).astype(f32))).astype(f32)
+    return ((x * r[:, None]).astype(f32) * np.asarray(w, f32)[None, :]).astype(f32)
+
+
+def _바른반올림32(값, 정밀식):
+    """fp64 값들(배열)을 짧은실수로 — 값이 짧은실수 두 수의 한가운데에 아주 가까우면(fp64 의 오차로 반올림이 갈릴 수 있으면) 정밀식(i) 으로
+    다시 구해(mpmath 50 자리) 바르게 반올림한다. 그래서 결과는 참값의 바른 반올림(libm 의 fp64 오차와 상관없다)."""
+    v = np.asarray(값, np.float64)
+    f = v.astype(f32)
+    fd = f.astype(np.float64)
+    아래 = np.where(fd <= v, f, np.nextafter(f, f32(-np.inf))).astype(np.float64)
+    위 = np.where(fd <= v, np.nextafter(f, f32(np.inf)), f).astype(np.float64)
+    가운데 = (아래 + 위) / 2
+    위험 = np.abs(v - 가운데) <= 8 * np.spacing(np.abs(v))
+    if 위험.any():
+        import mpmath
+        mpmath.mp.dps = 50
+        out = f.reshape(-1).copy()
+        lo32, hi32 = 아래.reshape(-1).astype(f32), 위.reshape(-1).astype(f32)
+        for i in np.flatnonzero(위험.reshape(-1)):
+            x = 정밀식(int(i))
+            m = (mpmath.mpf(float(lo32[i])) + mpmath.mpf(float(hi32[i]))) / 2
+            if x == m:                                       # 정확히 한가운데 — 가수의 끝 비트가 0 인 쪽
+                out[i] = lo32[i] if int(lo32[i:i + 1].view(np.int32)[0]) % 2 == 0 else hi32[i]
+            else:
+                out[i] = lo32[i] if x < m else hi32[i]
+        f = out.reshape(f.shape)
+    return f
+
+
+def rope표(최대길이, theta=1e6, hd=64):
+    """RoPE 의 cos · sin 표 [위치][hd/2] (짧은실수) — θ_i = θ^(−2i/hd) 를 fp64 로 바르게 반올림, 각 = 위치 · θ_i (fp64 곱 — IEEE 반올림 하나),
+    cos(각) · sin(각) 을 짧은실수로 바르게 반올림(정확한 값의 반올림 하나 — 플랫폼의 수학 함수와 상관없다)."""
+    import mpmath
+    mpmath.mp.dps = 50
+    i = np.arange(hd // 2)
+    inv = np.array([float(mpmath.power(mpmath.mpf(theta), mpmath.mpf(-2 * int(k)) / hd)) for k in i], np.float64)
+    각 = np.arange(최대길이, dtype=np.float64)[:, None] * inv[None, :]
+    평 = 각.reshape(-1)
+    c = _바른반올림32(np.cos(각), lambda j: mpmath.cos(mpmath.mpf(float(평[j]))))
+    s = _바른반올림32(np.sin(각), lambda j: mpmath.sin(mpmath.mpf(float(평[j]))))
+    return c, s
+
+
+def rope(x, cos, sin, 위치):
+    """RoPE(NeoX — 반쪽 돌리기) 를 머리 [n][64] 에: i < 32 에서 x′_i = 곱해더하기(x_i, cos, −(x_{i+32} · sin)), x′_{i+32} = 곱해더하기(x_{i+32}, cos,
+    x_i · sin) — cos · sin 은 표의 [위치][i]."""
+    x = np.asarray(x, f32)
+    c, s = cos[위치], sin[위치]                                      # [n][32]
+    a, b = x[:, :32], x[:, 32:]
+    return np.concatenate([fma32(a, c, -(b * s).astype(f32)), fma32(b, c, (a * s).astype(f32))], 1).astype(f32)
+
+
+def swiglu(g, u):
+    """SwiGLU 의 h = silu(g) · u — e = 적힌지수(0 − |g|), s = g ≥ 0 이면 g / (1 + e), 아니면 (g · e) / (1 + e), h = s · u (연산마다 IEEE 반올림)."""
+    g, u = np.asarray(g, f32), np.asarray(u, f32)
+    e = 적힌지수((f32(0) - np.abs(g)).astype(f32))
+    d = (f32(1) + e).astype(f32)
+    s = np.where(g >= 0, (g / d).astype(f32), ((g * e).astype(f32) / d).astype(f32)).astype(f32)
+    return (s * u).astype(f32)
+
+
+def 행렬곱빠른(x, q, d, 치우침):
+    """행렬곱(…, 자리수=2) 와 같은 값 — 블록 합 S_j 를 fp64 행렬곱으로(|S| ≤ 32 · 128 · 128 < 2⁵³ 라 정확한 정수) 구한다(큰 모양의 CPU 참조용)."""
+    D, E = 자리로(x, 2)
+    M, K = D.shape[1:]
+    KB = K // 32
+    N = q.shape[1]
+    y = np.zeros((M, N), f32)
+    qf = np.asarray(q, np.float64)
+    d = np.asarray(d, f32)
+    Df = D.astype(np.float64)
+    for b in range(KB):
+        qb = qf[32 * b:32 * b + 32]
+        v = [np.ldexp((Df[j][:, 32 * b:32 * b + 32] @ qb).astype(f32), (8 * j + E[:, b] - 13)[:, None]).astype(f32) for j in range(2)]
+        u = (v[1] + v[0]).astype(f32)
+        y = fma32(u, np.broadcast_to(d[b][None, :], u.shape), y)
+    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+
+
+def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=16, 끝행=None):
+    """정수 계약의 Qwen2 앞으로 — 토큰 ids(위치 첫위치 …)의 모든 행 로짓 [n][어휘] (짧은실수). W: 이름 → 정수 가중치 (q [K][N] 정수, d [KB][N]
+    짧은실수) 또는 짧은실수 배열 — embed(q [어휘][D], d [어휘][D/32] — 행 = 토큰), head(q [D][어휘], d [D/32][어휘]), 층 l 의 wq · wk · wv · wo ·
+    wg · wu · wd (q [K][N], d [K/32][N]) 와 bq · bk · bv,
+    n1 · n2 · norm. 캐시(사전, 없으면 새로): 층마다 k · v (RoPE 뒤 짧은실수 [위치][KV머리][64]) — 이어 계산(대화)을 위해 첫위치 앞의 키 · 값을 담는다.
+    끝행: 로짓을 마지막 끝행 행만(긴 열의 CPU 시간 — 행마다의 값은 같다)."""
+    NH, NKV, NL = 설정["머리"], 설정["KV머리"], 설정["층"]
+    eps = 설정["eps"]
+    ids = np.asarray(ids)
+    n = len(ids)
+    eq, ed = W["embed"]                                           # q [어휘][D] 정수, d [어휘][D/32] 짧은실수
+    x = (eq[ids].astype(f32) * np.repeat(ed[ids], 32, axis=1)).astype(f32)      # 임베딩: q · d (정확)
+    위치 = np.arange(첫위치, 첫위치 + n)
+    캐시 = {} if 캐시 is None else 캐시
+    G = NH // NKV
+    for l in range(NL):
+        h = rms정규화(x, W[f"{l}.n1"], eps)
+        q = 행렬곱빠른(h, *W[f"{l}.wq"], W[f"{l}.bq"])
+        k = 행렬곱빠른(h, *W[f"{l}.wk"], W[f"{l}.bk"])
+        v = 행렬곱빠른(h, *W[f"{l}.wv"], W[f"{l}.bv"])
+        q = np.stack([rope(q[:, 64 * a:64 * a + 64], cos, sin, 위치) for a in range(NH)], 1)       # [n][NH][64]
+        k = np.stack([rope(k[:, 64 * a:64 * a + 64], cos, sin, 위치) for a in range(NKV)], 1)
+        v = v.reshape(n, NKV, 64)
+        if l in 캐시:
+            k = np.concatenate([캐시[l][0], k], 0)
+            v = np.concatenate([캐시[l][1], v], 0)
+        캐시[l] = (k, v)
+        y = np.concatenate([어텐션(np.concatenate([np.zeros((첫위치, 64), f32), q[:, a]], 0), k[:, a // G], v[:, a // G], 묶음=묶음, 첫행=첫위치)
+                            for a in range(NH)], 1)
+        x = (x + 행렬곱빠른(y, *W[f"{l}.wo"], np.zeros(y.shape[1], f32))).astype(f32)
+        h = rms정규화(x, W[f"{l}.n2"], eps)
+        g = 행렬곱빠른(h, *W[f"{l}.wg"], np.zeros(W[f"{l}.wg"][0].shape[1], f32))
+        u = 행렬곱빠른(h, *W[f"{l}.wu"], np.zeros(W[f"{l}.wu"][0].shape[1], f32))
+        f = swiglu(g, u)
+        x = (x + 행렬곱빠른(f, *W[f"{l}.wd"], np.zeros(x.shape[1], f32))).astype(f32)
+    h = rms정규화(x if 끝행 is None else x[-끝행:], W["norm"], eps)
+    hq, hd_ = W["head"]
+    return 행렬곱빠른(h, hq, hd_, np.zeros(hq.shape[1], f32))
