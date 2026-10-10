@@ -27,7 +27,7 @@ ROOT = os.path.normpath(os.path.join(HERE, ".."))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "커널"))
 sys.path.insert(0, os.path.join(ROOT, "계약"))
-from 커널생성 import 어텐션질의수, 갈래워프, 정수판표, 정수판모양, 줄판Q      # noqa: E402 — 정수 판의 모양(커널과 같은 표)
+from 커널생성 import 어텐션질의수, 갈래워프, 정수판표, 정수판모양, 줄판Q, 메가블록qwen, 층크기정수      # noqa: E402 — 커널과 같은 표
 import 커널모듈                     # noqa: E402
 import gguf읽기 as GR               # noqa: E402
 import 정수계약                     # noqa: E402 — RoPE 표(rope표)는 CPU 참조와 같은 함수로
@@ -99,9 +99,10 @@ def qwen2가중치(path):
 
 
 class 글Qwen2(글GPT2):
-    """Qwen2(GGUF Q8_0) 엔진. 문장 B 개 × m 행의 계산(계산) · 탐욕 생성(생성 · 이어넣기 · 이어생성 — 생성 그래프)."""
+    """Qwen2(GGUF Q8_0) 엔진. 문장 B 개 × m 행의 계산(계산) · 탐욕 생성(생성 · 이어넣기 · 이어생성 — 생성 메가커널, 메가쓰기 가 거짓이면
+    14단계의 생성 그래프 — 같은 비트)."""
 
-    def __init__(self, gguf, 최대행=2048, 최대문장=1, 최대길이=32768, 로짓행=512, 묶음판행=묶음판행, 가중치=None):
+    def __init__(self, gguf, 최대행=2048, 최대문장=1, 최대길이=32768, 로짓행=512, 묶음판행=묶음판행, 가중치=None, ptx경로=None):
         W, 설정 = 가중치 if 가중치 is not None else qwen2가중치(gguf)
         self.설정 = 설정
         self.D, self.NH, self.NKV, self.NL, self.F = 설정["너비"], 설정["머리"], 설정["KV머리"], 설정["층"], 설정["확장폭"]
@@ -115,7 +116,7 @@ class 글Qwen2(글GPT2):
         self.KV형식, self.크기 = "정수", "qwen2"
         self.최대행, self.최대문장, self.최대길이 = 최대행, 최대문장, 최대길이
         self.dr = dr = 드라이버()
-        self.mods = [dr.모듈(open(커널모듈.ptx("qwen2Q8.gl"), "rb").read())]
+        self.mods = [dr.모듈(open(ptx경로 or 커널모듈.ptx("qwen2Q8.gl"), "rb").read())]     # ptx경로: 재기용(생성기 깃발을 바꾼 모듈)
         mod = self.mods[0]
         이름들 = ("정수로", "RMS정규화정수줄", "RMS정규화줄", "임베딩", "RoPEKV정수로", "SwiGLU줄", "가장큰번호",
                  "정수어텐션", "정수어텐션갈래", "정수조각어텐션", "정수조각접기", "정수어텐션묶음", "정수어텐션갈래묶음", "정수묶음접기",
@@ -217,6 +218,22 @@ class 글Qwen2(글GPT2):
         dr.확인(dr.cu.cuDeviceGetAttribute(ctypes.byref(sm), 16, 0))
         self.SM수 = sm.value
         self.갈래쓰기, self.묶음판쓰기 = True, True
+        # 15단계 — 생성 메가커널(협력 실행): 격자 = SM 수 × 점유(실행한도까지). 문장 하나의 캐시(층 걸음 = 문장 하나 몫)만
+        cu = dr.cu
+        cu.cuLaunchCooperativeKernel.argtypes = [ctypes.c_void_p] + [ctypes.c_uint] * 7 + [ctypes.c_void_p] * 2
+        self.k["생성메가qwen"] = dr.함수(mod, "생성메가qwen")
+        점유 = ctypes.c_int()
+        dr.확인(cu.cuOccupancyMaxActiveBlocksPerMultiprocessor(ctypes.byref(점유), self.k["생성메가qwen"], 256, ctypes.c_size_t(0)))
+        self.메가격자 = self.SM수 * min(점유.value, 메가블록qwen)
+        for 이름, K, N in (("qkv", D, self.QKV), ("o", D, D), ("gu", D, 2 * F), ("down", F, D)):     # 커널이 셈하는 층 걸음과 같은가
+            assert self.층[1][이름][0] - self.층[0][이름][0] == sum(층크기정수("Q8_0", K, N)), 이름
+        # 생성 · 이어생성이 메가커널을(거짓이면 14단계의 생성 그래프 — 같은 비트). 메가커널의 두 층 접기는 묶음 16 개(위치 16384)까지
+        self.메가쓰기 = 최대문장 == 1 and self.메가격자 > 0 and 최대길이 <= 16384
+        self.메가장벽 = dr.할당(256)
+        self.주의셈 = dr.할당(64 * 8)
+        self.메가부분값, self.메가부분번호 = dr.할당(max(self.메가격자, 1) * 4), dr.할당(max(self.메가격자, 1) * 8)
+        self._로짓기록 = (None, 0)
+        self.시각칸, self.시각재기 = dr.할당(8 * (1 + 130 * 1100)), 0     # 재기용: 0 이 아니면 블록 (값 − 1) 이 장벽마다 GPU 시각을 남긴다
         self._계획, self._그래프, self._고른판, self._계획쓰임, self._격자식들, self._점유칸 = {}, {}, {}, {}, {}, {}
         self.그래프쓰기 = True
         self._생성그래프 = None
@@ -543,6 +560,29 @@ class 글Qwen2(글GPT2):
 
     # ── 생성 ──
 
+    def _메가띄우기(self, 토큰시작, 시작위치, 생성수, 끝들=(), 기록칸=None):
+        """15단계 생성 메가커널을 한 번(협력 실행): 생성칸[토큰시작] 의 토큰(위치 시작위치)부터 토큰 생성수 − 1 개를 생성칸[토큰시작 + 1 …] 에.
+        끝들(둘까지)이 나오면 거기서 멈춘다. 기록칸: 걸음마다의 로짓 [생성수 − 1][어휘] 을 둘 곳(시험용). 기다리지 않는다."""
+        assert 시작위치 + 생성수 - 1 <= self.최대길이 and 토큰시작 + 생성수 <= self.생성최대
+        P, I = c_u64, c_i64
+        cu = self.dr.cu
+        self.dr.확인(cu.cuMemsetD8_v2(c_u64(self.메가장벽), 0, ctypes.c_size_t(256)))
+        w0 = self.층[0]
+        끝 = list(끝들)[:2] + [-1, -1]
+        ps = [P(self.생성칸), P(self.낱말[0]), P(self.낱말[1]), P(self.머리[0]), P(self.머리[1]), P(self.norm), P(w0["n1"]), P(w0["n2"]),
+              P(w0["qkv"][0]), P(w0["qkv"][1]), P(w0["qkv치우침"]), P(w0["o"][0]), P(w0["o"][1]), P(w0["gu"][0]), P(w0["gu"][1]),
+              P(w0["down"][0]), P(w0["down"][1]), P(self.kc바탕), P(self.vc바탕), P(self.ke바탕), P(self.ve바탕), P(self.코사인), P(self.사인),
+              P(self.영치우침), P(self.h), P(self.자릿값q), P(self.정보q), P(self.att), P(self.f), P(self.자릿값2), P(self.정보2), P(기록칸 or self.logits),
+              P(self.메가부분값), P(self.메가부분번호), P(self.메가장벽), P(self.주의셈), P(self.조각칸), P(self.시각칸),
+              I(토큰시작), I(시작위치), I(생성수), I(self.최대길이), I(self.메가격자), I(끝[0]), I(끝[1]), I(1 if 기록칸 else 0),
+              I(self.시각재기)]
+        assert all(x.value % 16 == 0 for x in ps if isinstance(x, c_u64)), "메가커널의 참조 매개변수가 16 바이트 정렬이 아니다"
+        args = (ctypes.c_void_p * len(ps))(*[ctypes.cast(ctypes.byref(x), ctypes.c_void_p) for x in ps])
+        self._메가인자 = (ps, args)                   # 실행이 끝날 때까지 살려 둔다
+        r = cu.cuLaunchCooperativeKernel(self.k["생성메가qwen"], self.메가격자, 1, 1, 256, 1, 1, 0, None, args)
+        if r != 0:
+            raise RuntimeError(f"생성 메가커널 실행 오류 {r}")
+
     def _걸음두기(self, 위치, 걸음=0):
         self.dr.올리기(self.걸음칸, np.array([위치, 걸음], np.int64))
 
@@ -566,8 +606,11 @@ class 글Qwen2(글GPT2):
             self.토큰넣기(조각)
             self.계산(1, len(조각), a, "끝", 출력자리=self.생성칸)
         if n > 1:
-            self._걸음두기(p)
-            self._걸음띄우기(n - 1)
+            if self.메가쓰기:
+                self._메가띄우기(0, p, n)
+            else:
+                self._걸음두기(p)
+                self._걸음띄우기(n - 1)
         out = np.zeros(n, np.int64)
         self.dr.맞추기()
         return [int(t) for t in self.dr.내리기(self.생성칸, out)]
@@ -587,7 +630,8 @@ class 글Qwen2(글GPT2):
         (흘려 보이기 — 짧은 답에서 끝 토큰 뒤에 헛걸음이 적게). 끝 토큰 뒤의 헛걸음이 캐시의 뒷자리에 쓴 것은 다음 덩이가 덮는다(어텐션은
         제 위치까지만 읽는다)."""
         assert 위치 + k <= self.최대길이 and k + 1 <= self.생성최대
-        self._걸음두기(위치)
+        if not self.메가쓰기:
+            self._걸음두기(위치)
         토큰 = [첫]
         if 첫 in 끝들:
             return 토큰
@@ -595,7 +639,10 @@ class 글Qwen2(글GPT2):
         while len(토큰) < k + 1:
             n = min(이번, 묶음, k + 1 - len(토큰))
             이번 *= 2
-            self._걸음띄우기(n)
+            if self.메가쓰기:                         # 15단계: 메가커널 — 끝 토큰이 나오면 커널 안에서 멈춘다(헛걸음 없이)
+                self._메가띄우기(len(토큰) - 1, 위치 + len(토큰) - 1, n + 1, 끝들)
+            else:
+                self._걸음띄우기(n)
             out = np.zeros(len(토큰) + n, np.int64)
             self.dr.맞추기()
             새 = [int(t) for t in self.dr.내리기(self.생성칸, out)[len(토큰):]]
@@ -613,13 +660,22 @@ class 글Qwen2(글GPT2):
     def 생성로짓(self, ids, n):
         """탐욕 n 토큰과 걸음마다의 로짓 [n][어휘] (첫 걸음 = 프롬프트의 마지막 행) — 생성 그래프를 한 걸음씩(기다리며 로짓을 받는다). 시험용."""
         p = len(ids)
-        self.토큰넣기(ids)
-        self.계산(1, p, 0, "끝", 출력자리=self.생성칸)
+        for a in range(0, p, self.최대행):               # 최대행보다 긴 프롬프트는 나눠 넣는다(생성과 같이 — 같은 비트)
+            조각 = ids[a:a + self.최대행]
+            self.토큰넣기(조각)
+            self.계산(1, len(조각), a, "끝", 출력자리=self.생성칸)
         로짓 = [self.로짓(1)[0].copy()]
-        self._걸음두기(p)
-        for _ in range(n - 1):
-            self._걸음띄우기(1)
-            로짓.append(self.로짓(1)[0].copy())
+        if self.메가쓰기 and n > 1:                   # 15단계: 메가커널이 걸음마다의 로짓을 기록칸에(기록 = 1)
+            if self._로짓기록[1] < n - 1:
+                self._로짓기록 = (self.dr.할당((n - 1) * self.V * 4), n - 1)
+            self._메가띄우기(0, p, n, 기록칸=self._로짓기록[0])
+            self.dr.맞추기()
+            로짓 += list(self.dr.내리기(self._로짓기록[0], np.empty((n - 1, self.V), np.float32)))
+        elif n > 1:
+            self._걸음두기(p)
+            for _ in range(n - 1):
+                self._걸음띄우기(1)
+                로짓.append(self.로짓(1)[0].copy())
         out = np.zeros(n, np.int64)
         self.dr.맞추기()
         return [int(t) for t in self.dr.내리기(self.생성칸, out)], np.stack(로짓)
