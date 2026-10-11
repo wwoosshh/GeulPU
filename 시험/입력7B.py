@@ -5,6 +5,7 @@
 
   python -I 시험/입력7B.py <7B gguf> <입력.bin> [--최대길이 4096] [--로짓행 128]
   python -I 시험/입력7B.py <7B gguf> <재기입력.bin> --재기        (22d — 호스트/재기_7B.gl 의 입력)
+  python -I 시험/입력7B.py <gguf> <입력.bin> --무작위 24          (24단계 — 합성 모델: 같은 길이의 정한 무작위 토큰열)
 """
 import os
 import sys
@@ -45,6 +46,10 @@ def main():
         return
     경우들 = [(tk.나누기(TK.채팅틀([{"role": "user", "content": q}])), 17, 0) for q in 질문들]
     경우들.append(((tk.나누기(긴글) * 400)[:2100], 17, 2000))
+    if "--무작위" in sys.argv:                 # 24단계 — 합성 모델: 정한 무작위 토큰열 셋(길이는 채팅 질문과 같게)과 2100 (보통 낱말 0 … 151642)
+        import numpy as np
+        r = np.random.default_rng(int(sys.argv[sys.argv.index("--무작위") + 1]))
+        경우들 = [([int(t) for t in r.integers(0, 151643, len(ids))], n, 잡기) for ids, n, 잡기 in 경우들]
     with open(출력, "wb") as f:
         w = lambda v: f.write(int(v).to_bytes(8, "little", signed=True))
         w(최대길이), w(로짓행), w(len(경우들))

@@ -35,6 +35,7 @@
 외부 "nvcuda.dll" "cuGraphExecDestroy" [공허 참조 실행본을 cuGraphExecDestroy]는 -> 중간정수.
 외부 "nvcuda.dll" "cuGraphDestroy" [공허 참조 그래프를 cuGraphDestroy]는 -> 중간정수.
 외부 "nvcuda.dll" "cuGetErrorString" [중간정수 코드를 공허 참조 글을 cuGetErrorString]는 -> 중간정수.
+외부 "nvcuda.dll" "cuMemGetInfo_v2" [공허 참조 남음을 공허 참조 전체를 cuMemGetInfo_v2]는 -> 중간정수.
 
 (* 결과가 0(CUDA_SUCCESS)이 아니면 무엇이 실패했는지 알리고 끝낸다 — 조용한 실패는 없다 *)
 [중간정수 코드를 문자열 무엇으로 쿠다확인]는 {
@@ -107,6 +108,14 @@
     cuMemsetD8_v2(p, 0, n)를 "cuMemsetD8"으로 쿠다확인하다.
     정수목록_추가(쿠다할당들, p).
     반환 p.
+}
+
+(* 24단계 — 장치의 남은 메모리(바이트) *)
+[장치남은바이트]는 -> 정수 {
+    정수 남음 = 0.
+    정수 전체 = 0.
+    cuMemGetInfo_v2(&남음, &전체)를 "cuMemGetInfo"으로 쿠다확인하다.
+    반환 남음.
 }
 
 [정수 주소를 정수 바이트수를 장치영]는 { cuMemsetD8_v2(주소, 0, 바이트수)를 "cuMemsetD8"으로 쿠다확인하다. }

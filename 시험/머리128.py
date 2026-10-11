@@ -28,10 +28,34 @@ import 정수계약 as C        # noqa: E402
 
 f32 = np.float32
 u64, i64 = G.c_u64, G.c_i64
-D, NH, NKV, HD = 3584, 28, 4, 128
+D, NH, NKV, HD = 3584, 28, 4, 128         # 7B — 24단계부터는 main 이 GGUF 의 설정으로 다시 둔다(모양두기)
 QKV = D + 2 * NKV * HD                     # 4608
 KB = D // 32                               # 112
 SH = HD + 4                            # 묶음 상태 하나의 칸 (M, L, 빈 둘, O 128)
+
+
+def 모양두기(경로):
+    """24단계 — GGUF 의 메타데이터(바이트 몇 십 MB 만 읽는다)에서 너비 · 머리 · KV 머리. 머리 크기는 128."""
+    import struct
+    with open(경로, "rb") as f:
+        b = f.read(96 * 1024 * 1024)
+    _, nkv = struct.unpack_from("<QQ", b, 8)
+    o = 24
+    메타 = {}
+    for _ in range(nkv):
+        n = struct.unpack_from("<Q", b, o)[0]
+        키 = b[o + 8:o + 8 + n].decode("utf-8")
+        t = struct.unpack_from("<I", b, o + 8 + n)[0]
+        v, o = GR._값(b, o + 12 + n, t)
+        메타[키] = v
+    global D, NH, NKV, QKV, KB
+    D = 메타["qwen2.embedding_length"]
+    NH = 메타["qwen2.attention.head_count"]
+    NKV = 메타["qwen2.attention.head_count_kv"]
+    assert D == NH * HD, (D, NH)
+    QKV = D + 2 * NKV * HD
+    KB = D // 32
+    return 메타
 질문들 = ["What is the capital of France? Answer in one word.", "대한민국의 수도는 어디야? 한 단어로 답해.",
          "Write a short poem about the sea."]
 
@@ -185,16 +209,22 @@ def 층0qkv(gguf, ids):
     """7B 층 0 의 q · k · v (bias 포함, RoPE 앞) — CPU 참조의 임베딩 · RMS · 행렬곱빠른(계약 그대로)."""
     g = GR.GGUF(gguf)
 
-    def q8(name):
+    def q8(name):                                   # Q8_0 · Q4_0 (니블 − 8) — 24단계
         t, dims, raw = g.원(name)
         K, N = dims
+        if t == GR.Q4_0:
+            bl = np.asarray(raw).reshape(N, K // 32, 18)
+            d = np.ascontiguousarray(bl[:, :, :2]).view(np.float16).reshape(N, K // 32).astype(f32)
+            qs = bl[:, :, 2:]
+            q = (np.concatenate([qs & 15, qs >> 4], 2).astype(np.int16) - 8).astype(np.int8).reshape(N, K)
+            return q, d
         bl = np.asarray(raw).reshape(N, K // 32, 34)
         d = np.ascontiguousarray(bl[:, :, :2]).view(np.float16).reshape(N, K // 32).astype(f32)
         q = np.ascontiguousarray(bl[:, :, 2:]).view(np.int8).reshape(N, K)
         return q, d
     eq, ed = q8("token_embd.weight")
     x = (eq[ids].astype(f32) * np.repeat(ed[ids], 32, axis=1)).astype(f32)
-    h = C.rms정규화(x, g.풀기("blk.0.attn_norm.weight"), 1e-6)
+    h = C.rms정규화(x, g.풀기("blk.0.attn_norm.weight"), float(g.meta["qwen2.attention.layer_norm_rms_epsilon"]))
     out = []
     for a in ("q", "k", "v"):
         q, d = q8(f"blk.0.attn_{a}.weight")
@@ -212,6 +242,8 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ptx, gguf, 출력 = sys.argv[1:4]
     빠르게 = "--빠르게" in sys.argv
+    모양두기(gguf)
+    print(f"모양: 너비 {D} · 머리 {NH} · KV 머리 {NKV} (GQA {NH // NKV})", flush=True)
     k = 글커널(ptx)
     결과 = {"커널 속성": k.속성(), "경우": []}
     print(json.dumps(결과["커널 속성"], ensure_ascii=False), flush=True)
@@ -236,7 +268,7 @@ def main():
             ids = 채팅토큰(질문)
             Xr = 층0qkv(gguf, ids)
             m = len(ids)
-            경우들.append((f"7B 층 0 · 질문 {qi + 1} (토큰 {m})", Xr, 1024,
+            경우들.append((f"층 0 · 질문 {qi + 1} (토큰 {m})", Xr, 1024,
                         {"한 번에": [(0, m)], "나눠서": [(0, m // 2), (m // 2, m - m // 2)], "한 행씩": [(s, 1) for s in range(m)],
                          "생성 판 행 1": [(s, 1, "조각") for s in range(m)],
                          "생성 판 행 4": [(s, min(4, m - s), "조각") for s in range(0, m, 4)]}))

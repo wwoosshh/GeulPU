@@ -59,13 +59,14 @@ def 자체시험(g):
         a = C.행렬곱블라스(x, q, d, b)
         c = C.행렬곱(x, q.T.astype(np.int64), d.T, b, 자리수=2)
         결과.append({"꼴": f"무작위 M {M} · K {K} · N {N}", "다른 칸": 다른칸(a, c)})
-    for 이름, K in (("blk.0.ffn_gate.weight", 3584), ("blk.0.ffn_down.weight", 18944)):
+    for 이름 in ("blk.0.ffn_gate.weight", "blk.0.ffn_down.weight"):          # K 는 텐서에서(24단계 — 모양과 상관없이)
         q, d = q8(g, 이름)
         q, d = q[:96], d[:96]
+        K = q.shape[1]
         x = (r.standard_normal((6, K)) * 0.5).astype(f32)
         a = C.행렬곱블라스(x, q, d, np.zeros(96, f32))
         c = C.행렬곱(x, q.T.astype(np.int64), np.ascontiguousarray(d.T), np.zeros(96, f32), 자리수=2)
-        결과.append({"꼴": f"7B {이름} 열 96 · K {K} · 행 6", "다른 칸": 다른칸(a, c)})
+        결과.append({"꼴": f"{이름} 열 96 · K {K} · 행 6", "다른 칸": 다른칸(a, c)})
     for x in 결과:
         print("자체시험", x, flush=True)
     return 결과
