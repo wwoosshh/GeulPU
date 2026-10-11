@@ -25,13 +25,13 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 | | |
 |---|---|
-| 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0. 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192) ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
+| 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0 · **k-양자화(Q4_K · Q5_K · Q6_K — 텐서마다 형식이 다른 Q4_K_M · Q5_K_M · Q6_K 섞음 그대로, 26단계 — 이 PC 에서 다시 양자화한 파일로 시험)**. k-양자화도 CPU 참조와 비트까지 같고, 7B 생성은 llama.cpp 의 0.977 ~ 1.009배 시간(아홉 칸), 프롬프트는 1.46 ~ 1.62배(Q4_K_M · Q5_K_M) · 2.06 ~ 2.12배(Q6_K)다 — 14B Q4_K_M 생성 1.009 · 1.012배([26단계](문서/26단계.md)). 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192) ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
 | 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
 | 층 나누기 | 25단계 — 한 GPU 에 들지 않는 모델을 층으로 나눠 여러 GPU 에(`--나누기 P` · `--장치 a,b,…` · `--예산 GB`). 이 PC 에는 GPU 가 한 장이라 한 장 안의 여러 쿠다 문맥으로 흉내 냈다: 나눠 돌린 길 16 개가 한 조각과 바이트까지 같고, 7B 두 조각의 생성은 한 조각의 1.025 ~ 1.029 배(조각마다 문맥 — 그 차이의 대부분은 한 GPU 에서 문맥을 오가는 흉내의 값) · 1.002 ~ 1.003 배(문맥 하나). 14B 두 조각은 12 GB 한 장에 문맥 8192 로 들지 않아 그 칸을 재지 못했다 — 판정 25c 는 통과하지 못함([25단계](문서/25단계.md)) |
-| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상(실제 가중치)에서 fp64 참값과 견주기(0.5B 만 했다), k-양자화(Q4_K_M 등 — 26단계에서 시작), MoE, 샘플링(지금은 탐욕), 서버 기능, Linux, 다른 GPU 에서의 재현 |
+| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 샘플링(지금은 탐욕), 서버 기능, Linux, 다른 GPU 에서의 재현 |
 
-다음은 k-양자화 · MoE · 서버 기능, 큰 모델에서 계약의 손실 확인, 생성 메가커널 · 프롬프트의 남은 거리다. 공식 실행 스크립트(빌드부터 판정의 값까지)는
+다음은 MoE · 서버 기능, 프롬프트의 남은 거리(특히 k-양자화의 타일 판 — Q6_K 는 정수 텐서 일이 두 배), 생성의 바닥까지 남은 거리다. 공식 실행 스크립트(빌드부터 판정의 값까지)는
 [공식실행/](공식실행/)에 있다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
 글의 자체 호스팅 컴파일러로 빌드한 실행 파일 하나이고, 가져오는 DLL 은 `kernel32` · `shell32`(글 런타임)과 `nvcuda.dll` 뿐이다. GPU 커널의 PTX 는
 글로 쓴 PTX 뒷단이 만든다(17단계). 파이썬 호스트(`엔진/` · `실행.py`)와 견줘 GPU 에 올리는 것 · 토큰 · 걸음마다 로짓 · KV 캐시 · 대화가 바이트까지
@@ -103,6 +103,14 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
    ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2Q4_5120x40x8x13824x152064.gl -o 빌드/글/qwen2Q4_5120x40x8x13824x152064.ptx
    빌드/글/실행기.exe qwen2.5-14b-instruct-q4_0-pure.gguf
    ```
+   k-양자화(26단계 — Q4_K_M · Q5_K_M · Q6_K 등, 행렬마다 Q4_K · Q5_K · Q6_K 의 아무 섞음)는 형식 자리에 `K` 를 준 모듈 하나가 세 형식의 판을
+   모두 담는다(모듈 이름 `qwen2K_{모양}.ptx`). 시험한 파일은 이 PC 에서 7B Q8_0 을 다시 양자화해 만든 것이다
+   (`llama-quantize --allow-requantize 7b-q8_0.gguf 7b-q4_k_m-req.gguf Q4_K_M` — 섞는 규칙은 공식 파일과 같고, 공식 파일은 아직 돌려 보지 않았다). 7B:
+   ```
+   빌드/글/커널생성.exe qwen2큰 K 3584 28 4 18944 152064 빌드/글/qwen2K_3584x28x4x18944x152064.gl
+   ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2K_3584x28x4x18944x152064.gl -o 빌드/글/qwen2K_3584x28x4x18944x152064.ptx
+   빌드/글/실행기.exe qwen2.5-7b-instruct-q4_k_m-req.gguf
+   ```
    여러 GPU 에 층을 나눠 싣기(25단계): `빌드/글/실행기.exe 모델.gguf --장치 0,1` (장치마다 조각 하나), 장치마다 쓸 메모리를 정하면 `--예산 GB`
    (나누는 자리를 예산 안에서 앞부터), 한 GPU 에서 흉내는 `--나누기 P`. 이 PC 에서는 한 장 안의 흉내만 시험했다.
    입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기. 파이썬 실행기(`python 실행.py 모델.gguf` — 0.5B 만)도 같은 답을 낸다.
@@ -132,7 +140,9 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 [문서/단계기록.md](문서/단계기록.md). 14단계(첫 채팅 모델)부터는 이 저장소에서 한다 — [14단계](문서/14단계.md) ·
 [15단계 — 생성 메가커널](문서/15단계.md) · [16단계 — 자체 컴파일러 PTX 탐침](문서/16단계.md) · [17단계 — 모델 커널을 글 컴파일러로](문서/17단계.md) ·
 [18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md) · [20단계 — 퍼플렉시티로 본 숨은 손실](문서/20단계.md) ·
-[21단계 — 7B 의 행렬곱](문서/21단계.md) · [22단계 — 7B 전체](문서/22단계.md).
+[21단계 — 7B 의 행렬곱](문서/21단계.md) · [22단계 — 7B 전체](문서/22단계.md) · [23단계 — 4비트(Q4_0)](문서/23단계.md) ·
+[24단계 — 설정에서 모양](문서/24단계.md) · [25단계 — 층 나누기](문서/25단계.md) · [계약 손실 검토](문서/계약손실검토.md) ·
+[26단계 — k-양자화](문서/26단계.md).
 
 ## 라이선스
 
@@ -153,6 +163,11 @@ indistinguishable from fp64; llama.cpp +0.34%). Qwen2.5-7B-Instruct (Q8_0, Q4_0)
 models). Stage 25 adds layer splitting across GPUs (`--장치 0,1`), emulated on one GPU with one CUDA context per part: 16 split runs are
 bit-identical to the single-part run; 7B decode with two parts takes 1.025-1.029x the single-part time (mostly the one-GPU context-switch
 cost of the emulation; 1.002-1.003x with a shared context), and 14B with two parts did not fit at context 8192 on 12 GB, so that cell of the
-pre-registered speed check was not measured. Not yet: real multi-GPU runs, measuring the contract's loss against fp64 on real 7B+ weights
-(done only for 0.5B), k-quants (stage 26, started), MoE, sampling (greedy only), server features, Linux, and reproduction on another GPU.
+pre-registered speed check was not measured. A contract-loss review simulated only the rounding points in an fp64 forward pass: at 7B and
+14B the contract's loss is 1/3805 and 1/4467 of a llama.cpp-like pipeline, with attention probabilities the one place at f16 level.
+Stage 26 adds k-quants (Q4_K, Q5_K, Q6_K, with a per-tensor format mix as in Q4_K_M/Q5_K_M/Q6_K files, requantized on this PC): kernels and
+end-to-end logits are bit-exact to the CPU reference, 7B decode takes 0.977-1.009x llama.cpp's time in all nine cells, prompts take 1.46-1.62x
+(Q4_K_M, Q5_K_M) and 2.06-2.12x (Q6_K, whose sub-block sums double the integer tensor work for now). Not yet: real multi-GPU runs, measuring
+the contract's loss with the real engine on 7B+ weights (done for 0.5B), Q2_K/Q3_K/IQ/Q5_0, MoE, sampling (greedy only), server features,
+Linux, and reproduction on another GPU.
 Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md); run scripts are in 공식실행/.
