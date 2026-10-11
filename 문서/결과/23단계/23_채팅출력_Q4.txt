@@ -1,0 +1,16 @@
+모델을 올리는 중…
+올림 2.1 초 — qwen2.5-7b-instruct-q4_0-pure.gguf · 문맥 8192. /새로 · /끝
+
+> Paris
+[첫 토큰까지 21.9 ms · 생성 2 토큰 88.8 토큰/초 · 문맥 43 · 그 앞에 올림 뒤의 일을 기다림 3361.7 ms]
+
+> 서울
+[첫 토큰까지 15.6 ms · 생성 3 토큰 69.0 토큰/초 · 문맥 72]
+
+> Whispering waves along the shore,
+Mystic ocean, evermore.
+Blue as the sky, vast and wide,
+You cradle secrets, far and wide.
+[첫 토큰까지 16.4 ms · 생성 35 토큰 77.7 토큰/초 · 문맥 124]
+
+> 
