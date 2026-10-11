@@ -41,6 +41,24 @@ def q8(g, name):
     return q, d
 
 
+def 가중(g, name):
+    """26단계 — 텐서마다 형식: (형식, q [N][K], a, b). Q8_0 · Q4_0 은 (형식, q, d, None) — 계약 1절 4 (y ← 곱해더하기(u, d, y)),
+    k-양자화(Q4_K · Q5_K · Q6_K)는 정수계약.풀기K."""
+    t, dims, raw = g.원(name)
+    if t in (GR.Q8_0, GR.Q4_0):
+        q, d = q8(g, name)
+        return ("Q8_0" if t == GR.Q8_0 else "Q4_0"), q, d, None
+    K, N = dims
+    return C.풀기K(t, raw, N, K)
+
+
+def 곱(h, w, bias):
+    """가중치의 형식에 맞는 CPU 참조 행렬곱(행렬곱블라스 · 행렬곱K블라스)."""
+    if w[0] in ("Q8_0", "Q4_0"):
+        return C.행렬곱블라스(h, w[1], w[2], bias)
+    return C.행렬곱K블라스(h, w, bias)
+
+
 def 다른칸(a, b):
     a, b = np.asarray(a, f32), np.asarray(b, f32)
     assert a.shape == b.shape, (a.shape, b.shape)
@@ -59,9 +77,29 @@ def 자체시험(g):
         a = C.행렬곱블라스(x, q, d, b)
         c = C.행렬곱(x, q.T.astype(np.int64), d.T, b, 자리수=2)
         결과.append({"꼴": f"무작위 M {M} · K {K} · N {N}", "다른 칸": 다른칸(a, c)})
+    for t in (12, 13, 14):                                                   # 26단계 — k-양자화: 행렬곱K블라스 == 행렬곱K (무작위 블록)
+        bb = {12: 144, 13: 176, 14: 210}[t]
+        for M, K, N in ((5, 256, 96), (3, 3584, 64)):
+            raw = r.integers(0, 256, (N, K // 256, bb), dtype=np.uint8)
+            hh = (r.standard_normal((N, K // 256, 2)) * 0.01).astype(np.float16).view(np.uint8).reshape(N, K // 256, 4)
+            if t == 14:
+                raw[:, :, 208:210] = hh[:, :, :2]
+            else:
+                raw[:, :, 0:4] = hh
+            w = C.풀기K(t, raw, N, K)
+            x = (r.standard_normal((M, K)) * 10.0 ** r.uniform(-3, 3, (M, 1))).astype(f32)
+            b = r.standard_normal(N).astype(f32)
+            결과.append({"꼴": f"무작위 {w[0]} M {M} · K {K} · N {N}", "다른 칸": 다른칸(C.행렬곱K블라스(x, w, b), C.행렬곱K(x, w, b))})
     for 이름 in ("blk.0.ffn_gate.weight", "blk.0.ffn_down.weight"):          # K 는 텐서에서(24단계 — 모양과 상관없이)
-        q, d = q8(g, 이름)
-        q, d = q[:96], d[:96]
+        w = 가중(g, 이름)
+        if w[0] not in ("Q8_0", "Q4_0"):                                       # 26단계 — 파일의 k-양자화
+            w = (w[0], w[1][:96], w[2][:96], None if w[3] is None else w[3][:96])
+            K = w[1].shape[1]
+            x = (r.standard_normal((6, K)) * 0.5).astype(f32)
+            결과.append({"꼴": f"{이름} ({w[0]}) 열 96 · K {K} · 행 6",
+                       "다른 칸": 다른칸(C.행렬곱K블라스(x, w, np.zeros(96, f32)), C.행렬곱K(x, w, np.zeros(96, f32)))})
+            continue
+        q, d = w[1][:96], w[2][:96]
         K = q.shape[1]
         x = (r.standard_normal((6, K)) * 0.5).astype(f32)
         a = C.행렬곱블라스(x, q, d, np.zeros(96, f32))
@@ -93,21 +131,30 @@ def main():
         i += 1
     print("경우", [len(S) for S in 경우], flush=True)
     t0 = time.time()
-    eq, ed = q8(g, "token_embd.weight")
-    D = eq.shape[1]
+    we = 가중(g, "token_embd.weight")
+    D = we[1].shape[1]
     HD = D // NH
     G_ = NH // NKV
-    x = np.concatenate([(eq[S].astype(f32) * np.repeat(ed[S], 32, axis=1)).astype(f32) for S in 경우], 0)
-    del eq, ed
+    if we[0] in ("Q8_0", "Q4_0"):
+        eq, ed = we[1], we[2]
+        x = np.concatenate([(eq[S].astype(f32) * np.repeat(ed[S], 32, axis=1)).astype(f32) for S in 경우], 0)
+        del eq, ed
+    else:
+        x = np.concatenate([C.임베딩K(we, S) for S in 경우], 0)              # 26단계
+    del we
     시작 = np.cumsum([0] + [len(S) for S in 경우])
     cos, sin = C.rope표(max(64, int(max(len(S) for S in 경우))), θ, hd=HD)
     for l in range(NL):
         tl = time.time()
         p = f"blk.{l}."
         h = C.rms정규화(x, g.풀기(p + "attn_norm.weight"), eps)
-        qs, ds = zip(*(q8(g, p + f"attn_{a}.weight") for a in ("q", "k", "v")))
-        bias = np.concatenate([g.풀기(p + f"attn_{a}.bias") for a in ("q", "k", "v")])
-        qkv = C.행렬곱블라스(h, np.concatenate(qs), np.concatenate(ds), bias)
+        ws = [가중(g, p + f"attn_{a}.weight") for a in ("q", "k", "v")]
+        if all(w[0] == ws[0][0] and w[0] in ("Q8_0", "Q4_0") for w in ws):          # 22 · 23단계와 같은 길
+            bias = np.concatenate([g.풀기(p + f"attn_{a}.bias") for a in ("q", "k", "v")])
+            qkv = C.행렬곱블라스(h, np.concatenate([w[1] for w in ws]), np.concatenate([w[2] for w in ws]), bias)
+        else:                                                                           # 26단계 — 텐서마다 형식(열마다 따로라 값은 같다)
+            qkv = np.concatenate([곱(h, w, g.풀기(p + f"attn_{a}.bias")) for w, a in zip(ws, ("q", "k", "v"))], 1)
+        del ws
         ys = []
         for s, S in enumerate(경우):
             n = len(S)
@@ -118,22 +165,20 @@ def main():
             vh = [np.ascontiguousarray(r[:, D + NKV * HD + HD * a:D + NKV * HD + HD * a + HD]) for a in range(NKV)]
             ys.append(np.concatenate([C.어텐션(qh[a], kh[a // G_], vh[a // G_]) for a in range(NH)], 1))
         y = np.concatenate(ys, 0)
-        wo, do = q8(g, p + "attn_output.weight")
-        x = (x + C.행렬곱블라스(y, wo, do, np.zeros(D, f32))).astype(f32)
+        x = (x + 곱(y, 가중(g, p + "attn_output.weight"), np.zeros(D, f32))).astype(f32)
         h = C.rms정규화(x, g.풀기(p + "ffn_norm.weight"), eps)
-        wg, dg = q8(g, p + "ffn_gate.weight")
-        wu, du = q8(g, p + "ffn_up.weight")
-        F = wg.shape[0]
-        gg = C.행렬곱블라스(h, wg, dg, np.zeros(F, f32))
-        uu = C.행렬곱블라스(h, wu, du, np.zeros(F, f32))
+        wg = 가중(g, p + "ffn_gate.weight")
+        F = wg[1].shape[0]
+        gg = 곱(h, wg, np.zeros(F, f32))
+        del wg
+        uu = 곱(h, 가중(g, p + "ffn_up.weight"), np.zeros(F, f32))
         f = C.swiglu(gg, uu)
-        wd, dd = q8(g, p + "ffn_down.weight")
-        x = (x + C.행렬곱블라스(f, wd, dd, np.zeros(D, f32))).astype(f32)
+        x = (x + 곱(f, 가중(g, p + "ffn_down.weight"), np.zeros(D, f32))).astype(f32)
         print(f"층 {l}: {time.time() - tl:.1f} 초", flush=True)
     h = C.rms정규화(x, g.풀기("output_norm.weight"), eps)
-    wh, dh = q8(g, "output.weight")
-    로짓 = C.행렬곱블라스(h, wh, dh, np.zeros(wh.shape[0], f32))
-    V = wh.shape[0]
+    wh = 가중(g, "output.weight")
+    V = wh[1].shape[0]
+    로짓 = 곱(h, wh, np.zeros(V, f32))
     결과["경우"] = []
     for s, S in enumerate(경우):
         A = np.fromfile(os.path.join(폴더, f"경우{s}_로짓.bin"), f32).reshape(len(S), V)

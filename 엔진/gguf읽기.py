@@ -11,8 +11,10 @@ import struct
 import numpy as np
 
 F32, F16, Q4_0, Q8_0 = 0, 1, 2, 8
-이름 = {F32: "F32", F16: "F16", Q4_0: "Q4_0", Q8_0: "Q8_0"}
-블록 = {F32: (1, 4), F16: (1, 2), Q4_0: (32, 18), Q8_0: (32, 34)}      # (값 수, 바이트 수)
+Q4_K, Q5_K, Q6_K = 12, 13, 14                                          # 26단계 — k-양자화(슈퍼블록 256): 날 바이트만(원) — 풀기는 정수계약.풀기K
+이름 = {F32: "F32", F16: "F16", Q4_0: "Q4_0", Q8_0: "Q8_0", Q4_K: "Q4_K", Q5_K: "Q5_K", Q6_K: "Q6_K"}
+블록 = {F32: (1, 4), F16: (1, 2), Q4_0: (32, 18), Q8_0: (32, 34),
+      Q4_K: (256, 144), Q5_K: (256, 176), Q6_K: (256, 210)}           # (값 수, 바이트 수)
 
 
 def _문자열(b, o):
@@ -80,6 +82,8 @@ class GGUF:
             return raw.view(np.float32).reshape(shape).copy()
         if t == F16:
             return raw.view(np.float16).astype(np.float32).reshape(shape)
+        if t in (Q4_K, Q5_K, Q6_K):
+            raise ValueError(f"{name}: k-양자화는 정수계약.풀기K 로(계약의 정수 · 척도 그대로)")
         bl = raw.reshape(-1, 블록[t][1])
         d = bl[:, :2].copy().view(np.float16).astype(np.float32)          # (블록, 1)
         if t == Q8_0:

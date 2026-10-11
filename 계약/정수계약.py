@@ -463,3 +463,127 @@ def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=1
     h = rms정규화(x if 끝행 is None else x[-끝행:], W["norm"], eps)
     hq, hd_ = W["head"]
     return 행렬곱빠른(h, hq, hd_, np.zeros(hq.shape[1], f32))
+
+
+# ── 26단계 — k-양자화(Q4_K · Q5_K · Q6_K): 파일의 정수 · 척도 그대로 (문서/계약.md 1절) ──────────────────────────────────────────
+# 가중치 하나 = (형식, q [N][K] int8, a [N][K/L] 짧은실수, b [N][K/32] 짧은실수 또는 None). L 은 아래블록의 칸(Q4_K · Q5_K 32, Q6_K 16).
+# Q4_K · Q5_K: 슈퍼블록 256 = 아래블록 여덟, 반실수 d · m, 아래블록마다 6비트 s_j · t_j (llama.cpp 의 get_scale_min_k4), q ∈ [0, 15] · [0, 31],
+#   a_j = d · s_j, b_j = m · t_j. Q6_K: 아래블록 열여섯, 반실수 d, 부호 있는 8비트 s_k, q = 6비트 − 32 ∈ [−32, 31], a_k = d · s_k.
+# a · b 는 반실수(가수 11 비트) × 작은 정수(8 비트 안)라 짧은실수로 정확하다.
+
+def _척최소K(sc):
+    """Q4_K · Q5_K 의 척도 바이트 12 개 [..., 12] → (s [..., 8], t [..., 8]) — get_scale_min_k4 와 같다."""
+    sc = np.asarray(sc).astype(np.int64)
+    s = np.empty(sc.shape[:-1] + (8,), np.int64)
+    t = np.empty_like(s)
+    s[..., :4] = sc[..., 0:4] & 63
+    t[..., :4] = sc[..., 4:8] & 63
+    s[..., 4:] = (sc[..., 8:12] & 15) | ((sc[..., 0:4] >> 6) << 4)
+    t[..., 4:] = (sc[..., 8:12] >> 4) | ((sc[..., 4:8] >> 6) << 4)
+    return s, t
+
+
+def 풀기K(t, raw, N, K):
+    """GGUF k-양자화 텐서(타입 12 Q4_K · 13 Q5_K · 14 Q6_K, 날 바이트 — 행 N 개, 행마다 깊이 K) → (형식, q, a, b) (위의 꼴)."""
+    KS = K // 256
+    if t in (12, 13):
+        bl = np.asarray(raw).reshape(N, KS, 144 if t == 12 else 176)
+        d = np.ascontiguousarray(bl[:, :, 0:2]).view(np.float16).astype(f32)[..., 0]
+        m = np.ascontiguousarray(bl[:, :, 2:4]).view(np.float16).astype(f32)[..., 0]
+        s, tt = _척최소K(bl[:, :, 4:16])
+        a = (d[..., None] * s.astype(f32)).astype(f32).reshape(N, K // 32)
+        b = (m[..., None] * tt.astype(f32)).astype(f32).reshape(N, K // 32)
+        if t == 12:
+            qs = bl[:, :, 16:144].reshape(N, KS, 4, 32)                       # 덩이 c (값 64 개)마다 바이트 32 개
+            q = np.stack([qs & 15, qs >> 4], 3)                               # 아래블록 2c (아래 니블) · 2c + 1 (위 니블)
+        else:
+            qh = bl[:, :, 16:48][:, :, None, :]                               # 높은 비트: 덩이 c 의 아래블록 2c 는 비트 2c, 2c + 1 은 비트 2c + 1
+            qs = bl[:, :, 48:176].reshape(N, KS, 4, 32)
+            c = np.arange(4)[None, None, :, None]
+            q = np.stack([(qs & 15) + (((qh >> (2 * c)) & 1) << 4), (qs >> 4) + (((qh >> (2 * c + 1)) & 1) << 4)], 3)
+        return ("Q4_K" if t == 12 else "Q5_K"), q.reshape(N, K).astype(np.int8), a, b
+    assert t == 14, t
+    bl = np.asarray(raw).reshape(N, KS, 210)
+    ql = bl[:, :, 0:128].reshape(N, KS, 2, 64)                                # 반쪽 n (값 128 개)마다 낮은 4비트 64 바이트
+    qh = bl[:, :, 128:192].reshape(N, KS, 2, 32)                              # 높은 2비트 32 바이트
+    sc = np.ascontiguousarray(bl[:, :, 192:208]).view(np.int8)
+    d = np.ascontiguousarray(bl[:, :, 208:210]).view(np.float16).astype(f32)[..., 0]
+    lo, hi = ql[..., :32], ql[..., 32:]
+    q = np.stack([(lo & 15) | (((qh >> 0) & 3) << 4), (hi & 15) | (((qh >> 2) & 3) << 4),
+                  (lo >> 4) | (((qh >> 4) & 3) << 4), (hi >> 4) | (((qh >> 6) & 3) << 4)], 3).astype(np.int16) - 32
+    a = (d[..., None] * sc.astype(f32)).astype(f32).reshape(N, K // 16)      # 아래블록 k (값 16k … 16k + 15) 의 척도 sc[k]
+    return "Q6_K", q.reshape(N, K).astype(np.int8), a, None
+
+
+def 행렬곱K(x, w, 치우침):
+    """정수 블록 계약의 k-양자화 출력 [행][열] — 문서/계약.md 1절 그대로 칸마다(느린 참조 — 행렬곱K블라스 의 자체 시험용).
+    Q4_K · Q5_K: 아래블록 j(= 활성값 블록 j)마다 S_j = Σ n · q, T_j = Σ n (정확), u_j = S_j · 2^(E − 13), w_j = T_j · 2^(E − 13) (정확),
+    y ← 곱해더하기(u_j, a_j, y), y ← 곱해더하기(−w_j, b_j, y) (j 차례, 0 에서 — 사슬 하나), 출력 = y + 치우침.
+    Q6_K: 아래블록 k(16 칸)마다 S_k = Σ n · q, u_k = S_k · 2^(E_⌊k/2⌋ − 13), y ← 곱해더하기(u_k, a_k, y), 출력 = y + 치우침."""
+    형식, q, a, b = w
+    D, E = 자리로(np.asarray(x, f32), 2)
+    n = (D[1] * 256 + D[0]).astype(np.int64)                                 # |n| ≤ 2¹⁴
+    M, K = n.shape
+    N = q.shape[0]
+    L = 16 if 형식 == "Q6_K" else 32
+    qi = np.asarray(q, np.int64)
+    y = np.zeros((M, N), f32)
+    for j in range(K // L):
+        S = n[:, L * j:L * j + L] @ qi[:, L * j:L * j + L].T                  # 정확한 정수 [M][N]
+        e = E[:, (L * j) // 32][:, None] - 13
+        u = np.ldexp(S.astype(np.float64), e).astype(f32)                    # 정확(|S| < 2²⁴)
+        y = fma32(u, np.broadcast_to(np.asarray(a, f32)[:, j][None, :], u.shape), y)
+        if b is not None:
+            T = n[:, 32 * j:32 * j + 32].sum(1)[:, None]
+            w_ = np.broadcast_to(np.ldexp(T.astype(np.float64), e).astype(f32), u.shape)
+            y = fma32(-w_, np.broadcast_to(np.asarray(b, f32)[:, j][None, :], u.shape), y)
+    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+
+
+def 행렬곱K블라스(x, w, 치우침, 일꾼=8, 칸한도=1 << 25):
+    """행렬곱K 와 같은 값(큰 모양의 CPU 참조). 블록 합 S 를 자리마다 짧은실수 행렬곱(BLAS)으로 — 자리 하나의 부분합이 정수로 2²⁴ 아래
+    (Q5_K: 128 · 31 · 32)라 어느 순서로 더해도 정확하다 — S = 256 · S₁ + S₀ 는 fp64 로(정확). 열을 덩이로 나눠 일꾼에게."""
+    from concurrent.futures import ThreadPoolExecutor
+    형식, q, a, b = w
+    D, E = 자리로(np.asarray(x, f32), 2)
+    M, K = D.shape[1:]
+    N = q.shape[0]
+    L = 16 if 형식 == "Q6_K" else 32
+    KL = K // L
+    Df = D.astype(f32).reshape(2, M, KL, L).transpose(0, 2, 1, 3).copy()              # [2][KL][M][L]
+    배 = np.ldexp(np.float64(1), (E - 13)).T[:, :, None]                              # [KB][M][1]
+    if L == 16:
+        배 = np.repeat(배, 2, axis=0)                                                  # 아래블록 k 는 활성값 블록 ⌊k/2⌋
+    wT = None
+    if b is not None:
+        n = (D[1] * 256 + D[0]).astype(np.int64)
+        wT = (n.reshape(M, KL, L).sum(2).T[:, :, None].astype(np.float64) * 배).astype(f32)     # [KL][M][1] (정확)
+    덩이 = max(32, min(4096, 칸한도 // max(1, KL * M)) // 32 * 32)
+    y = np.zeros((M, N), f32)
+
+    def 열(n0):
+        n1 = min(N, n0 + 덩이)
+        qb = np.ascontiguousarray(np.asarray(q[n0:n1], f32).reshape(n1 - n0, KL, L).transpose(1, 2, 0))   # [KL][L][n]
+        S = np.matmul(Df[1], qb).astype(np.float64) * 256 + np.matmul(Df[0], qb).astype(np.float64)
+        u = (S * 배).astype(f32)                                                                           # [KL][M][n]
+        ab = np.asarray(a[n0:n1], f32).T
+        bb = None if b is None else np.asarray(b[n0:n1], f32).T
+        yy = np.zeros((M, n1 - n0), f32)
+        for j in range(KL):
+            yy = fma32(u[j], np.broadcast_to(ab[j][None, :], yy.shape), yy)
+            if bb is not None:
+                yy = fma32(np.broadcast_to(-wT[j], yy.shape), np.broadcast_to(bb[j][None, :], yy.shape), yy)
+        y[:, n0:n1] = yy
+    with ThreadPoolExecutor(일꾼) as ex:
+        list(ex.map(열, range(0, N, 덩이)))
+    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+
+
+def 임베딩K(w, ids):
+    """낱말표가 k-양자화일 때의 임베딩 [토큰][D] — Q4_K · Q5_K: a_j · q − b_j (곱은 정확, 뺄셈에서 반올림 하나), Q6_K: a_k · q (정확)."""
+    형식, q, a, b = w
+    ids = np.asarray(ids)
+    qq = q[ids].astype(f32)
+    if 형식 == "Q6_K":
+        return (qq * np.repeat(a[ids], 16, axis=1)).astype(f32)
+    return ((qq * np.repeat(a[ids], 32, axis=1)).astype(f32) - np.repeat(b[ids], 32, axis=1)).astype(f32)
