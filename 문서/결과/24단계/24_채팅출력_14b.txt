@@ -1,0 +1,31 @@
+모델을 올리는 중…
+올림 6.5 초 — qwen2.5-14b-instruct-q4_0-pure.gguf · 문맥 8192. /새로 · /끝
+
+> Paris
+[첫 토큰까지 37.0 ms · 생성 2 토큰 47.0 토큰/초 · 문맥 43 · 그 앞에 올림 뒤의 일을 기다림 4338.6 ms]
+
+> 서울
+[첫 토큰까지 27.3 ms · 생성 3 토큰 35.6 토큰/초 · 문맥 72]
+
+> Beneath the vast, blue sky,
+The sea whispers in sighs.
+Its waves, a dance of old,
+In rhythm with the wind, bold.
+
+Cradled by the shore's embrace,
+The ocean's heart finds its place.
+A mirror to the moon's glow,
+Reflecting dreams that softly flow.
+
+In its depths, secrets lie,
+Where the sunken ships quietly lie.
+Yet, it's not just a place of old,
+But a living heart, bold and bold.
+
+The sea, a canvas vast and wide,
+Where life's stories are intertwined.
+A place of mystery, of calm and storm,
+The sea, forever in our form.
+[첫 토큰까지 29.9 ms · 생성 134 토큰 51.3 토큰/초 · 문맥 223]
+
+> 
