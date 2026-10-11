@@ -28,9 +28,11 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 | 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0. 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192) ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
 | 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
-| 아직 없는 것 | 한 GPU 에 들지 않는 모델(32B · 72B — 층 나누기 · 여러 GPU), k-양자화(Q4_K_M 등), MoE, 샘플링(지금은 탐욕), 서버 기능, Linux |
+| 층 나누기 | 25단계 — 한 GPU 에 들지 않는 모델을 층으로 나눠 여러 GPU 에(`--나누기 P` · `--장치 a,b,…` · `--예산 GB`). 이 PC 에는 GPU 가 한 장이라 한 장 안의 여러 쿠다 문맥으로 흉내 냈다: 나눠 돌린 길 16 개가 한 조각과 바이트까지 같고, 7B 두 조각의 생성은 한 조각의 1.025 ~ 1.029 배(조각마다 문맥 — 그 차이의 대부분은 한 GPU 에서 문맥을 오가는 흉내의 값) · 1.002 ~ 1.003 배(문맥 하나). 14B 두 조각은 12 GB 한 장에 문맥 8192 로 들지 않아 그 칸을 재지 못했다 — 판정 25c 는 통과하지 못함([25단계](문서/25단계.md)) |
+| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상(실제 가중치)에서 fp64 참값과 견주기(0.5B 만 했다), k-양자화(Q4_K_M 등 — 26단계에서 시작), MoE, 샘플링(지금은 탐욕), 서버 기능, Linux, 다른 GPU 에서의 재현 |
 
-다음은 층 나누기 다중 GPU(25단계), k-양자화 · MoE · 서버 기능, 생성 메가커널 · 프롬프트의 남은 거리다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
+다음은 k-양자화 · MoE · 서버 기능, 큰 모델에서 계약의 손실 확인, 생성 메가커널 · 프롬프트의 남은 거리다. 공식 실행 스크립트(빌드부터 판정의 값까지)는
+[공식실행/](공식실행/)에 있다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
 글의 자체 호스팅 컴파일러로 빌드한 실행 파일 하나이고, 가져오는 DLL 은 `kernel32` · `shell32`(글 런타임)과 `nvcuda.dll` 뿐이다. GPU 커널의 PTX 는
 글로 쓴 PTX 뒷단이 만든다(17단계). 파이썬 호스트(`엔진/` · `실행.py`)와 견줘 GPU 에 올리는 것 · 토큰 · 걸음마다 로짓 · KV 캐시 · 대화가 바이트까지
 같고 속도도 같다([문서/18단계.md](문서/18단계.md)). **빌드에도 파이썬이 들지 않는다**(19단계): 커널 소스(글)를 만드는 생성기도 글 언어
@@ -101,6 +103,8 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
    ../geul-lang-v2/build/자체PTX.exe 빌드/글/qwen2Q4_5120x40x8x13824x152064.gl -o 빌드/글/qwen2Q4_5120x40x8x13824x152064.ptx
    빌드/글/실행기.exe qwen2.5-14b-instruct-q4_0-pure.gguf
    ```
+   여러 GPU 에 층을 나눠 싣기(25단계): `빌드/글/실행기.exe 모델.gguf --장치 0,1` (장치마다 조각 하나), 장치마다 쓸 메모리를 정하면 `--예산 GB`
+   (나누는 자리를 예산 안에서 앞부터), 한 GPU 에서 흉내는 `--나누기 P`. 이 PC 에서는 한 장 안의 흉내만 시험했다.
    입력 한 줄이 한 차례, `/새로` 는 새 대화, `/끝` 은 나가기. 파이썬 실행기(`python 실행.py 모델.gguf` — 0.5B 만)도 같은 답을 낸다.
    시험(`시험/qwen2.py`)은 이 파일을 `모델/qwen2.5-0.5b-instruct-gguf/` 에서, 토크나이저 대조 · 참값은 원본(`Qwen/Qwen2.5-0.5B-Instruct`)을
    `모델/qwen2.5-0.5b-instruct/` 에서 찾는다.
@@ -137,20 +141,18 @@ MIT — [LICENSE](LICENSE). 글 앞단 사본(`컴파일러/ref/`)도 같은 저
 ---
 
 **In short (English).** GeulPU is an LLM inference engine whose GPU kernels are written in the Korean programming language *geul* and
-compiled to PTX by geul's self-hosted compiler (a PTX backend written in geul; its output is byte-identical to the earlier Python
-prototype on all 23 engine modules); it runs on the NVIDIA driver alone (no CUDA toolkit, cuBLAS, or PyTorch). The host (GGUF
-loading, weight layout, RoPE tables, tokenizer, CUDA graphs, decode megakernel, terminal runner) is also written in geul: the runner is a
-single executable built by the self-hosted compiler that imports only kernel32, shell32 and nvcuda.dll, and matches the Python host bit for
-bit at the same speed. The kernel-source generator is geul too: it emits source byte-identical to the earlier Python generator in 0.04 s, so
-the Qwen2 chat builds and runs with only the geul compiler and nvcuda.dll (Python remains for tests, benchmarks and the GPT-2 research
-engine). Precision is a
-written contract (2-digit block integers for activations and the KV cache, exact integer tensor-core sums, a written exp polynomial), so
-GPU results match a CPU reference bit for bit and stay identical however the input is split or batched. It runs the chat model
-Qwen2.5-0.5B-Instruct (official GGUF Q8_0) with a terminal runner (`빌드/글/실행기.exe model.gguf`) and GPT-2 (small/XL); on an RTX 4070 Ti
-it is faster than llama.cpp at every measured prompt length (0.55-0.82x time) and decode context (0.63-0.65x, a decode megakernel at
-1.21x the weight-read floor), while its hidden loss
-against an fp64 reference with the same weights is 1/615 of llama.cpp's (1/385 over wikitext-2). In perplexity GeulPU is
-indistinguishable from the fp64 reference while llama.cpp is 0.34% higher, which is about the size of the Q8_0 weight-quantization loss itself
-(0.24%), so the difference is real but not one a user would notice. Since stage 22 it also runs Qwen2.5-7B-Instruct (Q8_0, head size 128)
-bit-exact to the CPU reference along every path; there it takes 1.05-1.07x llama.cpp's decode time and 1.14x / 1.30x its prompt time
-(2048 / 8192 tokens).
+compiled to PTX by geul's own backend; the host (GGUF loading, weight layout, RoPE tables, tokenizer, CUDA graphs, terminal runner) and the
+kernel-source generator are geul too, so the chat runner is a single executable that imports only kernel32, shell32 and nvcuda.dll (Python
+remains for the CPU reference, tests and benchmarks). Precision is a written contract — activations and the KV cache are 2-digit block
+integers (2^-14 of the block maximum, 128x finer than llama.cpp's 8-bit activations), sums are exact integer tensor-core sums, exp is a
+written polynomial — so GPU results match a CPU reference bit for bit and stay identical however the input is split or batched (batch- and
+split-invariant). On an RTX 4070 Ti: Qwen2.5-0.5B-Instruct Q8_0 is faster than llama.cpp b11496 at every prompt length (0.55-0.82x time) and
+decode context (0.63-0.65x), with a hidden loss against an fp64 reference of the same weights 1/615 of llama.cpp's (perplexity
+indistinguishable from fp64; llama.cpp +0.34%). Qwen2.5-7B-Instruct (Q8_0, Q4_0) and 14B (Q4_0) run bit-exact to the CPU reference: decode
+0.97-0.99x llama.cpp's time, prompt 1.15-1.38x (stages 22-24); shapes are read from the GGUF config (32B/72B tested on 4-layer synthetic
+models). Stage 25 adds layer splitting across GPUs (`--장치 0,1`), emulated on one GPU with one CUDA context per part: 16 split runs are
+bit-identical to the single-part run; 7B decode with two parts takes 1.025-1.029x the single-part time (mostly the one-GPU context-switch
+cost of the emulation; 1.002-1.003x with a shared context), and 14B with two parts did not fit at context 8192 on 12 GB, so that cell of the
+pre-registered speed check was not measured. Not yet: real multi-GPU runs, measuring the contract's loss against fp64 on real 7B+ weights
+(done only for 0.5B), k-quants (stage 26, started), MoE, sampling (greedy only), server features, Linux, and reproduction on another GPU.
+Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md); run scripts are in 공식실행/.
