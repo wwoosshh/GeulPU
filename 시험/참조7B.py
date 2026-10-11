@@ -25,10 +25,16 @@ f32 = np.float32
 
 
 def q8(g, name):
-    """GGUF Q8_0 텐서 → (q [N][K] int8, d [N][K/32] 짧은실수) — GGUF 의 배치 그대로."""
+    """GGUF Q8_0 · Q4_0 텐서 → (q [N][K] int8 — Q4_0 은 니블 − 8, d [N][K/32] 짧은실수) — GGUF 의 값 그대로(23단계에 Q4_0)."""
     t, dims, raw = g.원(name)
-    assert t == GR.Q8_0, name
     K, N = dims
+    if t == GR.Q4_0:
+        bl = np.asarray(raw).reshape(N, K // 32, 18)
+        d = np.ascontiguousarray(bl[:, :, :2]).view(np.float16).reshape(N, K // 32).astype(f32)
+        qs = bl[:, :, 2:]
+        q = (np.concatenate([qs & 15, qs >> 4], 2).astype(np.int16) - 8).astype(np.int8).reshape(N, K)
+        return q, d
+    assert t == GR.Q8_0, name
     bl = np.asarray(raw).reshape(N, K // 32, 34)
     d = np.ascontiguousarray(bl[:, :, :2]).view(np.float16).reshape(N, K // 32).astype(f32)
     q = np.ascontiguousarray(bl[:, :, 2:]).view(np.int8).reshape(N, K)
