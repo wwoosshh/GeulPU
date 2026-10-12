@@ -1,7 +1,7 @@
 # GeulPU — 의미를 지키는 GPU 추론 엔진
 
-*English: [README.en.md](README.en.md) · [docs/](docs/) — the contract, research log, how to reproduce, glossary, and a short brief
-for outside reviewers.*
+*English: [README.en.md](README.en.md) · [docs/](docs/) — the contract, research log, hidden-loss measurements, how to reproduce,
+glossary, and a short brief for outside reviewers.*
 
 **글(geul)** 언어로 쓴 GPU 커널을 글 컴파일러가 PTX 로 바꿔 NVIDIA 드라이버에 바로 올리는 언어 모델 추론 엔진이다. CUDA 툴킷 ·
 cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` 하나로 돈다.

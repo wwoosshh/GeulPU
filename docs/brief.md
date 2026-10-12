@@ -71,6 +71,7 @@ These are drafts for discussion; nothing has been submitted.
 ## How to check our claims
 
 - The contract and its CPU reference: [contract.md](contract.md), [`계약/정수계약.py`](../계약/정수계약.py).
+- How the hidden loss was measured (method, checks of the measurement, the 7B · 14B simulation): [hidden-loss.md](hidden-loss.md).
 - GPU-free CI on every push: builds everything from source and checks module bytes and SASS register spills
   ([reproduce.md](reproduce.md)).
 - GPU tests and benchmarks, with the exact scripts used for each stage's verdict: [reproduce.md](reproduce.md), `공식실행/`.
