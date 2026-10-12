@@ -1,50 +1,10 @@
-(* 쿠다 — nvcuda.dll 의 드라이버 API (GeulPU 18단계: 호스트를 글 언어로). CUDA 툴킷 없이 그래픽 드라이버만으로 PTX 를 올리고 실행한다.
+(* 쿠다 — CUDA 드라이버 API (GeulPU 18단계: 호스트를 글 언어로). 바깥 선언은 쿠다선언.gl(윈도 nvcuda.dll · 리눅스 libcuda.so.1 — 29단계). CUDA 툴킷 없이 그래픽 드라이버만으로 PTX 를 올리고 실행한다.
    파이썬 호스트(엔진/글gpt2.py 의 드라이버 · _띄움 · _노드인자)와 같은 일을 한다.
 
    CUresult · CUdevice · unsigned int 는 중간정수(32 비트), 핸들(문맥 · 모듈 · 함수 · 그래프 · 이벤트)은 공허 참조, 장치 주소(CUdeviceptr)와
    size_t 는 정수(64 비트). 매개변수의 조사를 모두 '를' 로 두어 자리 차례로 부른다. *)
 
-외부 "nvcuda.dll" "cuInit" [중간정수 깃발을 cuInit]는 -> 중간정수.
-외부 "nvcuda.dll" "cuDeviceGet" [공허 참조 장치를 중간정수 번호를 cuDeviceGet]는 -> 중간정수.
-외부 "nvcuda.dll" "cuDeviceGetName" [공허 참조 버퍼를 중간정수 길이를 중간정수 장치를 cuDeviceGetName]는 -> 중간정수.
-외부 "nvcuda.dll" "cuDeviceGetAttribute" [공허 참조 값을 중간정수 속성을 중간정수 장치를 cuDeviceGetAttribute]는 -> 중간정수.
-외부 "nvcuda.dll" "cuDevicePrimaryCtxRetain" [공허 참조 문맥을 중간정수 장치를 cuDevicePrimaryCtxRetain]는 -> 중간정수.
-외부 "nvcuda.dll" "cuCtxSetCurrent" [공허 참조 문맥을 cuCtxSetCurrent]는 -> 중간정수.
-외부 "nvcuda.dll" "cuCtxSynchronize" [cuCtxSynchronize]는 -> 중간정수.
-외부 "nvcuda.dll" "cuModuleLoadData" [공허 참조 모듈을 공허 참조 이미지를 cuModuleLoadData]는 -> 중간정수.
-외부 "nvcuda.dll" "cuModuleGetFunction" [공허 참조 함수를 공허 참조 모듈을 공허 참조 이름을 cuModuleGetFunction]는 -> 중간정수.
-외부 "nvcuda.dll" "cuModuleGetGlobal_v2" [공허 참조 주소를 공허 참조 바이트수를 공허 참조 모듈을 공허 참조 이름을 cuModuleGetGlobal_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemAlloc_v2" [공허 참조 주소를 정수 바이트수를 cuMemAlloc_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemFree_v2" [정수 주소를 cuMemFree_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemsetD8_v2" [정수 주소를 중간정수 값을 정수 바이트수를 cuMemsetD8_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyHtoD_v2" [정수 대상을 공허 참조 원본을 정수 바이트수를 cuMemcpyHtoD_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyDtoH_v2" [공허 참조 대상을 정수 원본을 정수 바이트수를 cuMemcpyDtoH_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuLaunchKernel" [공허 참조 함수를 중간정수 gx를 중간정수 gy를 중간정수 gz를 중간정수 bx를 중간정수 by를 중간정수 bz를 중간정수 공유를 공허 참조 흐름을 공허 참조 인자들을 공허 참조 덤을 cuLaunchKernel]는 -> 중간정수.
-외부 "nvcuda.dll" "cuLaunchCooperativeKernel" [공허 참조 함수를 중간정수 gx를 중간정수 gy를 중간정수 gz를 중간정수 bx를 중간정수 by를 중간정수 bz를 중간정수 공유를 공허 참조 흐름을 공허 참조 인자들을 cuLaunchCooperativeKernel]는 -> 중간정수.
-외부 "nvcuda.dll" "cuOccupancyMaxActiveBlocksPerMultiprocessor" [공허 참조 블록수를 공허 참조 함수를 중간정수 스레드수를 정수 동적공유를 cuOccupancyMaxActiveBlocksPerMultiprocessor]는 -> 중간정수.
-외부 "nvcuda.dll" "cuEventCreate" [공허 참조 이벤트를 중간정수 깃발을 cuEventCreate]는 -> 중간정수.
-외부 "nvcuda.dll" "cuEventRecord" [공허 참조 이벤트를 공허 참조 흐름을 cuEventRecord]는 -> 중간정수.
-외부 "nvcuda.dll" "cuEventSynchronize" [공허 참조 이벤트를 cuEventSynchronize]는 -> 중간정수.
-외부 "nvcuda.dll" "cuEventElapsedTime" [공허 참조 밀리초를 공허 참조 시작을 공허 참조 끝을 cuEventElapsedTime]는 -> 중간정수.
-외부 "nvcuda.dll" "cuEventDestroy_v2" [공허 참조 이벤트를 cuEventDestroy_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphCreate" [공허 참조 그래프를 중간정수 깃발을 cuGraphCreate]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphAddKernelNode" [공허 참조 마디를 공허 참조 그래프를 공허 참조 기댐을 정수 기댐수를 공허 참조 인자를 cuGraphAddKernelNode]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphInstantiateWithFlags" [공허 참조 실행본을 공허 참조 그래프를 정수 깃발을 cuGraphInstantiateWithFlags]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphLaunch" [공허 참조 실행본을 공허 참조 흐름을 cuGraphLaunch]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphExecKernelNodeSetParams" [공허 참조 실행본을 공허 참조 마디를 공허 참조 인자를 cuGraphExecKernelNodeSetParams]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphExecDestroy" [공허 참조 실행본을 cuGraphExecDestroy]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGraphDestroy" [공허 참조 그래프를 cuGraphDestroy]는 -> 중간정수.
-외부 "nvcuda.dll" "cuGetErrorString" [중간정수 코드를 공허 참조 글을 cuGetErrorString]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemGetInfo_v2" [공허 참조 남음을 공허 참조 전체를 cuMemGetInfo_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuCtxCreate_v2" [공허 참조 문맥을 중간정수 깃발을 중간정수 장치를 cuCtxCreate_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyPeer" [정수 대상을 공허 참조 대상문맥을 정수 원본을 공허 참조 원본문맥을 정수 바이트수를 cuMemcpyPeer]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyPeerAsync" [정수 대상을 공허 참조 대상문맥을 정수 원본을 공허 참조 원본문맥을 정수 바이트수를 공허 참조 흐름을 cuMemcpyPeerAsync]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyDtoHAsync_v2" [공허 참조 대상을 정수 원본을 정수 바이트수를 공허 참조 흐름을 cuMemcpyDtoHAsync_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemcpyHtoDAsync_v2" [정수 대상을 공허 참조 원본을 정수 바이트수를 공허 참조 흐름을 cuMemcpyHtoDAsync_v2]는 -> 중간정수.
-외부 "nvcuda.dll" "cuMemHostAlloc" [공허 참조 주소를 정수 바이트수를 중간정수 깃발을 cuMemHostAlloc]는 -> 중간정수.
-외부 "nvcuda.dll" "cuStreamWaitEvent" [공허 참조 흐름을 공허 참조 이벤트를 중간정수 깃발을 cuStreamWaitEvent]는 -> 중간정수.
-외부 "nvcuda.dll" "cuDeviceCanAccessPeer" [공허 참조 될을 중간정수 장치를 중간정수 피어장치를 cuDeviceCanAccessPeer]는 -> 중간정수.
-외부 "nvcuda.dll" "cuCtxEnablePeerAccess" [공허 참조 피어문맥을 중간정수 깃발을 cuCtxEnablePeerAccess]는 -> 중간정수.
+포함 "쿠다선언.gl"
 
 (* 결과가 0(CUDA_SUCCESS)이 아니면 무엇이 실패했는지 알리고 끝낸다 — 조용한 실패는 없다 *)
 [중간정수 코드를 문자열 무엇으로 쿠다확인]는 {

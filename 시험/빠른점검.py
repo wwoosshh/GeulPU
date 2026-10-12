@@ -6,10 +6,11 @@
   3. 판(타일 모양) 표가 생성기 · 호스트 · 시험에서 같은가
   4. 글(geul) 언어 프로그램이 빌드되는가 — 커널 생성기와 호스트 프로그램 모두(글 컴파일러)
   5. 모듈(커널 소스 · PTX)을 처음부터 만들어 시험/모듈해시.txt 와 바이트까지 견준다 — 바꾸려면 --해시갱신
-  6. 실행기가 가져오는 DLL 이 kernel32 · shell32 · nvcuda 뿐인가(18단계 · 22단계의 조건)
+  6. 실행기가 가져오는 DLL 이 kernel32 · shell32 · nvcuda 뿐인가(18단계 · 22단계의 조건) — 리눅스에서는 libc.so.6 · libcuda.so.1 뿐인가(29단계)
 
-  python -X utf8 시험/빠른점검.py [--글 <글 저장소 — 기본 ../geul-lang-v2>] [--병렬 N] [--출력 <폴더 — 기본 빌드/점검>] [--해시갱신]
-글 저장소에는 build/self_컴파일러.exe 와 build/자체PTX.exe 가 있어야 한다(README 의 빠른 시작 2).
+  python -X utf8 시험/빠른점검.py [--글 <글 저장소 — 기본 ../geul-lang-v2>] [--병렬 N] [--출력 <폴더 — 기본 빌드/점검>] [--해시갱신] [--계약없이]
+글 저장소에는 build/self_컴파일러.exe 와 build/자체PTX.exe(리눅스에서는 확장자 없는 build/self_컴파일러 · build/자체PTX)가 있어야 한다
+(README 의 빠른 시작 2). 리눅스(29단계 — 글 D-50)에서는 같은 프로그램을 ELF 로 빌드하고, 모듈은 윈도와 같은 시험/모듈해시.txt 와 견준다.
 마지막 줄 "빠른 점검: 모두 통과"(종료 0) 또는 "못 미침 …"(종료 1).
 """
 import argparse
@@ -25,6 +26,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+리눅스 = sys.platform.startswith("linux")      # 29단계: 리눅스(글 D-50) — 실행 파일은 확장자 없는 ELF
+EXE = "" if 리눅스 else ".exe"
 sys.path.insert(0, os.path.join(ROOT, "시험"))
 import 가져오기표       # noqa: E402
 
@@ -142,13 +145,13 @@ def 호스트프로그램들():
 
 
 def 빌드(글, 출력, 병렬):
-    컴파일러 = os.path.join(글, "build", "self_컴파일러.exe")
+    컴파일러 = os.path.join(글, "build", "self_컴파일러" + EXE)
     환경 = dict(os.environ, GEUL_ROOT=글)
     일들 = [("커널생성", os.path.join(ROOT, "커널", "커널생성.gl"))] + [(p, os.path.join(ROOT, "호스트", p + ".gl")) for p in 호스트프로그램들()]
 
     def 하나(일):
         이름, 소스 = 일
-        exe = os.path.join(출력, 이름 + ".exe")
+        exe = os.path.join(출력, 이름 + EXE)
         if os.path.exists(exe):
             os.remove(exe)
         rc, 꼬리 = 돌리기([컴파일러, 소스, "-o", exe], os.path.join(출력, f"빌드_{이름}.txt"), 환경)
@@ -171,8 +174,8 @@ def 모듈표읽기():
 
 
 def 모듈(글, 출력, 병렬, 갱신):
-    생성기 = os.path.join(출력, "커널생성.exe")
-    뒷단 = os.path.join(글, "build", "자체PTX.exe")
+    생성기 = os.path.join(출력, "커널생성" + EXE)
+    뒷단 = os.path.join(글, "build", "자체PTX" + EXE)
     표 = 모듈표읽기()
 
     def 하나(항목):
@@ -290,18 +293,23 @@ def SASS(출력, ptxas, 병렬, 갱신):
 
 
 def 가져오기검사(출력):
-    exe = os.path.join(출력, "실행기.exe")
+    """윈도: 실행기는 kernel32 · shell32 · nvcuda, 서버는 그에 ws2_32(28단계). 리눅스(29단계): 둘 다 libc.so.6 · libcuda.so.1 뿐."""
+    허용 = {"kernel32.dll", "shell32.dll", "nvcuda.dll"}
+    허용서버 = 허용 | {"ws2_32.dll"}
+    if 리눅스:
+        허용 = 허용서버 = {"libc.so.6", "libcuda.so.1"}
+    exe = os.path.join(출력, "실행기" + EXE)
     if not os.path.exists(exe):
-        알림("실행기의 가져오기 표", False, "실행기.exe 가 없다(빌드 실패)")
+        알림("실행기의 가져오기 표", False, f"{os.path.basename(exe)} 가 없다(빌드 실패)")
         return
     dll들 = sorted({d.lower() for d, _ in 가져오기표.가져오기(exe)})
-    알림("실행기의 가져오기 표", set(dll들) <= {"kernel32.dll", "shell32.dll", "nvcuda.dll"}, f"{dll들}")
-    서버 = os.path.join(출력, "서버.exe")              # 28단계 — 서버는 윈도의 소켓(ws2_32.dll)까지
+    알림("실행기의 가져오기 표", set(dll들) <= 허용, f"{dll들}")
+    서버 = os.path.join(출력, "서버" + EXE)
     if not os.path.exists(서버):
-        알림("서버의 가져오기 표", False, "서버.exe 가 없다(빌드 실패)")
+        알림("서버의 가져오기 표", False, f"{os.path.basename(서버)} 가 없다(빌드 실패)")
         return
     dll2 = sorted({d.lower() for d, _ in 가져오기표.가져오기(서버)})
-    알림("서버의 가져오기 표", set(dll2) <= {"kernel32.dll", "shell32.dll", "nvcuda.dll", "ws2_32.dll"}, f"{dll2}")
+    알림("서버의 가져오기 표", set(dll2) <= 허용서버, f"{dll2}")
 
 
 def main():
@@ -313,6 +321,7 @@ def main():
     p.add_argument("--해시갱신", action="store_true")
     p.add_argument("--ptxas", default=os.environ.get("점검_PTXAS", ""), help="NVIDIA ptxas — 주면 PTX → SASS(sm_89)까지 본다")
     p.add_argument("--넘침갱신", action="store_true", help="시험/SASS넘침.txt 를 지금 넘치는 커널로 다시 쓴다")
+    p.add_argument("--계약없이", action="store_true", help="계약 자체 시험(numpy)을 건너뛴다 — 운영체제와 무관한 CPU 시험이라 다른 곳에서 돌린 것으로 갈음할 때")
     a = p.parse_args()
     글 = os.path.abspath(a.글)
     출력 = os.path.abspath(a.출력)
@@ -320,9 +329,13 @@ def main():
     t0 = time.time()
     파이썬문법()
     셸문법()
-    계약자체(출력)
+    if a.계약없이:
+        print("계약 자체 시험: 건너뜀(--계약없이)", flush=True)
+        요약.append("건너뜀  [계약 자체 시험] --계약없이")
+    else:
+        계약자체(출력)
     판표()
-    도구 = [os.path.join(글, "build", x) for x in ("self_컴파일러.exe", "자체PTX.exe")]
+    도구 = [os.path.join(글, "build", x + EXE) for x in ("self_컴파일러", "자체PTX")]
     없는것 = [x for x in 도구 if not os.path.exists(x)]
     if 없는것:
         알림("글 도구", False, f"없다: {없는것} — README 의 빠른 시작 2")

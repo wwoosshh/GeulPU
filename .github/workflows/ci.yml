@@ -66,3 +66,55 @@ jobs:
           name: check-result
           path: GeulPU/점검결과/*.txt
           if-no-files-found: ignore
+
+  linux:
+    # 29단계 — 리눅스(글 D-50): 같은 고정 커밋의 글 컴파일러 · PTX 뒷단을 리눅스에서 만들고(ELF), 생성기 · 호스트 프로그램을 빌드하고,
+    # 모듈을 처음부터 만들어 윈도와 같은 시험/모듈해시.txt 와 바이트까지 견준다. 가져오기는 libc.so.6 · libcuda.so.1 뿐이어야 한다.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: GeulPU 받기
+        uses: actions/checkout@v7
+        with:
+          path: GeulPU
+      - name: 글 저장소의 고정 커밋 읽기
+        id: geul
+        run: echo "sha=$(tr -d '\r\n ' < GeulPU/시험/글저장소커밋.txt)" >> "$GITHUB_OUTPUT"
+      - name: 글 저장소 받기(research/gpu 의 고정 커밋)
+        uses: actions/checkout@v7
+        with:
+          repository: wwoosshh/geul-lang
+          ref: ${{ steps.geul.outputs.sha }}
+          path: geul-lang-v2
+      - name: 파이썬
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: 파이썬 꾸러미(+ 검사용 ptxas)
+        run: |
+          python -m pip install -r GeulPU/requirements.txt nvidia-cuda-nvcc-cu12==12.9.86
+          python -c "import importlib.util, os; p = importlib.util.find_spec('nvidia.cuda_nvcc').submodule_search_locations[0]; print(os.path.join(p, 'bin', 'ptxas'))" > ptxas경로.txt
+          cat ptxas경로.txt
+      - name: 글 컴파일러 · PTX 뒷단 빌드(파이썬 참조 구현 → 글로 쓴 컴파일러(ELF) → PTX 뒷단(ELF))
+        working-directory: geul-lang-v2
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          mkdir -p build
+          GEUL_ROOT=. python ref/geulc.py self/컴파일러.gl -o build/self_컴파일러
+          GEUL_ROOT=. build/self_컴파일러 research/gpu/자체PTX/PTX.gl -o build/자체PTX
+      - name: 빠른 점검(리눅스)
+        working-directory: GeulPU
+        env:
+          PYTHONUTF8: "1"
+        run: python -X utf8 시험/빠른점검.py --글 ../geul-lang-v2 --출력 점검결과 --ptxas "$(cat ../ptxas경로.txt)"
+      - name: 점검 결과 올리기
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-result-linux
+          path: GeulPU/점검결과/*.txt
+          if-no-files-found: ignore
