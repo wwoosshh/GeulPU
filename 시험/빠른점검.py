@@ -70,12 +70,25 @@ def 파이썬문법():
     알림("파이썬 문법", not 틀림, f"파일 {수} 개" + (f" — {틀림[:5]}" if 틀림 else ""))
 
 
+def bash찾기():
+    """GNU bash — Windows 에서는 System32 의 bash.exe(WSL 띄우개)가 먼저 잡힐 수 있어 Git 의 bash 를 앞에 둔다."""
+    후보 = [os.environ.get("점검_BASH", ""), r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe", "bash"]
+    for b in 후보:
+        if not b:
+            continue
+        try:
+            r = subprocess.run([b, "--version"], capture_output=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if r.returncode == 0 and b"GNU bash" in r.stdout:
+            return b
+    return None
+
+
 def 셸문법():
-    bash = "bash"
-    try:
-        subprocess.run([bash, "--version"], capture_output=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        알림("셸 문법", True, "bash 가 없어 건너뜀")
+    bash = bash찾기()
+    if bash is None:
+        알림("셸 문법", True, "GNU bash 가 없어 건너뜀")
         return
     폴더 = os.path.join(ROOT, "공식실행")
     틀림 = []
@@ -198,6 +211,59 @@ def 모듈(글, 출력, 병렬, 갱신):
         print("시험/모듈해시.txt 를 새 해시로 고쳤다", flush=True)
 
 
+def 커널이름(기호):
+    """PTX 의 이름(_G + UTF-8 16진) → 글 이름."""
+    if 기호.startswith("_G"):
+        try:
+            return bytes.fromhex(기호[2:]).decode("utf-8")
+        except ValueError:
+            pass
+    return 기호
+
+
+def SASS(출력, ptxas, 병렬):
+    """7. PTX → SASS(sm_89) — NVIDIA ptxas 로(검사에만 — 엔진은 드라이버가 PTX 를 그대로 받는다). 커널마다 레지스터 · 넘침(spill) 바이트를
+    SASS_<모듈>.txt 에 적는다. ptxas 가 받지 않으면 못 미침, 넘침이 있는 커널은 수를 알린다(기록)."""
+    표 = 모듈표읽기()
+
+    def 하나(항목):
+        이름 = 항목[0]
+        ptx = os.path.join(출력, 이름 + ".ptx")
+        cubin = os.path.join(출력, 이름 + ".cubin")
+        t0 = time.time()
+        r = subprocess.run([ptxas, "-arch=sm_89", "-v", ptx, "-o", cubin], capture_output=True, stdin=subprocess.DEVNULL)
+        글 = (r.stdout + r.stderr).decode("utf-8", "replace")
+        if os.path.exists(cubin):
+            os.remove(cubin)
+        return 이름, r.returncode, 글, time.time() - t0
+    with ThreadPoolExecutor(병렬) as ex:
+        결과 = list(ex.map(하나, 표))
+    for 이름, rc, 글, 초 in 결과:
+        커널들 = []
+        지금 = None
+        for 줄 in 글.splitlines():
+            m = re.search(r"Compiling entry function '([^']+)'", 줄)
+            if m:
+                지금 = 커널이름(m.group(1))
+                커널들.append([지금, 0, 0, 0])
+                continue
+            m = re.search(r"(\d+) bytes spill stores, (\d+) bytes spill loads", 줄)
+            if m and 커널들:
+                커널들[-1][2] = int(m.group(1))
+                커널들[-1][3] = int(m.group(2))
+            m = re.search(r"Used (\d+) registers", 줄)
+            if m and 커널들:
+                커널들[-1][1] = int(m.group(1))
+        open(os.path.join(출력, f"SASS_{이름}.txt"), "w", encoding="utf-8").write(
+            "커널 | 레지스터 | 넘침 저장 바이트 | 넘침 읽기 바이트\n" + "".join(f"{k} | {r_} | {s} | {l}\n" for k, r_, s, l in 커널들) +
+            ("" if rc == 0 else "\n" + 글[-2000:]))
+        넘침 = [k for k in 커널들 if k[2] or k[3]]
+        덧 = f"커널 {len(커널들)} 개 · 레지스터 최대 {max((k[1] for k in 커널들), default=0)} · 넘침 있는 커널 {len(넘침)} ({초:.0f} 초)"
+        if 넘침:
+            덧 += f" — {[k[0] for k in 넘침[:4]]}"
+        알림(f"SASS {이름}", rc == 0 and bool(커널들), 덧 if rc == 0 else f"ptxas 종료 {rc}: {글.strip()[-300:]}")
+
+
 def 가져오기검사(출력):
     exe = os.path.join(출력, "실행기.exe")
     if not os.path.exists(exe):
@@ -214,6 +280,7 @@ def main():
     p.add_argument("--병렬", type=int, default=max(1, min(8, os.cpu_count() or 1)))
     p.add_argument("--출력", default=os.path.join(ROOT, "빌드", "점검"))
     p.add_argument("--해시갱신", action="store_true")
+    p.add_argument("--ptxas", default=os.environ.get("점검_PTXAS", ""), help="NVIDIA ptxas — 주면 PTX → SASS(sm_89)까지 본다")
     a = p.parse_args()
     글 = os.path.abspath(a.글)
     출력 = os.path.abspath(a.출력)
@@ -232,6 +299,10 @@ def main():
         if 빌드(글, 출력, a.병렬):
             모듈(글, 출력, a.병렬, a.해시갱신)
             가져오기검사(출력)
+            if a.ptxas:
+                SASS(출력, a.ptxas, a.병렬)
+            else:
+                print("SASS: ptxas 를 주지 않아 건너뜀(--ptxas)", flush=True)
     open(os.path.join(출력, "요약.txt"), "w", encoding="utf-8").write("\n".join(요약) + "\n")
     print(f"빠른 점검: {'모두 통과' if not 실패 else '못 미침 ' + str(실패)} ({time.time() - t0:.0f} 초)", flush=True)
     return 0 if not 실패 else 1
