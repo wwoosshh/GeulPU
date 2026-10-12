@@ -1,0 +1,14 @@
+28c  1 통과 — health 
+28c  2 통과 — models 
+28c  3 통과 — 채팅 
+28c  4 통과 — 흘려보내기 (조각 8)
+28c  5 통과 — completions 글 · 토큰 
+28c  6 통과 — stop '1, 2, 3, 4, 5, 6, '
+28c  7 통과 — max_tokens 
+28c  8 통과 — 한글 · 이모지(날글 · \u) 
+28c  9 통과 — 오류 다섯 
+28c 10 통과 — 이어 쓰기 · Connection: close 
+28c 11 통과 — 흘리는 중에 끊은 연결 뒤 
+28c 12 통과 — curl 
+28c 13 통과 — OPTIONS 의 CORS 
+모두 통과

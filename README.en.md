@@ -41,9 +41,9 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 | Weight formats | GGUF **Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K**, including per-tensor mixes as in Q4_K_M · Q5_K_M (stage 26 — tested with files re-quantized on this PC from Q8_0; official Qwen files are not yet tested). |
 | Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: ChatML chat, streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
 | Server | `빌드/글/서버.exe model.gguf` (`서버` = server) — a geul program (stage 28): an OpenAI-compatible HTTP API (chat · completions · SSE streaming) with slots, continuous batching, prompt caching and a sampling contract (the same seed gives the same tokens). A request returns the same bits whatever else runs with it — zero differences over four models × twelve requests × four schedules, while llama-server's greedy answer changed in 11 of 12 cases depending on the concurrent requests. Head-128 Qwen2 (7B · 14B). 7B Q4_0 aggregate throughput: 302 tokens/s with four streams and 508 with eight (llama-server 360 · 632 — a multi-row decode kernel is next); one stream is 4% faster than llama-server. See [`문서/28단계.md`](문서/28단계.md) |
-| Environment | Windows + NVIDIA Ampere (RTX 30) or newer + driver. All numbers here are from one RTX 4070 Ti (12 GB). Building (generator → kernel source → PTX → runner) needs only the geul compiler. Tests and benchmarks need Python 3.12 + numpy. |
+| Environment | Windows or Linux x86-64 (glibc) + NVIDIA Ampere (RTX 30) or newer + driver. Linux was tested under WSL2 Ubuntu 24.04 in stage 29 — the same bits as Windows on the same GPU, speed within ~0.5% ([`문서/29단계.md`](문서/29단계.md)). On Linux the programs import only libc.so.6 and libcuda.so.1. All numbers here are from one RTX 4070 Ti (12 GB). Building (generator → kernel source → PTX → runner) needs only the geul compiler. Tests and benchmarks need Python 3.12 + numpy. |
 | Layer split | Stage 25 — split layers across GPUs (`--나누기 P` parts, `--장치 a,b,…` devices, `--예산 GB` budget). Emulated on one GPU with one CUDA context per part: 16 split runs are bit-identical to the single-part run; decoding with two parts takes 1.025–1.029× (mostly the emulation's context switching; 1.002–1.003× with a shared context). 14B in two parts did not fit at context 8192 on 12 GB, so that pre-registered cell was not measured (criterion 25c not passed). |
-| Not yet | Real multi-GPU runs; measuring the contract's loss with the real engine on 7B+ (done for 0.5B; simulated for 7B · 14B); Q2_K · Q3_K · IQ formats · Q5_0 (real 72B k-quant files use Q5_0 · Q8_0 for ffn_down); MoE; sampling (greedy only); server features; Linux; reproduction on another GPU. |
+| Not yet | Real multi-GPU runs; measuring the contract's loss with the real engine on 7B+ (done for 0.5B; simulated for 7B · 14B); Q2_K · Q3_K · IQ formats · Q5_0 (real 72B k-quant files use Q5_0 · Q8_0 for ffn_down); MoE; a GPU run on native Linux (tested under WSL2 only); reproduction on another GPU. |
 
 ## Repository layout
 
@@ -60,7 +60,7 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 
 ## Quick start
 
-1. **Requirements**: Windows and an NVIDIA driver (Ampere or newer). For chat, this and the geul compiler are enough. Tests and benchmarks
+1. **Requirements**: Windows or Linux x86-64 (glibc — see 7 below) and an NVIDIA driver (Ampere or newer). For chat, this and the geul compiler are enough. Tests and benchmarks
    also need Python 3.12 and `pip install -r requirements.txt`.
 2. **geul compiler and PTX backend**: clone the `research/gpu` branch of the geul repository next to this one as `../geul-lang-v2` (the
    exact commit used is in [`시험/글저장소커밋.txt`](시험/글저장소커밋.txt)) and build the self-hosted compiler and the PTX backend:
@@ -112,12 +112,28 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
    - Clients that speak the OpenAI API connect with base URL `http://127.0.0.1:8080/v1`. Only the Python standard library and curl were
      tested as clients.
    - The server listens on 127.0.0.1 by default and has no authentication.
+7. **Linux** (stage 29 — x86-64 · glibc, tested under WSL2 Ubuntu 24.04): build the same sources with the geul compiler's Linux target —
+   the executables are extension-less ELF files importing only `libc.so.6` and `libcuda.so.1`, and the kernel modules (source and PTX) are
+   byte-identical to the ones made on Windows.
+   ```
+   cd ../geul-lang-v2 && python3 build.py selfhost 컴파일러          # on Linux the compiler itself is an ELF (build/self_컴파일러)
+   GEUL_ROOT=. build/self_컴파일러 research/gpu/자체PTX/PTX.gl -o build/자체PTX
+   cd ../GeulPU && mkdir -p 빌드/글리눅스
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러 커널/커널생성.gl -o 빌드/글리눅스/커널생성
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러 호스트/실행기.gl -o 빌드/글리눅스/실행기
+   빌드/글리눅스/커널생성 qwen2Q8 빌드/글리눅스/qwen2Q8.gl
+   ../geul-lang-v2/build/자체PTX 빌드/글리눅스/qwen2Q8.gl -o 빌드/글리눅스/qwen2Q8.ptx
+   빌드/글리눅스/실행기 qwen2.5-0.5b-instruct-q8_0.gguf
+   ```
+   The server is the same (`호스트/서버.gl`). Under WSL2 the Windows driver provides `/usr/lib/wsl/lib/libcuda.so.1`. Linux binaries can
+   also be built on Windows with the compiler's `--대상 리눅스` (the bytes equal those built on Linux). A GPU run on native Linux has not
+   been done yet.
 
 ## Checks
 
 [![Quick check](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml/badge.svg)](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml)
 
-- **Quick check on every push** — GitHub Actions, Windows runner, no GPU and no model files, about 5 minutes
+- **Quick check on every push** — GitHub Actions, a Windows runner and (from stage 29) an Ubuntu runner, no GPU and no model files, about 5 minutes
   ([`시험/빠른점검.py`](시험/빠른점검.py); the same command runs locally). The geul compiler is a CPU program, so everything up to PTX can be
   produced without a GPU: the check builds the geul compiler and PTX backend at the pinned geul commit, builds the generator and all 15
   host programs, regenerates six kernel modules from scratch and compares source and PTX byte for byte with

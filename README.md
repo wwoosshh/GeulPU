@@ -31,11 +31,11 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 | 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0 · **k-양자화(Q4_K · Q5_K · Q6_K — 텐서마다 형식이 다른 Q4_K_M · Q5_K_M · Q6_K 섞음 그대로, 26단계 — 이 PC 에서 다시 양자화한 파일로 시험)**. k-양자화도 CPU 참조와 비트까지 같고, 7B 생성은 llama.cpp 의 0.977 ~ 1.009배 시간(아홉 칸) — 14B Q4_K_M 생성 1.009 · 1.012배([26단계](문서/26단계.md)). 27단계에서 프롬프트의 타일 판을 고쳐(값은 비트까지 그대로) 7B 프롬프트가 llama.cpp 의 1.25 · 1.39배(Q4_K_M) · 1.37 · 1.49배(Q5_K_M) · 1.45 · 1.56배(Q6_K) · 1.13 · 1.29배(Q4_0) · 1.14 · 1.30배(Q8_0)다(2048 · 8192, [27단계](문서/27단계.md)). 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트는 23단계에 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192)였다 ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
 | 서버 | `빌드/글/서버.exe 모델.gguf` — 글(geul) 언어 프로그램(28단계). OpenAI 꼴 HTTP API(채팅 · completions · SSE 흘려보내기), 슬롯 · 연속 배치 · 프롬프트 캐시, 뽑기 계약(씨앗이 같으면 같은 토큰). 같은 요청은 함께 도는 요청과 상관없이 같은 비트다 — 네 모델 × 요청 열둘 × 차례 넷에서 다른 것 0 (llama-server 는 함께 돈 요청에 따라 12 경우 중 11 에서 탐욕 답이 바뀌었다). 머리 128 의 Qwen2(7B · 14B). 7B Q4_0 합 처리량은 넷 스트림 302 · 여덟 508 토큰/초(llama-server 360 · 632 — 행 여럿 줄 판이 다음 일), 한 스트림은 llama-server 보다 4 % 짧다([28단계](문서/28단계.md)) |
-| 실행 환경 | Windows + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 실행기는 글 실행 파일 하나 + nvcuda.dll — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
+| 실행 환경 | Windows 또는 Linux x86-64(glibc) + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 리눅스는 29단계에 WSL2 Ubuntu 24.04 에서 시험했다 — 같은 GPU 에서 윈도와 같은 비트, 속도는 0.5 % 안팎([29단계](문서/29단계.md)). 실행기는 글 실행 파일 하나 + nvcuda.dll(리눅스는 libc.so.6 · libcuda.so.1) — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy |
 | 층 나누기 | 25단계 — 한 GPU 에 들지 않는 모델을 층으로 나눠 여러 GPU 에(`--나누기 P` · `--장치 a,b,…` · `--예산 GB`). 이 PC 에는 GPU 가 한 장이라 한 장 안의 여러 쿠다 문맥으로 흉내 냈다: 나눠 돌린 길 16 개가 한 조각과 바이트까지 같고, 7B 두 조각의 생성은 한 조각의 1.025 ~ 1.029 배(조각마다 문맥 — 그 차이의 대부분은 한 GPU 에서 문맥을 오가는 흉내의 값) · 1.002 ~ 1.003 배(문맥 하나). 14B 두 조각은 12 GB 한 장에 문맥 8192 로 들지 않아 그 칸을 재지 못했다 — 판정 25c 는 통과하지 못함([25단계](문서/25단계.md)) |
-| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, Linux(글(geul) 언어 컴파일러의 리눅스 대상을 넣는 중), 다른 GPU 에서의 재현, 서버의 logprobs · tools · 벌점 · 인증 |
+| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 네이티브 리눅스(실제 리눅스 컴퓨터)에서의 GPU 실행(WSL2 에서만 시험), 다른 GPU 에서의 재현, 서버의 logprobs · tools · 벌점 · 인증 |
 
-다음은 함께 걷는 스트림의 걸음(행 여럿 줄 판 — 29단계), MoE, 리눅스, 프롬프트의 남은 거리, 생성의 바닥까지 남은 거리다. 공식 실행 스크립트(빌드부터 판정의 값까지)는
+다음은 프롬프트(첫 토큰 · 긴 문맥의 어텐션 · 행렬곱 판 — 30단계), 함께 걷는 스트림의 걸음(31단계), MoE, 생성의 바닥까지 남은 거리다. 공식 실행 스크립트(빌드부터 판정의 값까지)는
 [공식실행/](공식실행/)에 있다. **실행에는 파이썬이 들지 않는다**(18단계): 채팅 실행기는 글(geul) 언어 프로그램(`호스트/*.gl`)을
 글의 자체 호스팅 컴파일러로 빌드한 실행 파일 하나이고, 가져오는 DLL 은 `kernel32` · `shell32`(글 런타임)과 `nvcuda.dll` 뿐이다. GPU 커널의 PTX 는
 글로 쓴 PTX 뒷단이 만든다(17단계). 파이썬 호스트(`엔진/` · `실행.py`)와 견줘 GPU 에 올리는 것 · 토큰 · 걸음마다 로짓 · KV 캐시 · 대화가 바이트까지
@@ -60,7 +60,7 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 ## 빠른 시작
 
-1. **준비물**: Windows, NVIDIA 드라이버(Ampere 이상). 채팅만 하려면 이것과 글 컴파일러로 충분하다. 시험 · 재기 · GPT-2 는 Python 3.12 와
+1. **준비물**: Windows 또는 Linux x86-64(glibc — 리눅스는 아래 7), NVIDIA 드라이버(Ampere 이상). 채팅만 하려면 이것과 글 컴파일러로 충분하다. 시험 · 재기 · GPT-2 는 Python 3.12 와
    `pip install numpy` 가 더 든다(시험의 일부와 재기는 `torch`, 견주기는 llama.cpp b11496 Windows CUDA 배포본을 `도구/llama-b11496/` 에).
 2. **글 컴파일러와 PTX 뒷단**: 글 저장소의 `research/gpu` 가지를 이 저장소 옆 `../geul-lang-v2` 에 받는다(PTX 뒷단의 소스). 컴파일러는 둘 중
    하나를 쓴다.
@@ -152,6 +152,20 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
    tk = T.토크나이저("small")
    print(tk.잇기(m.생성(tk.나누기("The meaning of life is"), 32)))
    ```
+7. **리눅스**(29단계 — x86-64 · glibc, WSL2 Ubuntu 24.04 에서 시험): 같은 소스를 글 컴파일러의 리눅스 대상으로 빌드한다 — 실행 파일은
+   확장자 없는 ELF 이고 가져오는 것은 `libc.so.6` · `libcuda.so.1` 뿐이다. 모듈(커널 소스 · PTX)은 윈도에서 만든 것과 바이트까지 같다.
+   ```
+   cd ../geul-lang-v2 && python3 build.py selfhost 컴파일러          # 리눅스에서 돌리면 컴파일러도 ELF(build/self_컴파일러)
+   GEUL_ROOT=. build/self_컴파일러 research/gpu/자체PTX/PTX.gl -o build/자체PTX
+   cd ../GeulPU && mkdir -p 빌드/글리눅스
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러 커널/커널생성.gl -o 빌드/글리눅스/커널생성
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러 호스트/실행기.gl -o 빌드/글리눅스/실행기
+   빌드/글리눅스/커널생성 qwen2Q8 빌드/글리눅스/qwen2Q8.gl
+   ../geul-lang-v2/build/자체PTX 빌드/글리눅스/qwen2Q8.gl -o 빌드/글리눅스/qwen2Q8.ptx
+   빌드/글리눅스/실행기 qwen2.5-0.5b-instruct-q8_0.gguf
+   ```
+   서버도 같다(`호스트/서버.gl`). WSL2 에서는 윈도 드라이버가 `/usr/lib/wsl/lib/libcuda.so.1` 을 준다. 윈도에서 리눅스용을 만들 수도
+   있다 — 글 컴파일러에 `--대상 리눅스`(만든 바이트는 리눅스에서 만든 것과 같다). 네이티브 리눅스에서 GPU 로는 아직 돌려 보지 않았다.
 
 ## 연구 기록
 
@@ -168,7 +182,7 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 
 [![빠른 점검](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml/badge.svg)](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml)
 
-- **빠른 점검**(커밋마다, GPU · 모델 파일 없이 — GitHub Actions 의 Windows 러너, 5분 안팎, [시험/빠른점검.py](시험/빠른점검.py)). 글 컴파일러는
+- **빠른 점검**(커밋마다, GPU · 모델 파일 없이 — GitHub Actions 의 Windows 러너와 29단계부터 Ubuntu 러너, 5분 안팎, [시험/빠른점검.py](시험/빠른점검.py)). 글 컴파일러는
   CPU 프로그램이라 커널 소스 → PTX 까지는 GPU 없이 만든다: 글 저장소의 고정 커밋([시험/글저장소커밋.txt](시험/글저장소커밋.txt))에서 글 컴파일러와
   PTX 뒷단을 빌드하고, 생성기와 호스트 프로그램 모두를 빌드하고, 모듈 여섯(0.5B · 7B Q8_0 · Q4_0 · 14B Q4_0 · 7B · 14B k-양자화)을 처음부터
   만들어 소스와 PTX 를 [시험/모듈해시.txt](시험/모듈해시.txt) 와 바이트까지 견준다(커널이 뜻하지 않게 바뀌면 걸린다 — 일부러 바꾼 커밋은
@@ -204,7 +218,7 @@ end-to-end logits are bit-exact to the CPU reference, 7B decode takes 0.977-1.00
 the prompt tile kernels without changing a bit (one m16n8k16 integer MMA per Q6_K sub-block, a magic-number accumulator for Q4_0/Q4_K, hoisted
 prefetch addressing): 7B prompts now take 1.13-1.30x (Q4_0, Q8_0) and 1.25-1.56x (k-quants) llama.cpp's time. Not yet: real multi-GPU runs, measuring
 the contract's loss with the real engine on 7B+ weights (done for 0.5B), Q2_K/Q3_K/IQ/Q5_0, MoE, sampling (greedy only), server features,
-Linux, and reproduction on another GPU.
+a GPU run on native Linux (Linux is tested under WSL2: same bits as Windows, stage 29), and reproduction on another GPU.
 Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md; English: [docs/research-log.md](docs/research-log.md));
 run scripts are in 공식실행/. Full English README: [README.en.md](README.en.md); contract, reproduction guide, glossary and a brief for
 reviewers: [docs/](docs/).

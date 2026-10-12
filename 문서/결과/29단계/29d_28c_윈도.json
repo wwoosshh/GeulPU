@@ -1,0 +1,21 @@
+{
+ "모델": "qwen2.5-7b-instruct-q4_0-pure.gguf",
+ "슬롯": 4,
+ "문맥": 4096,
+ "28c": {
+  "1 health": true,
+  "2 models": true,
+  "3 채팅": true,
+  "4 흘려보내기": true,
+  "5 completions 글 · 토큰": true,
+  "6 stop": true,
+  "7 max_tokens": true,
+  "8 한글 · 이모지(날글 · \\u)": true,
+  "9 오류 다섯": true,
+  "10 이어 쓰기 · Connection: close": true,
+  "11 흘리는 중에 끊은 연결 뒤": true,
+  "12 curl": true,
+  "13 OPTIONS 의 CORS": true,
+  "통과": true
+ }
+}

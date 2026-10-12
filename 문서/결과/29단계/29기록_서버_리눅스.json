@@ -1,0 +1,146 @@
+[
+ {
+  "K": 1,
+  "합처리량": 105.6623517863798,
+  "걸음ms": 9.430186500026139,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   17.181875000005675
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 300.25351112005376,
+  "걸음ms": 13.256954500093343,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   84.67041399990194,
+   17.308214999957272,
+   47.844729999951596,
+   119.0391580000778
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 107.29761203786421,
+  "걸음ms": 9.27317100001801,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   17.05896099997517
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 300.1388588857539,
+  "걸음ms": 13.311797500023204,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.13552600001458,
+   98.21837599997707,
+   17.29530500006149,
+   70.27776800009633
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 106.79801747296729,
+  "걸음ms": 9.334214999967116,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   17.06446599996525
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 296.8350628633811,
+  "걸음ms": 13.407541999868045,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   17.695852000088053,
+   80.67538099999183,
+   108.89905599992744,
+   53.0397099998936
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 2
+ }
+]
