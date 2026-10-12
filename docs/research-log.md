@@ -1,0 +1,56 @@
+# Research log — how GeulPU came about (stages 0–27, 2026-10-08 to 10-12)
+
+*English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
+`research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
+[research/gpu/](https://github.com/wwoosshh/geul-lang/tree/research/gpu/research/gpu)).*
+
+**Method.** Every stage writes its pass/fail criteria first and commits them before any measurement. Every kernel variant is compared
+bit for bit against the CPU reference before it is timed. Failures and missed criteria are recorded as they happened. All numbers are
+from one RTX 4070 Ti (12 GB) on Windows 11; llama.cpp is build b11496 (CUDA). Speed ratios r are time(GeulPU) / time(llama.cpp) on the
+same GGUF file: r < 1 means GeulPU is faster.
+
+## Stages
+
+| Stage | What | Result |
+|---|---|---|
+| 0 | Classify 43 public real-world bugs by a fixed rule: what meaning was lost, and where | Bugs that geul's grammar would block: 28% (criterion 50% — missed). Losses inside compilers: 23% → "the compiler must keep meaning" comes first |
+| 1 | Probe: geul source → typed IR → PTX, run through the driver by a host written in geul | Passed. PTX contract found: without an explicit rounding mode the driver fuses multiply+add into FMA and values change (245,734 of 1,048,576) → `.rn` everywhere |
+| 2 | Address spaces, registers, shared-memory tiles, range checks (error cell) | Matmul 19.8 → 0.48 ms; row-invariant, bits unchanged |
+| 3 | GPT-2 small in geul kernels — identical bits on every path; a generation megakernel | Decode 1.19 ms/token (PyTorch CUDA graph 1.54); 0 differing elements across paths (PyTorch: 74–96% differ) |
+| 4 | Compare with llama.cpp and Hugging Face (speed, meaning, stability); declared precision: half-precision KV | Decode ahead, prompt 4–9% behind. llama.cpp changes 99.96% of output elements depending on how input is fed — GeulPU 0 |
+| 5 | Quantized GGUF (F16 · Q8_0 · Q4_0) used as is — only the format's declared loss | KL vs the original model = the format's own loss (llama.cpp loses 1.6–505× the format's loss); decode ahead |
+| 6 | Integer tensor cores — the integer block contract (four digits) | Prompts also ahead of llama.cpp on small; error 1/100 of llama.cpp's |
+| 7 | GPT-2 XL (1.5B) | Decode and accuracy ahead; prompts 1.2–1.7× slower (four digits = four times the tensor work) |
+| 8 | Two-digit contract (activations ±2¹⁴) — "loses only what is written, and is not slower" | Prompts 1.3–1.5× faster (all small cases ahead; XL 4–22% short) |
+| 9 | Integer KV contract — attention on integer tensor cores with written exp, up to 130K positions | KV loss smaller than half-precision KV; long-context (synthetic 100K) prompts ahead |
+| 10 | Tile and attention variants from first principles | All equal or slower — the limit of working without a profiler |
+| 11 | Where Nsight Compute pointed: ldmatrix, π-ordered B operands, scale prefetch | XL prompts ahead of llama.cpp (0.86–0.95×) and PyTorch f16 (0.79–0.91×) for the first time |
+| 12 | Overlap · attention · sustained use: split kernels for short chunks, constant-division lowering, per-head folding blocks in the megakernel, early garbage collection | Ahead of llama.cpp in every segment and window of a growing 100K-context conversation and a 2-minute XL run |
+| 13 | Two-level fold (group = 1024 positions) — groups spread across blocks | All 23 long-context chunked-feeding cells ahead (0.68–0.91×; context 98K, chunk 16: 14.30 → 9.53 ms); real GPT-2 outputs bit-identical to stage 12. 13d (no regression) missed by about 1% in three cells |
+| 14 | First chat model: Qwen2.5-0.5B-Instruct (Q8_0) — RMSNorm · RoPE · SwiGLU · GQA in the contract, a terminal runner | All rows of logits bit-identical to the CPU reference (beyond position 1024 too). Hidden loss (KL) 1/615 of llama.cpp's; prompts 0.55–0.82×, decode 0.80–0.87× — all five criteria passed |
+| 15 | Generation megakernel: a whole token in one cooperative launch (GQA group attention, split two-level fold, waiting blocks warm L2 by real reads of the weights) | Decode 1.255 · 1.336 · 1.507 ms/token (chat prompt · context 1024 · 8192): 0.75–0.79× of stage 14, 0.63–0.65× of llama.cpp, 1.21× the floor. Logits and cache bit-identical to the decode graph at every step — all four criteria passed |
+| 16 | PTX from geul's own compiler — stages 1–15 used a Python toolchain (reference front end + `글ptx.py`); a PTX backend written in geul inside the self-hosted compiler | The four stage-1 probe kernels: PTX byte-identical to the Python backend, 0 wrong values on the GPU — from geul source to GPU execution without Python. Real kernels stopped at the range-proof rule |
+| 17 | Model kernels through the geul compiler — all remaining rules ported (range proofs, constant division, vectorized loads, tensor cores, async copies, half precision) | All 23 engine modules (GPT-2 ×22 + the 52 MB Qwen2 megakernel module) byte-identical to the Python backend on the first run; every stage-15 bit test passes with that PTX; compiling is 2.7× faster (149.5 vs 399.7 s) — all four criteria passed |
+| 18 | The host in geul — GGUF loading, weight layout, RoPE tables (double-precision arithmetic), tokenizer (Unicode 15.0 tables · NFC · BPE), engine (kernel selection · graphs · megakernel), chat runner | The 266 KB runner imports only kernel32 · shell32 · nvcuda.dll and chats on a PATH without Python. Uploads, tokens, per-step logits, KV cache and conversations byte-identical to the Python host; speed 0.991–1.003× — all five criteria passed |
+| 19 | The kernel generator in geul — the Qwen2 path of `커널생성.py` (2,395 lines, 72 functions) | The geul generator's `qwen2Q8.gl` is byte-identical to the Python version (107,417 lines, 6.8 MB); build → generate → PTX → chat from scratch with only the geul compiler + nvcuda.dll; generation 39 ms (Python 90 ms) — all three criteria passed |
+| 20 | Quality: hidden loss seen as perplexity (a third-party review said "1/615 is easy to overstate") — wikitext-2 | 20a passed: the NLL sum of 584 chunks is bit-identical for every feeding mode (llama.cpp: PPL 15.8171–15.8200 depending on batch settings). 20b passed: PPL 15.763670 vs fp64 15.763774 (relative −6.6 × 10⁻⁶), KL 1/385. 20c "same order — the review is right": llama.cpp's hidden loss (KL 1.40 × 10⁻³, PPL +0.34%) is 1.95× the Q8_0 format loss (KL 7.20 × 10⁻⁴, PPL +0.24%) |
+| 21 | 7B matmuls — does the two-digit contract's doubled tensor work show? Real Qwen2.5-7B Q8_0 layer-0 weights, GeulPU tiles vs llama.cpp's MMQ | 21a passed: 11 tile shapes agree with each other and the CPU reference (K up to 18944). 21b "it shows, but not 2×": 2048 rows 10.32 vs 8.63 ms (r 1.20), 8192 rows 63.2 vs 35.6 ms (r 1.77); GeulPU multiplies twice but uses 55–58% of int8 peak (llama.cpp 33–35%) |
+| 22 | The whole 7B in geul — head-128 attention, a 7B module, prompts in 1024-row chunks, a CUDA graph per decoded token | 22a passed: new kernels and end-to-end (26,155,008 logits) 0 differences. 22b passed: five paths identical (2100 tokens too). 22c passed: 7B chat from one runner without Python. 22d: prompts r 1.14 · 1.30, decode r 1.054–1.070 ("slower" — the short-context cell missed 1.05 by 0.004) |
+| 23 | 4-bit (Q4_0) in the contract, and the fixed cost of 7B decoding — new decode kernels with the same formulas and order | 23a/23b passed (106 kernel cases, end-to-end, five paths; Q8_0 byte-identical to stage 22). 23c passed: all six decode cells "same" — Q8_0 r 0.980–0.990, Q4_0 r 0.970–0.985 (1.11 · 1.16× the floor; llama.cpp 1.13–1.19×). 23d: Q4_0 prompts r 1.23 · 1.38. L2 prefetching was tried and removed |
+| 24 | Model shapes from the GGUF config — `qwen2큰 <format> <width> <heads> <KV> <FFN> <vocab>`; real 14B; 32B · 72B shapes as 4-layer synthetic models | 24a–24d passed: modules unchanged, five models bit-exact, 14B decode r 0.982–0.994, prompts 1.22 · 1.34. A bug sizing Q4_0 buffers as Q8_0 was fixed |
+| 25 | Layer split across GPUs — parts with their own CUDA contexts (emulated on one GPU), async hand-off, memory budget | 25a passed: 16 split runs byte-identical to one part. 25b passed. **25c not passed**: 7B two parts 1.0285 · 1.0285 · 1.0249 (within 1.03), but 14B two parts did not fit at context 8192 on 12 GB, so that cell was not measured. A shared context costs only 1.002–1.003× |
+| Review | Contract-loss review — does a larger model show a sign that the contract must change? fp64 forward passes simulating only the rounding points (ground truth · contract · llama.cpp-like) | The simulation matches the measured 0.5B (1/637 vs 1/615). 7B · 14B: 1/3805 · 1/4467 — the contract's advantage grows with size. One pre-registered rule fired: attention probabilities (two digits per 32-key block) are at f16 level and worse than f16 in 12/28 (7B) · 34/48 (14B) layers, contributing 9% of the contract's KL at 7B. No contract change; long-context probabilities to be checked |
+| 26 | k-quants (Q4_K · Q5_K · Q6_K) in the contract — the file's integers and scales as stored, per-tensor formats, a `qwen2K_{shape}` module | 26a passed: 243 kernel cases and three files end-to-end (26.16 M logits each) 0 differences. 26b passed. 26c passed: nine decode cells r 0.977–1.009 (1.13–1.17× the floor). 26d (record): prompts Q4_K_M 1.46 · 1.58, Q5_K_M 1.51 · 1.62, Q6_K 2.06 · 2.12. 14B Q4_K_M decode 1.009 · 1.012 |
+| 27 | Prompt tiles: fill the tensor pipe (values unchanged). Nsight: tiles kept the tensor pipe 54–58% busy with 14–17 instructions per integer MMA, MMAs bunched by ptxas | *In progress.* Implemented: Q6_K with one m16n8k16 MMA per sub-block (new `정수텐서곱16` intrinsic in the geul PTX backend) and signed 4(q−32) operands from a pre-arranged high-bit layout; a magic-number accumulator for Q4_0 · Q4_K; hoisted prefetch addressing for k-quant tiles. Development measurements of stage-27 / stage-26 prompt time (2048 · 8192): Q4_K_M 0.859 · 0.881 and Q4_0 0.914 · 0.932 (same-session A/B); Q6_K about 0.71 · 0.74 and Q5_K_M about 0.91 · 0.93 (against the stage-26 official numbers). Official run pending |
+
+## What remains (as of stage 27)
+
+- **Prompt speed.** The two-digit contract does twice the integer tensor work of 8-bit activations; the remaining gap is in the tile
+  kernels' epilogue cost and MMA scheduling. CPU-only SASS analysis (the CI's ptxas step) shows the head-128 prompt attention kernel spills
+  1,092 bytes per thread — the next lever for long prompts. Precomputing per-row activation sums would remove the Q4_K · Q5_K
+  T-sum MMAs (an upper-bound experiment: 3–5%).
+- **Decode** is at parity with llama.cpp and 1.11–1.17× the bandwidth floor; the remaining distance is in small matmuls, per-layer small
+  kernels and attention at 8192.
+- **Formats and models**: Q2_K · Q3_K · IQ · Q5_0 (needed for real 72B k-quant files), official k-quant files, MoE, sampling, server
+  features, Linux.
+- **Reproduction** on other GPUs; real multi-GPU layer split; measuring the contract's loss with the real engine on 7B+.

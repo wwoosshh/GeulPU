@@ -1,5 +1,8 @@
 # GeulPU — 의미를 지키는 GPU 추론 엔진
 
+*English: [README.en.md](README.en.md) · [docs/](docs/) — the contract, research log, how to reproduce, glossary, and a short brief
+for outside reviewers.*
+
 **글(geul)** 언어로 쓴 GPU 커널을 글 컴파일러가 PTX 로 바꿔 NVIDIA 드라이버에 바로 올리는 언어 모델 추론 엔진이다. CUDA 툴킷 ·
 cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` 하나로 돈다.
 
@@ -184,4 +187,6 @@ end-to-end logits are bit-exact to the CPU reference, 7B decode takes 0.977-1.00
 (Q4_K_M, Q5_K_M) and 2.06-2.12x (Q6_K, whose sub-block sums double the integer tensor work for now). Not yet: real multi-GPU runs, measuring
 the contract's loss with the real engine on 7B+ weights (done for 0.5B), Q2_K/Q3_K/IQ/Q5_0, MoE, sampling (greedy only), server features,
 Linux, and reproduction on another GPU.
-Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md); run scripts are in 공식실행/.
+Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md; English: [docs/research-log.md](docs/research-log.md));
+run scripts are in 공식실행/. Full English README: [README.en.md](README.en.md); contract, reproduction guide, glossary and a brief for
+reviewers: [docs/](docs/).
