@@ -49,10 +49,12 @@ def 엔진배치K(t, raw, N, K):
         h = ((u >> 4) & 1).astype(np.uint32)                                # [KB][N][j][h][m]
         바 = (h << (4 * np.arange(2)[None, None, None, :, None] + np.arange(4)[None, None, None, None, :])).sum((3, 4)).astype(np.uint8)  # [KB][N][j]
         부분.append(np.ascontiguousarray(바).tobytes())
-    elif 형식 == "Q6_K":
-        h = ((u >> 4) & 3).astype(np.uint32)
-        짧 = (h << (8 * np.arange(2)[None, None, None, :, None] + 2 * np.arange(4)[None, None, None, None, :])).sum((3, 4)).astype(np.uint16)
-        부분.append(np.ascontiguousarray(짧).tobytes())
+    elif 형식 == "Q6_K":                                                    # 27단계 — 낱말 h′ 의 바이트 i, 비트 6 − 2G′ = 칸 16h′ + 4G′ + i 의 (높은 ^ 2)
+        h = (((u >> 4) & 3) ^ 2).astype(np.uint32).reshape(KB, N, 2, 2, 2, 4)  # [KB][N][h′][j % 2][4 칸 묶음 반][i] — 칸 16h′ + 8(j % 2) + 4hh + i
+        jl, hh, i = np.meshgrid(np.arange(2), np.arange(2), np.arange(4), indexing="ij")
+        밀기 = (8 * i + 6 - 2 * (2 * jl + hh)).astype(np.uint32)            # G′ = 2(j % 2) + hh
+        낱 = (h << 밀기[None, None, None]).sum((3, 4, 5)).astype(np.uint32)   # [KB][N][2]
+        부분.append(np.ascontiguousarray(낱).tobytes())
     bb = {12: 144, 13: 176, 14: 210}[t]
     bl = np.asarray(raw).reshape(N, KS, bb)
     if 형식 == "Q6_K":
