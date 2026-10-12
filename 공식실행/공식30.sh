@@ -54,7 +54,8 @@ modgen() {   # 생성기 폴더 모듈
     qwen2K_5120x40x8x13824x152064) "$1" qwen2큰 K 5120 40 8 13824 152064 "$2/$3.gl" ;;
   esac
 }
-ready() { for i in $(seq 1 600); do curl -s -m 2 "http://127.0.0.1:$1/health" 2>/dev/null | grep -q ok && return 0; sleep 1; done; return 1; }
+# 30단계 공식 실행 뒤에 고침: ready 의 i 를 지역으로(전에는 30e 반복의 i 를 덮었다 — 문서/30단계.md 의 실행 뒤에 밝혀 둘 것 1)
+ready() { local i; for i in $(seq 1 600); do curl -s -m 2 "http://127.0.0.1:$1/health" 2>/dev/null | grep -q ok && return 0; sleep 1; done; return 1; }
 stop_all() { taskkill //IM 서버.exe //F > /dev/null 2>&1; taskkill //IM llama-server.exe //F > /dev/null 2>&1; sleep 3; }
 
 # ---- 30단계 빌드 ----

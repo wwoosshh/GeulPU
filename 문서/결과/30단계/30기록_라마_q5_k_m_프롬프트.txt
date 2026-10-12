@@ -1,0 +1,11 @@
+| model                          |       size |     params | backend    | ngl |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --------------: | -------------------: |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |            pp32 |     1957.32 ± 245.90 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |           pp128 |     4904.03 ± 169.04 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |           pp512 |      6297.22 ± 57.31 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |          pp1024 |      6314.91 ± 96.86 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |          pp2048 |      6246.39 ± 19.23 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |          pp4096 |       6062.43 ± 3.37 |
+| qwen2 7B Q5_K - Medium         |   5.07 GiB |     7.62 B | CUDA       |  -1 |          pp8192 |       5690.49 ± 4.26 |
+
+build: 972b5fcc1 (11567)
