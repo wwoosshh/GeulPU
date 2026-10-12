@@ -223,10 +223,19 @@ def 커널이름(기호):
     return 기호
 
 
-def SASS(출력, ptxas, 병렬):
+def SASS(출력, ptxas, 병렬, 갱신):
     """7. PTX → SASS(sm_89) — NVIDIA ptxas 로(검사에만 — 엔진은 드라이버가 PTX 를 그대로 받는다). 커널마다 레지스터 · 넘침(spill) 바이트를
-    SASS_<모듈>.txt 에 적는다. ptxas 가 받지 않으면 못 미침, 넘침이 있는 커널은 수를 알린다(기록)."""
+    SASS_<모듈>.txt 에 적는다. ptxas 가 받지 않거나, 시험/SASS넘침.txt(지금 넘치는 커널과 바이트)에 없는 커널이 넘치거나 더 많이 넘치면 못 미침
+    — 레지스터 넘침은 GPU 없이 보이는 성능 회귀다. 일부러 바꿨다면 --넘침갱신."""
     표 = 모듈표읽기()
+    넘침파일 = os.path.join(ROOT, "시험", "SASS넘침.txt")
+    넘침기준 = {}
+    if os.path.exists(넘침파일):
+        for 줄 in open(넘침파일, encoding="utf-8"):
+            if 줄.strip() and not 줄.startswith("#"):
+                m_, k_, v_ = [x.strip() for x in 줄.split("|")]
+                넘침기준.setdefault(m_, {})[k_] = int(v_)
+    새줄 = []
 
     def 하나(항목):
         이름 = 항목[0]
@@ -260,11 +269,24 @@ def SASS(출력, ptxas, 병렬):
         open(os.path.join(출력, f"SASS_{이름}.txt"), "w", encoding="utf-8").write(
             "커널 | 레지스터 | 넘침 저장 바이트 | 넘침 읽기 바이트\n" + "".join(f"{k} | {r_} | {s} | {l}\n" for k, r_, s, l in 커널들) +
             ("" if rc == 0 else "\n" + 글[-2000:]))
-        넘침 = [k for k in 커널들 if k[2] or k[3]]
+        넘침 = {k[0]: k[2] + k[3] for k in 커널들 if k[2] or k[3]}
+        기준 = 넘침기준.get(이름, {})
+        새것 = {k: v for k, v in 넘침.items() if v > 기준.get(k, 0)}          # 기준에 없거나 기준보다 많이 넘치는 커널
+        for k, v in sorted(넘침.items()):
+            print(f"    넘침 {이름} · {k}: {v} 바이트{'' if k not in 새것 else ' (새로 · 늘어남)'}", flush=True)
+        새줄.extend(f"{이름} | {k} | {v}" for k, v in sorted(넘침.items()))
         덧 = f"커널 {len(커널들)} 개 · 레지스터 최대 {max((k[1] for k in 커널들), default=0)} · 넘침 있는 커널 {len(넘침)} ({초:.0f} 초)"
-        if 넘침:
-            덧 += f" — {[k[0] for k in 넘침[:4]]}"
-        알림(f"SASS {이름}", rc == 0 and bool(커널들), 덧 if rc == 0 else f"ptxas 종료 {rc}: {글.strip()[-300:]}")
+        if 새것:
+            덧 += f" — 새로 넘치거나 늘어난 커널 {sorted(새것)} (일부러면 --넘침갱신)"
+        알림(f"SASS {이름}", rc == 0 and bool(커널들) and (갱신 or not 새것), 덧 if rc == 0 else f"ptxas 종료 {rc}: {글.strip()[-300:]}")
+    머리 = "# 빠른 점검의 SASS 단계(ptxas -arch=sm_89)에서 레지스터가 넘치는 커널 — 모듈 | 커널 | 넘침 저장 + 읽기 바이트\n"
+    if os.path.exists(넘침파일):
+        머리 = "".join(줄 for 줄 in open(넘침파일, encoding="utf-8") if 줄.startswith("#")) or 머리
+    내용 = 머리 + "\n".join(새줄) + "\n"
+    open(os.path.join(출력, "SASS넘침.txt"), "w", encoding="utf-8", newline="\n").write(내용)
+    if 갱신 and all(r[1] == 0 for r in 결과):
+        open(넘침파일, "w", encoding="utf-8", newline="\n").write(내용)
+        print("시험/SASS넘침.txt 를 새로 고쳤다", flush=True)
 
 
 def 가져오기검사(출력):
@@ -284,6 +306,7 @@ def main():
     p.add_argument("--출력", default=os.path.join(ROOT, "빌드", "점검"))
     p.add_argument("--해시갱신", action="store_true")
     p.add_argument("--ptxas", default=os.environ.get("점검_PTXAS", ""), help="NVIDIA ptxas — 주면 PTX → SASS(sm_89)까지 본다")
+    p.add_argument("--넘침갱신", action="store_true", help="시험/SASS넘침.txt 를 지금 넘치는 커널로 다시 쓴다")
     a = p.parse_args()
     글 = os.path.abspath(a.글)
     출력 = os.path.abspath(a.출력)
@@ -303,7 +326,7 @@ def main():
             모듈(글, 출력, a.병렬, a.해시갱신)
             가져오기검사(출력)
             if a.ptxas:
-                SASS(출력, a.ptxas, a.병렬)
+                SASS(출력, a.ptxas, a.병렬, a.넘침갱신)
             else:
                 print("SASS: ptxas 를 주지 않아 건너뜀(--ptxas)", flush=True)
     open(os.path.join(출력, "요약.txt"), "w", encoding="utf-8").write("\n".join(요약) + "\n")
