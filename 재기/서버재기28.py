@@ -1,7 +1,10 @@
 """OpenAI 꼴 서버(/v1/chat/completions, 흘려보내기)에 동시 요청 K 개를 보내 토큰이 오는 시각을 잰다 — 표준 라이브러리만.
 
     python -I 재기/서버재기28.py --주소 127.0.0.1:8091 --동시 1,2,4 --생성 256 [--되풀이 3] [--출력 결과.json]
-    python -I 재기/서버재기28.py --주소 … --첫토큰 [--출력 결과.json]      (긴 대화(약 2,000 토큰)의 첫 토큰까지 — 캐시 끔 · 같은 프롬프트 · 다음 차례)
+    python -I 재기/서버재기28.py --주소 … --첫토큰 [--막기] [--출력 결과.json]      (긴 대화(약 2,000 토큰)의 첫 토큰까지 — 캐시 끔 · 같은 프롬프트 · 다음 차례)
+
+--막기(30단계): 첫 토큰을 막는 소켓(timeout 없음)으로 잰다. timeout 을 둔 소켓은 윈도에서 connect 가 select 로 기다려 요청의 절반쯤에서
+10 ~ 25 ms 가 붙었다(30단계 진단 — 서버와 상관없는 클라이언트 쪽의 흔들림).
 
 요청마다 다른 프롬프트(이야기 주제), 탐욕(temperature 0), ignore_eos(끝 토큰을 무시 — llama.cpp 의 덧붙임)로 생성 수를 같게.
 동시 K 의 '모두 도는 구간'(가장 늦게 첫 토큰을 받은 때 ~ 가장 먼저 끝난 때)에 받은 토큰 수 / 구간 길이 = 합 처리량(토큰/초),
@@ -78,9 +81,12 @@ def 한번(주소, K, 생성, 모델):
             "라마시간": [(r["마지막"] or {}).get("timings") for r in 결과], "글머리": [r["글"][:80] for r in 결과]}
 
 
+막기 = False          # 30단계 — --막기: 첫 토큰을 막는 소켓으로
+
+
 def 첫토큰하나(주소, 몸):
     host, port = 주소.split(":")
-    c = http.client.HTTPConnection(host, int(port), timeout=600)
+    c = http.client.HTTPConnection(host, int(port), timeout=None if 막기 else 600)
     t0 = time.perf_counter()
     c.request("POST", "/v1/chat/completions", body=json.dumps(dict(몸, stream=True)).encode("utf-8"), headers={"Content-Type": "application/json"})
     r = c.getresponse()
@@ -127,7 +133,10 @@ def main():
     ap.add_argument("--모델", default="m")
     ap.add_argument("--출력")
     ap.add_argument("--첫토큰", action="store_true")
+    ap.add_argument("--막기", action="store_true")
     a = ap.parse_args()
+    global 막기
+    막기 = a.막기
     if a.첫토큰:
         첫토큰하나(a.주소, {"messages": [{"role": "user", "content": "Hi"}], "temperature": 0, "max_tokens": 4})      # 데우기
         r = 첫토큰재기(a.주소, a.되풀이)
