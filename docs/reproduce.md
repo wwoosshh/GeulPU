@@ -52,7 +52,7 @@ When a commit changes kernels on purpose, update the baselines in the same commi
 | `모델/qwen2.5-14b-instruct-gguf/qwen2.5-14b-instruct-q4_0-pure.gguf` | `Qwen/Qwen2.5-14B-Instruct-GGUF` q4_0, merged, then `--pure` Q4_0 |
 | `…/qwen2.5-14b-instruct-q4_k_m-req.gguf` | `llama-quantize --allow-requantize <14b-q4_0-pure> <out> Q4_K_M` (speed records only) |
 
-llama.cpp for comparisons: release b11496, Windows CUDA build, in `도구/llama-b11496/`.
+llama.cpp for comparisons: the official Windows CUDA release used by each stage, in `도구/llama-b<number>/` — b11496 through stage 29, b11567 from stage 30 (always the latest release at measurement time).
 
 ## 4. GPU bit tests
 

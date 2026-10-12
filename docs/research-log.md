@@ -6,7 +6,7 @@
 
 **Method.** Every stage writes its pass/fail criteria first and commits them before any measurement. Every kernel variant is compared
 bit for bit against the CPU reference before it is timed. Failures and missed criteria are recorded as they happened. All numbers are
-from one RTX 4070 Ti (12 GB) on Windows 11; llama.cpp is build b11496 (CUDA). Speed ratios r are time(GeulPU) / time(llama.cpp) on the
+from one RTX 4070 Ti (12 GB) on Windows 11; llama.cpp is build b11496 (CUDA) through stage 29 and the latest official release at measurement time from stage 30 (b11567). Speed ratios r are time(GeulPU) / time(llama.cpp) on the
 same GGUF file: r < 1 means GeulPU is faster.
 
 ## Stages

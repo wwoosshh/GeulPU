@@ -7,7 +7,7 @@ GeulPU is a large-language-model inference engine whose GPU kernels are written 
 and compiled to PTX by geul's own self-hosted compiler, then loaded straight into the NVIDIA driver. It runs without the CUDA toolkit,
 cuBLAS or PyTorch: the chat runner is a single executable that imports only `kernel32`, `shell32` and `nvcuda.dll`.
 
-> It loses only what is written down, and it is not slower.
+> It loses only what is written down — and it shows what losing less costs.
 
 ## What is different
 
@@ -20,16 +20,23 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
   or batched with other sentences gives identical results. Common engines change output bits with the amount of work computed
   together: llama.cpp's wikitext-2 perplexity varies from 15.8171 to 15.8200 with batch settings, while GeulPU gives the same value to
   the last bit for every way of feeding the text (stage 20).
-- **Fast where it matters most, and honest about where it is not.** On one RTX 4070 Ti:
-  - Qwen2.5-0.5B-Instruct (Q8_0): prompts of 128–8192 tokens take 0.55–0.82× llama.cpp's time; decoding takes 0.63–0.65× (a generation
-    megakernel — 1.26 ms/token, 1.21× the floor of reading the weights once). Its hidden loss (KL against an fp64 forward pass of the same
-    weights) is 1/615 of llama.cpp's (a 461-token evaluation text) and 1/385 (wikitext-2, 148,920 tokens); its perplexity is
-    indistinguishable from fp64 (relative −6.6 × 10⁻⁶), while llama.cpp's is 0.34% higher — the same order as the Q8_0 weight quantization
-    itself (0.24%). How this was measured: [docs/hidden-loss.md](docs/hidden-loss.md).
-  - Qwen2.5-7B / 14B (Q8_0 · Q4_0 · k-quants): decoding is at parity with llama.cpp (0.970–1.012× its time), 1.11–1.17× the bandwidth
-    floor (llama.cpp: 1.13–1.19×). Prompts are slower: 1.13–1.30× for Q4_0 · Q8_0 and 1.25–1.56× for k-quants after stage 27 (stage 26: up to 2.12×). The
-    two-digit activations double the integer tensor-core work of 8-bit activations; stage 27 narrowed the gap without changing a
-    bit — see the [research log](docs/research-log.md).
+- **A small hidden loss — measured on 0.5B.** Qwen2.5-0.5B-Instruct (Q8_0): the hidden loss (KL against an fp64 forward pass of the same
+  weights) is 1/615 of llama.cpp's (a 461-token evaluation text) and 1/385 (wikitext-2, 148,920 tokens); its perplexity is
+  indistinguishable from fp64 (relative −6.6 × 10⁻⁶), while llama.cpp's is 0.34% higher — the same order as the Q8_0 weight quantization
+  itself (0.24%). How this was measured: [docs/hidden-loss.md](docs/hidden-loss.md). 7B and 14B were not measured with the real engine
+  (see the simulation below).
+- **Speed — decoding at parity; compute-bound prompts pay for the extra precision.** On one RTX 4070 Ti:
+  - Qwen2.5-7B / 14B (Q8_0 · Q4_0 · k-quants) decode at parity with llama.cpp (0.970–1.012× its time), 1.11–1.17× the bandwidth floor
+    (llama.cpp: 1.13–1.19×). Decoding is bound by reading the weights, so the extra arithmetic hides behind it.
+  - Prompts are slower: 7B Q4_0 takes 1.06–1.29× the time of the latest official llama.cpp release (b11567, same GGUF, 32–8192 tokens —
+    stage 30 diagnosis), k-quants 1.25–1.56× (2048 · 8192, stage 27, against b11496). At equal optimization the two-digit activations double
+    the integer tensor-core work of llama.cpp's 8-bit activations, and the attention's exact sums and written exp add more; the ratio grows
+    with length because of the attention.
+  - The 0.5B results (prompts of 128–8192 tokens at 0.55–0.82× llama.cpp's time, decoding at 0.63–0.65× with a generation megakernel)
+    and GPT-2 XL (prompts at 0.78–0.87×) come from kernel engineering — fusion and a megakernel — not from the contract being free.
+  - The old motto's "it is not slower" was withdrawn in stage 30. Whether determinism itself, and bit-equality with the CPU reference, cost
+    work at equal optimization has not been measured separately yet; stage 31 does that (a one-digit activation contract plus the same
+    kernels with each constraint switched on and off). See the [research log](docs/research-log.md).
 - **Larger models keep the advantage.** A simulation that reproduces only the rounding points (validated against the measured 0.5B value:
   1/637 simulated vs 1/615 measured) gives a hidden loss of 1/3805 (7B Q8_0) and 1/4467 (14B Q4_0) of a llama.cpp-like pipeline.
 
@@ -53,7 +60,7 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 | [`호스트/`](호스트/) (host) | geul programs: `실행기.gl` (runner), `엔진.gl` (engine: kernel selection, CUDA graphs, decoding), `가중치*.gl` (GGUF weight layout), `로프.gl` (RoPE tables in double-precision arithmetic), `토크나이저.gl` (Unicode 15.0 tables, NFC, BPE), `조각.gl` (layer split), tests and benchmarks. |
 | [`계약/`](계약/) (contract) | `정수계약.py` — the CPU reference implementation of the contract; every bit comparison is against it. |
 | [`시험/`](시험/) (tests) | Bit tests (every kernel vs the CPU reference, paths vs each other, end-to-end), the quick check (`빠른점검.py`). |
-| [`재기/`](재기/) (benchmarks) | Speed comparisons with llama.cpp (b11496 CUDA) and PyTorch; result collectors. |
+| [`재기/`](재기/) (benchmarks) | Speed comparisons with llama.cpp (the latest official release at measurement time — b11496 through stage 29, b11567 from stage 30; CUDA) and PyTorch; result collectors. |
 | [`공식실행/`](공식실행/) (official runs) | The scripts that produced each stage's verdicts, kept as they were run. |
 | [`문서/`](문서/) (documents) | Korean stage reports and the contract. English: [`docs/`](docs/). |
 | [`엔진/`](엔진/) · [`컴파일러/`](컴파일러/) | Legacy Python host and Python PTX backend, kept for comparison. |
