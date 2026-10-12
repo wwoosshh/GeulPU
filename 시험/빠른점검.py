@@ -296,6 +296,12 @@ def 가져오기검사(출력):
         return
     dll들 = sorted({d.lower() for d, _ in 가져오기표.가져오기(exe)})
     알림("실행기의 가져오기 표", set(dll들) <= {"kernel32.dll", "shell32.dll", "nvcuda.dll"}, f"{dll들}")
+    서버 = os.path.join(출력, "서버.exe")              # 28단계 — 서버는 윈도의 소켓(ws2_32.dll)까지
+    if not os.path.exists(서버):
+        알림("서버의 가져오기 표", False, "서버.exe 가 없다(빌드 실패)")
+        return
+    dll2 = sorted({d.lower() for d, _ in 가져오기표.가져오기(서버)})
+    알림("서버의 가져오기 표", set(dll2) <= {"kernel32.dll", "shell32.dll", "nvcuda.dll", "ws2_32.dll"}, f"{dll2}")
 
 
 def main():

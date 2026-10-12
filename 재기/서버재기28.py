@@ -1,6 +1,7 @@
 """OpenAI 꼴 서버(/v1/chat/completions, 흘려보내기)에 동시 요청 K 개를 보내 토큰이 오는 시각을 잰다 — 표준 라이브러리만.
 
     python -I 재기/서버재기28.py --주소 127.0.0.1:8091 --동시 1,2,4 --생성 256 [--되풀이 3] [--출력 결과.json]
+    python -I 재기/서버재기28.py --주소 … --첫토큰 [--출력 결과.json]      (긴 대화(약 2,000 토큰)의 첫 토큰까지 — 캐시 끔 · 같은 프롬프트 · 다음 차례)
 
 요청마다 다른 프롬프트(이야기 주제), 탐욕(temperature 0), ignore_eos(끝 토큰을 무시 — llama.cpp 의 덧붙임)로 생성 수를 같게.
 동시 K 의 '모두 도는 구간'(가장 늦게 첫 토큰을 받은 때 ~ 가장 먼저 끝난 때)에 받은 토큰 수 / 구간 길이 = 합 처리량(토큰/초),
@@ -77,6 +78,46 @@ def 한번(주소, K, 생성, 모델):
             "라마시간": [(r["마지막"] or {}).get("timings") for r in 결과], "글머리": [r["글"][:80] for r in 결과]}
 
 
+def 첫토큰하나(주소, 몸):
+    host, port = 주소.split(":")
+    c = http.client.HTTPConnection(host, int(port), timeout=600)
+    t0 = time.perf_counter()
+    c.request("POST", "/v1/chat/completions", body=json.dumps(dict(몸, stream=True)).encode("utf-8"), headers={"Content-Type": "application/json"})
+    r = c.getresponse()
+    버퍼 = b""
+    첫 = None
+    while 첫 is None:
+        조각 = r.read1(65536)
+        if not 조각:
+            break
+        버퍼 += 조각
+        for 사건 in 버퍼.split(b"\n\n"):
+            if 사건.startswith(b"data: {") and b'"content":"' in 사건 and b'"content":""' not in 사건:
+                첫 = time.perf_counter() - t0
+                break
+    r.read()
+    c.close()
+    return 첫 * 1000.0 if 첫 is not None else None
+
+
+def 첫토큰재기(주소, 되풀이):
+    """긴 대화 — 문장 140 개(약 2,000 토큰)의 사용자 말 + 답 + 새 질문. 캐시 끔 · 같은 프롬프트(캐시 씀) · 다음 차례(앞 차례까지 캐시)"""
+    긴글 = " ".join(f"Sentence {i}: the river carries stones and stories down to the sea." for i in range(140))
+    앞 = [{"role": "user", "content": "Read this text carefully.\n" + 긴글}, {"role": "assistant", "content": "I have read it."}]
+    몸 = {"messages": 앞 + [{"role": "user", "content": "What does the river carry?"}], "temperature": 0, "max_tokens": 4}
+    다음 = {"messages": 앞 + [{"role": "user", "content": "What does the river carry?"}, {"role": "assistant", "content": "Stones and stories."},
+                            {"role": "user", "content": "Where does it go?"}], "temperature": 0, "max_tokens": 4}
+    결과 = {"캐시끔": [], "같은프롬프트": [], "다음차례": []}
+    for _ in range(되풀이):
+        결과["캐시끔"].append(첫토큰하나(주소, dict(몸, cache_prompt=False)))
+        결과["같은프롬프트"].append(첫토큰하나(주소, 몸))
+        첫토큰하나(주소, dict(몸, cache_prompt=False))
+        결과["다음차례"].append(첫토큰하나(주소, 다음))
+    for k, v in 결과.items():
+        print(f"첫 토큰 {k}: {[round(x, 1) for x in v]} ms (가운데 {statistics.median(v):.1f})", flush=True)
+    return 결과
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--주소", default="127.0.0.1:8091")
@@ -85,7 +126,14 @@ def main():
     ap.add_argument("--되풀이", type=int, default=3)
     ap.add_argument("--모델", default="m")
     ap.add_argument("--출력")
+    ap.add_argument("--첫토큰", action="store_true")
     a = ap.parse_args()
+    if a.첫토큰:
+        첫토큰하나(a.주소, {"messages": [{"role": "user", "content": "Hi"}], "temperature": 0, "max_tokens": 4})      # 데우기
+        r = 첫토큰재기(a.주소, a.되풀이)
+        if a.출력:
+            json.dump(r, open(a.출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        return
     모두 = []
     한번(a.주소, 1, 32, a.모델)       # 데우기
     for 바퀴 in range(a.되풀이):
