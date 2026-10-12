@@ -1,0 +1,422 @@
+[
+ {
+  "K": 1,
+  "합처리량": 102.98563431197161,
+  "걸음ms": 9.68125000144937,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   31.260900002962444
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 9.981,
+    "prompt_per_token_ms": 9.981,
+    "prompt_per_second": 100.1903616872057,
+    "predicted_n": 256,
+    "predicted_ms": 2476.188,
+    "predicted_per_token_ms": 9.710541176470588,
+    "predicted_per_second": 102.98087221164144
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean crashed against t"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 191.29940969667777,
+  "걸음ms": 10.350350003136555,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   41.35449999739649,
+   41.84559999703197
+  ],
+  "라마시간": [
+   {
+    "cache_n": 0,
+    "prompt_n": 43,
+    "prompt_ms": 31.993,
+    "prompt_per_token_ms": 0.7440232558139535,
+    "prompt_per_second": 1344.044009627106,
+    "predicted_n": 256,
+    "predicted_ms": 2661.142,
+    "predicted_per_token_ms": 10.435850980392155,
+    "predicted_per_second": 95.82352238249594
+   },
+   {
+    "cache_n": 30,
+    "prompt_n": 10,
+    "prompt_ms": 32.406,
+    "prompt_per_token_ms": 3.2405999999999997,
+    "prompt_per_second": 308.5848299697587,
+    "predicted_n": 256,
+    "predicted_ms": 2660.95,
+    "predicted_per_token_ms": 10.435098039215685,
+    "predicted_per_second": 95.8304364982431
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, the lighthouse stood as a beacon of hop",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 345.65752524290014,
+  "걸음ms": 11.46139999764273,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   71.06130000465782,
+   72.27279999642633,
+   71.40639999852283,
+   71.71799999923678
+  ],
+  "라마시간": [
+   {
+    "cache_n": 0,
+    "prompt_n": 43,
+    "prompt_ms": 55.963,
+    "prompt_per_token_ms": 1.3014651162790698,
+    "prompt_per_second": 768.3648124653789,
+    "predicted_n": 256,
+    "predicted_ms": 2943.601,
+    "predicted_per_token_ms": 11.543533333333334,
+    "predicted_per_second": 86.6285885892823
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 57.356,
+    "prompt_per_token_ms": 57.356,
+    "prompt_per_second": 17.434967570960318,
+    "predicted_n": 256,
+    "predicted_ms": 2942.952,
+    "predicted_per_token_ms": 11.540988235294119,
+    "predicted_per_second": 86.64769252097894
+   },
+   {
+    "cache_n": 0,
+    "prompt_n": 42,
+    "prompt_ms": 56.523,
+    "prompt_per_token_ms": 1.3457857142857144,
+    "prompt_per_second": 743.0603471153336,
+    "predicted_n": 256,
+    "predicted_ms": 2943.256,
+    "predicted_per_token_ms": 11.542180392156862,
+    "predicted_per_second": 86.63874294318946
+   },
+   {
+    "cache_n": 30,
+    "prompt_n": 11,
+    "prompt_ms": 56.961,
+    "prompt_per_token_ms": 5.178272727272727,
+    "prompt_per_second": 193.11458717368026,
+    "predicted_n": 256,
+    "predicted_ms": 2943.095,
+    "predicted_per_token_ms": 11.541549019607842,
+    "predicted_per_second": 86.6434824563937
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, ",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 103.02589477091844,
+  "걸음ms": 9.669099999882746,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   37.464799999725074
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 11.602,
+    "prompt_per_token_ms": 11.602,
+    "prompt_per_second": 86.19203585588691,
+    "predicted_n": 256,
+    "predicted_ms": 2475.188,
+    "predicted_per_token_ms": 9.706619607843137,
+    "predicted_per_second": 103.02247748453854
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, "
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 87.98460763738885,
+  "걸음ms": 22.672250001050998,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   31.911400001263246,
+   32.36490000563208
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 22.699,
+    "prompt_per_token_ms": 22.699,
+    "prompt_per_second": 44.054804176395436,
+    "predicted_n": 256,
+    "predicted_ms": 5785.432,
+    "predicted_per_token_ms": 22.687968627450978,
+    "predicted_per_second": 44.0762245585118
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 23.134,
+    "prompt_per_token_ms": 23.134,
+    "prompt_per_second": 43.2264199878966,
+    "predicted_n": 256,
+    "predicted_ms": 5785.31,
+    "predicted_per_token_ms": 22.687490196078432,
+    "predicted_per_second": 44.077154033232446
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, ",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 359.60343060969933,
+  "걸음ms": 11.022099999536294,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   22.388299999875017,
+   23.530500002379995,
+   22.573000002012122,
+   22.983299997576978
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 12.803,
+    "prompt_per_token_ms": 12.803,
+    "prompt_per_second": 78.10669374365382,
+    "predicted_n": 256,
+    "predicted_ms": 2829.404,
+    "predicted_per_token_ms": 11.095701960784314,
+    "predicted_per_second": 90.12498745318803
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 13.994,
+    "prompt_per_token_ms": 13.994,
+    "prompt_per_second": 71.45919679862799,
+    "predicted_n": 256,
+    "predicted_ms": 2828.777,
+    "predicted_per_token_ms": 11.093243137254902,
+    "predicted_per_second": 90.14496370693058
+   },
+   {
+    "cache_n": 41,
+    "prompt_n": 1,
+    "prompt_ms": 13.16,
+    "prompt_per_token_ms": 13.16,
+    "prompt_per_second": 75.98784194528875,
+    "predicted_n": 256,
+    "predicted_ms": 2829.192,
+    "predicted_per_token_ms": 11.094870588235294,
+    "predicted_per_second": 90.13174079383796
+   },
+   {
+    "cache_n": 40,
+    "prompt_n": 1,
+    "prompt_ms": 13.572,
+    "prompt_per_token_ms": 13.572,
+    "prompt_per_second": 73.6811081638668,
+    "predicted_n": 256,
+    "predicted_ms": 2829.02,
+    "predicted_per_token_ms": 11.094196078431372,
+    "predicted_per_second": 90.13722066298577
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, ",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 103.09802281054085,
+  "걸음ms": 9.661500000220258,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   53.58479999995325
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 11.739,
+    "prompt_per_token_ms": 11.739,
+    "prompt_per_second": 85.1861316977596,
+    "predicted_n": 256,
+    "predicted_ms": 2473.465,
+    "predicted_per_token_ms": 9.69986274509804,
+    "predicted_per_second": 103.09424228764101
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, "
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 88.35992528478874,
+  "걸음ms": 22.67914999902132,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   47.30060000292724,
+   14.947000003303401
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 21.179,
+    "prompt_per_token_ms": 21.179,
+    "prompt_per_second": 47.21658246376128,
+    "predicted_n": 256,
+    "predicted_ms": 5759.849,
+    "predicted_per_token_ms": 22.587643137254904,
+    "predicted_per_second": 44.27199393595214
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 11.707,
+    "prompt_per_token_ms": 11.707,
+    "prompt_per_second": 85.41898009737763,
+    "predicted_n": 256,
+    "predicted_ms": 5770.046,
+    "predicted_per_token_ms": 22.627631372549022,
+    "predicted_per_second": 44.193755127775404
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, ",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 361.0292336417497,
+  "걸음ms": 10.97805000244989,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   17.7490000060061,
+   19.052700001338962,
+   18.19940000132192,
+   18.49450000008801
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 13.553,
+    "prompt_per_token_ms": 13.553,
+    "prompt_per_second": 73.78440197742196,
+    "predicted_n": 256,
+    "predicted_ms": 2818.276,
+    "predicted_per_token_ms": 11.052062745098038,
+    "predicted_per_second": 90.48084715620472
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 14.724,
+    "prompt_per_token_ms": 14.724,
+    "prompt_per_second": 67.91632708503124,
+    "predicted_n": 256,
+    "predicted_ms": 2817.856,
+    "predicted_per_token_ms": 11.05041568627451,
+    "predicted_per_second": 90.49433328033795
+   },
+   {
+    "cache_n": 41,
+    "prompt_n": 1,
+    "prompt_ms": 13.931,
+    "prompt_per_token_ms": 13.931,
+    "prompt_per_second": 71.78235589692054,
+    "predicted_n": 256,
+    "predicted_ms": 2818.254,
+    "predicted_per_token_ms": 11.051976470588235,
+    "predicted_per_second": 90.48155347246913
+   },
+   {
+    "cache_n": 40,
+    "prompt_n": 1,
+    "prompt_ms": 14.335,
+    "prompt_per_token_ms": 14.335,
+    "prompt_per_second": 69.75933031042902,
+    "predicted_n": 256,
+    "predicted_ms": 2818.047,
+    "predicted_per_token_ms": 11.051164705882353,
+    "predicted_per_second": 90.48819980646171
+   }
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the sea roared and the wind howled, ",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 2
+ }
+]

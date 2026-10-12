@@ -1,0 +1,212 @@
+[
+ {
+  "K": 1,
+  "합처리량": 107.99358797580255,
+  "걸음ms": 9.256400000595022,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   32.071999994514044
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 179.38022539984325,
+  "걸음ms": 11.120600000140257,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   17.325000000710133,
+   48.451000002387445
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 301.59967567696157,
+  "걸음ms": 13.201199999457458,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.59800000383984,
+   17.44489999691723,
+   75.79390000319108,
+   109.48359999747481
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 108.01241609081643,
+  "걸음ms": 9.261250001145527,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   31.352500001958106
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 179.85164656129598,
+  "걸음ms": 11.118400001578266,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   52.57089999940945,
+   17.18079999409383
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 302.0818000276751,
+  "걸음ms": 13.20530000157305,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.67379999894183,
+   17.196799999510404,
+   71.11260000237962,
+   99.48209999856772
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 108.12833332083105,
+  "걸음ms": 9.24124999801279,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   17.41749999928288
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 179.75933268529707,
+  "걸음ms": 11.12469999861787,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.3298999996623,
+   17.396400005964097
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 301.23659414952516,
+  "걸음ms": 13.274750002892688,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   71.74639999720966,
+   100.20190000068396,
+   17.728300001181196,
+   43.59410000324715
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 2
+ }
+]

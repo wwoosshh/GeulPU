@@ -1,0 +1,86 @@
+{
+ "요청": {
+  "qwen2.5-7b-instruct-q4_0-pure.gguf:S1": {
+   "걸음": 128,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_0-pure.gguf:S2": {
+   "걸음": 128,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_0-pure.gguf:S3": {
+   "걸음": 95,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_0-pure.gguf:S4": {
+   "걸음": 77,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_0-pure.gguf:S5": {
+   "걸음": 24,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q8_0.gguf:S1": {
+   "걸음": 90,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q8_0.gguf:S2": {
+   "걸음": 106,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q8_0.gguf:S3": {
+   "걸음": 75,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q8_0.gguf:S4": {
+   "걸음": 68,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q8_0.gguf:S5": {
+   "걸음": 24,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_k_m-req.gguf:S1": {
+   "걸음": 70,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_k_m-req.gguf:S2": {
+   "걸음": 128,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_k_m-req.gguf:S3": {
+   "걸음": 114,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_k_m-req.gguf:S4": {
+   "걸음": 93,
+   "다름": 0
+  },
+  "qwen2.5-7b-instruct-q4_k_m-req.gguf:S5": {
+   "걸음": 24,
+   "다름": 0
+  },
+  "qwen2.5-14b-instruct-q4_0-pure.gguf:S1": {
+   "걸음": 128,
+   "다름": 0
+  },
+  "qwen2.5-14b-instruct-q4_0-pure.gguf:S2": {
+   "걸음": 128,
+   "다름": 0
+  },
+  "qwen2.5-14b-instruct-q4_0-pure.gguf:S3": {
+   "걸음": 82,
+   "다름": 0
+  },
+  "qwen2.5-14b-instruct-q4_0-pure.gguf:S4": {
+   "걸음": 83,
+   "다름": 0
+  },
+  "qwen2.5-14b-instruct-q4_0-pure.gguf:S5": {
+   "걸음": 43,
+   "다름": 0
+  }
+ },
+ "걸음": 1708,
+ "다름": 0
+}

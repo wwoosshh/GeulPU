@@ -1,0 +1,212 @@
+[
+ {
+  "K": 1,
+  "합처리량": 53.903665398528915,
+  "걸음ms": 18.502599996281788,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   22.492600000987295
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 18.876,
+    "prompt_per_token_ms": 18.876,
+    "prompt_per_second": 52.97732570459843,
+    "predicted_n": 256,
+    "predicted_ms": 4730.704,
+    "predicted_per_token_ms": 18.55178039215686,
+    "predicted_per_second": 53.90318227477348
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Light\n\nIn the heart of the Atlantic, where the sea meets t"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 102.33567815391473,
+  "걸음ms": 19.38449999943259,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   74.84399999520974,
+   74.5452999981353
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 54.362,
+    "prompt_per_token_ms": 54.362,
+    "prompt_per_second": 18.39520253117987,
+    "predicted_n": 256,
+    "predicted_ms": 4973.995,
+    "predicted_per_token_ms": 19.50586274509804,
+    "predicted_per_second": 51.26663778310996
+   },
+   {
+    "cache_n": 0,
+    "prompt_n": 40,
+    "prompt_ms": 53.912,
+    "prompt_per_token_ms": 1.3477999999999999,
+    "prompt_per_second": 741.9498441905328,
+    "predicted_n": 256,
+    "predicted_ms": 4974.203,
+    "predicted_per_token_ms": 19.50667843137255,
+    "predicted_per_second": 51.26449403050096
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Art\n\nIn the heart of a bustling city, nestled between tower"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 53.91407403222465,
+  "걸음ms": 18.49660000152653,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   57.781199997407384
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 20.779,
+    "prompt_per_token_ms": 20.779,
+    "prompt_per_second": 48.12551133355792,
+    "predicted_n": 256,
+    "predicted_ms": 4729.911,
+    "predicted_per_token_ms": 18.548670588235293,
+    "predicted_per_second": 53.91221948996503
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Light\n\nIn the heart of the Atlantic, where the sea meets t"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 102.40879983324844,
+  "걸음ms": 19.394750001083594,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   26.722399998106994,
+   26.244300002872478
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 23.033,
+    "prompt_per_token_ms": 23.033,
+    "prompt_per_second": 43.41596839317501,
+    "predicted_n": 256,
+    "predicted_ms": 4970.452,
+    "predicted_per_token_ms": 19.49196862745098,
+    "predicted_per_second": 51.30318128009283
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 22.643,
+    "prompt_per_token_ms": 22.643,
+    "prompt_per_second": 44.16375921918473,
+    "predicted_n": 256,
+    "predicted_ms": 4970.702,
+    "predicted_per_token_ms": 19.492949019607845,
+    "predicted_per_second": 51.30060100162915
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Pixel\n\nIn the heart of a bustling city, nestled between tow"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 53.91767405492942,
+  "걸음ms": 18.50660000127391,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   41.42359999968903
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 20.811,
+    "prompt_per_token_ms": 20.811,
+    "prompt_per_second": 48.05151122002787,
+    "predicted_n": 256,
+    "predicted_ms": 4729.462,
+    "predicted_per_token_ms": 18.54690980392157,
+    "predicted_per_second": 53.917337743701076
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Light\n\nIn the heart of the Atlantic, where the sea meets t"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 102.38587357668338,
+  "걸음ms": 19.428550000156974,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   47.37790000217501,
+   24.18030000262661
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 23.035,
+    "prompt_per_token_ms": 23.035,
+    "prompt_per_second": 43.41219882787063,
+    "predicted_n": 256,
+    "predicted_ms": 4972.373,
+    "predicted_per_token_ms": 19.49950196078431,
+    "predicted_per_second": 51.28336108332984
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 20.581,
+    "prompt_per_token_ms": 20.581,
+    "prompt_per_second": 48.58850395996308,
+    "predicted_n": 256,
+    "predicted_ms": 4975.02,
+    "predicted_per_token_ms": 19.50988235294118,
+    "predicted_per_second": 51.25607535246089
+   }
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Pixel\n\nIn the heart of a bustling city, nestled between tow"
+  ],
+  "바퀴": 2
+ }
+]

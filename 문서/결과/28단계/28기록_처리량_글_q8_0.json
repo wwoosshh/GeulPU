@@ -1,0 +1,212 @@
+[
+ {
+  "K": 1,
+  "합처리량": 59.93598554687794,
+  "걸음ms": 16.677550000167685,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   22.9920999991009
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 107.70285256438062,
+  "걸음ms": 18.512600003305124,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   22.976799999014474,
+   80.02879999548895
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 195.0284538389395,
+  "걸음ms": 20.498400001088157,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   64.26449999707984,
+   22.86399999866262,
+   149.3237999966368,
+   107.10250000556698
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "### The Lost Cat of Brooklyn\n\nIn the bustling heart of Brooklyn, a small, gray c"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 60.1263530551287,
+  "걸음ms": 16.62909999504336,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   40.767599995888304
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 108.28168898333848,
+  "걸음ms": 18.432400000165217,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   60.97399999998743,
+   22.545500003616326
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 195.57791915599304,
+  "걸음ms": 20.42989999972633,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   61.3184000030742,
+   22.628099999565165,
+   142.91220000450267,
+   101.74199999892153
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "### The Lost Cat of Brooklyn\n\nIn the bustling heart of Brooklyn, a small, gray c"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 60.14740785187117,
+  "걸음ms": 16.62600000418024,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   22.669799996947404
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 108.23267694378428,
+  "걸음ms": 18.43984999868553,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   22.693699997034855,
+   61.13200000254437
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 194.6657139344474,
+  "걸음ms": 20.482799998717383,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   143.2178999966709,
+   101.94849999970756,
+   61.21040000289213,
+   22.427099997003097
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "### The Lost Cat of Brooklyn\n\nIn the bustling heart of Brooklyn, a small, gray c"
+  ],
+  "바퀴": 2
+ }
+]

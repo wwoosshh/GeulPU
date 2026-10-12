@@ -1,0 +1,422 @@
+[
+ {
+  "K": 1,
+  "합처리량": 95.3222529500896,
+  "걸음ms": 10.485200000402983,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   35.05359999689972
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 10.888,
+    "prompt_per_token_ms": 10.888,
+    "prompt_per_second": 91.84423218221896,
+    "predicted_n": 256,
+    "predicted_ms": 2675.274,
+    "predicted_per_token_ms": 10.491270588235293,
+    "predicted_per_second": 95.31733945756585
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 179.4654376890244,
+  "걸음ms": 11.072100001911167,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.12239999853773,
+   42.62190000008559
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 34.376,
+    "prompt_per_token_ms": 34.376,
+    "prompt_per_second": 29.090062834535726,
+    "predicted_n": 256,
+    "predicted_ms": 2836.385,
+    "predicted_per_token_ms": 11.12307843137255,
+    "predicted_per_second": 89.90316899856683
+   },
+   {
+    "cache_n": 0,
+    "prompt_n": 40,
+    "prompt_ms": 33.941,
+    "prompt_per_token_ms": 0.8485250000000001,
+    "prompt_per_second": 1178.5156595268259,
+    "predicted_n": 256,
+    "predicted_ms": 2836.566,
+    "predicted_per_token_ms": 11.123788235294118,
+    "predicted_per_second": 89.89743231780963
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 325.452778578208,
+  "걸음ms": 12.192900001537055,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   77.94770000327844,
+   79.44929999939632,
+   77.82049999514129,
+   78.81089999864344
+  ],
+  "라마시간": [
+   {
+    "cache_n": 0,
+    "prompt_n": 43,
+    "prompt_ms": 61.602,
+    "prompt_per_token_ms": 1.4326046511627906,
+    "prompt_per_second": 698.0292847634817,
+    "predicted_n": 256,
+    "predicted_ms": 3126.479,
+    "predicted_per_token_ms": 12.260701960784314,
+    "predicted_per_second": 81.56139862126054
+   },
+   {
+    "cache_n": 30,
+    "prompt_n": 10,
+    "prompt_ms": 63.13,
+    "prompt_per_token_ms": 6.313000000000001,
+    "prompt_per_second": 158.4032947885316,
+    "predicted_n": 256,
+    "predicted_ms": 3125.76,
+    "predicted_per_token_ms": 12.257882352941177,
+    "predicted_per_second": 81.5801597051597
+   },
+   {
+    "cache_n": 0,
+    "prompt_n": 42,
+    "prompt_ms": 62.047,
+    "prompt_per_token_ms": 1.4773095238095237,
+    "prompt_per_second": 676.9062162554193,
+    "predicted_n": 256,
+    "predicted_ms": 3126.23,
+    "predicted_per_token_ms": 12.259725490196079,
+    "predicted_per_second": 81.56789487657659
+   },
+   {
+    "cache_n": 30,
+    "prompt_n": 11,
+    "prompt_ms": 62.597,
+    "prompt_per_token_ms": 5.690636363636364,
+    "prompt_per_second": 175.7272712749812,
+    "predicted_n": 256,
+    "predicted_ms": 3125.897,
+    "predicted_per_token_ms": 12.258419607843138,
+    "predicted_per_second": 81.5765842572548
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "In the bustling city of New Haven, where the streets were a constant symphony of"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 95.4237786850364,
+  "걸음ms": 10.46314999985043,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   33.57349999714643
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 12.672,
+    "prompt_per_token_ms": 12.672,
+    "prompt_per_second": 78.91414141414141,
+    "predicted_n": 256,
+    "predicted_ms": 2672.405,
+    "predicted_per_token_ms": 10.480019607843138,
+    "predicted_per_second": 95.41966880020057
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 82.77110370035192,
+  "걸음ms": 24.104399999487214,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   28.599000004760455,
+   28.870100002677646
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 24.415,
+    "prompt_per_token_ms": 24.415,
+    "prompt_per_second": 40.95842719639566,
+    "predicted_n": 256,
+    "predicted_ms": 6149.838,
+    "predicted_per_token_ms": 24.117011764705882,
+    "predicted_per_second": 41.46450686993706
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 24.821,
+    "prompt_per_token_ms": 24.821,
+    "prompt_per_second": 40.288465412352444,
+    "predicted_n": 256,
+    "predicted_ms": 6149.663,
+    "predicted_per_token_ms": 24.116325490196076,
+    "predicted_per_second": 41.46568681893626
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 336.5065982754241,
+  "걸음ms": 11.800500000390457,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   24.23669999552658,
+   25.406100001418963,
+   24.5333999991999,
+   24.90849999594502
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 13.996,
+    "prompt_per_token_ms": 13.996,
+    "prompt_per_second": 71.44898542440697,
+    "predicted_n": 256,
+    "predicted_ms": 3023.513,
+    "predicted_per_token_ms": 11.856913725490196,
+    "predicted_per_second": 84.33897919406995
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 15.191,
+    "prompt_per_token_ms": 15.191,
+    "prompt_per_second": 65.82845105654664,
+    "predicted_n": 256,
+    "predicted_ms": 3022.903,
+    "predicted_per_token_ms": 11.854521568627451,
+    "predicted_per_second": 84.35599819114275
+   },
+   {
+    "cache_n": 41,
+    "prompt_n": 1,
+    "prompt_ms": 14.398,
+    "prompt_per_token_ms": 14.398,
+    "prompt_per_second": 69.45409084595083,
+    "predicted_n": 256,
+    "predicted_ms": 3023.239,
+    "predicted_per_token_ms": 11.855839215686276,
+    "predicted_per_second": 84.34662294314144
+   },
+   {
+    "cache_n": 40,
+    "prompt_n": 1,
+    "prompt_ms": 14.796,
+    "prompt_per_token_ms": 14.796,
+    "prompt_per_second": 67.58583400919167,
+    "predicted_n": 256,
+    "predicted_ms": 3023.123,
+    "predicted_per_token_ms": 11.85538431372549,
+    "predicted_per_second": 84.34985940036181
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "In the bustling city of New Haven, where the streets were a constant symphony of"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 95.39928172188654,
+  "걸음ms": 10.476049996213987,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   32.768599994597025
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 12.56,
+    "prompt_per_token_ms": 12.56,
+    "prompt_per_second": 79.61783439490445,
+    "predicted_n": 256,
+    "predicted_ms": 2673.009,
+    "predicted_per_token_ms": 10.482388235294117,
+    "predicted_per_second": 95.39810752601282
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 82.88413335517333,
+  "걸음ms": 24.067649996140972,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   28.653000001213513,
+   28.942299999471288
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 24.682,
+    "prompt_per_token_ms": 24.682,
+    "prompt_per_second": 40.515355319666156,
+    "predicted_n": 256,
+    "predicted_ms": 6141.476,
+    "predicted_per_token_ms": 24.084219607843135,
+    "predicted_per_second": 41.52096336450717
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 24.983,
+    "prompt_per_token_ms": 24.983,
+    "prompt_per_second": 40.02721850858584,
+    "predicted_n": 256,
+    "predicted_ms": 6141.28,
+    "predicted_per_token_ms": 24.083450980392154,
+    "predicted_per_second": 41.52228851314384
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 335.56607216534536,
+  "걸음ms": 11.846499997773208,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   29.552399995736778,
+   29.753099996014498,
+   56.17970000457717,
+   56.56170000293059
+  ],
+  "라마시간": [
+   {
+    "cache_n": 42,
+    "prompt_n": 1,
+    "prompt_ms": 24.532,
+    "prompt_per_token_ms": 24.532,
+    "prompt_per_second": 40.76308495026904,
+    "predicted_n": 256,
+    "predicted_ms": 3049.052,
+    "predicted_per_token_ms": 11.957066666666668,
+    "predicted_per_second": 83.63255201944735
+   },
+   {
+    "cache_n": 39,
+    "prompt_n": 1,
+    "prompt_ms": 24.895,
+    "prompt_per_token_ms": 24.895,
+    "prompt_per_second": 40.168708576019284,
+    "predicted_n": 256,
+    "predicted_ms": 3049.223,
+    "predicted_per_token_ms": 11.95773725490196,
+    "predicted_per_second": 83.62786191760983
+   },
+   {
+    "cache_n": 41,
+    "prompt_n": 1,
+    "prompt_ms": 26.145,
+    "prompt_per_token_ms": 26.145,
+    "prompt_per_second": 38.248231019315355,
+    "predicted_n": 256,
+    "predicted_ms": 3036.097,
+    "predicted_per_token_ms": 11.90626274509804,
+    "predicted_per_second": 83.98941140549857
+   },
+   {
+    "cache_n": 40,
+    "prompt_n": 1,
+    "prompt_ms": 26.515,
+    "prompt_per_token_ms": 26.515,
+    "prompt_per_second": 37.714501225721285,
+    "predicted_n": 256,
+    "predicted_ms": 3035.935,
+    "predicted_per_token_ms": 11.905627450980392,
+    "predicted_per_second": 83.99389314988628
+   }
+  ],
+  "글머리": [
+   "In the quaint coastal town of Marisport, nestled between the rugged cliffs and t",
+   "In the heart of a bustling metropolis, where the skyline was a blend of towering",
+   "In the quaint town of Willowbrook, nestled between rolling hills and a sparkling",
+   "In the bustling city of New Haven, where the streets were a constant symphony of"
+  ],
+  "바퀴": 2
+ }
+]

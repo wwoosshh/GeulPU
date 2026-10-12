@@ -40,6 +40,7 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 | Models | **Qwen2.5-0.5B / 7B / 14B-Instruct** (chat; Llama-family blocks — RMSNorm · RoPE · SwiGLU · GQA; head sizes 64 and 128). Head-128 Qwen2 shapes are read from the GGUF config; 32B and 72B shapes were bit-tested on 4-layer synthetic models. GPT-2 small and XL (research engine). |
 | Weight formats | GGUF **Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K**, including per-tensor mixes as in Q4_K_M · Q5_K_M (stage 26 — tested with files re-quantized on this PC from Q8_0; official Qwen files are not yet tested). |
 | Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: ChatML chat, streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
+| Server | `빌드/글/서버.exe model.gguf` (`서버` = server) — a geul program (stage 28): an OpenAI-compatible HTTP API (chat · completions · SSE streaming) with slots, continuous batching, prompt caching and a sampling contract (the same seed gives the same tokens). A request returns the same bits whatever else runs with it — zero differences over four models × twelve requests × four schedules, while llama-server's greedy answer changed in 11 of 12 cases depending on the concurrent requests. Head-128 Qwen2 (7B · 14B). 7B Q4_0 aggregate throughput: 302 tokens/s with four streams and 508 with eight (llama-server 360 · 632 — a multi-row decode kernel is next); one stream is 4% faster than llama-server. See [`문서/28단계.md`](문서/28단계.md) |
 | Environment | Windows + NVIDIA Ampere (RTX 30) or newer + driver. All numbers here are from one RTX 4070 Ti (12 GB). Building (generator → kernel source → PTX → runner) needs only the geul compiler. Tests and benchmarks need Python 3.12 + numpy. |
 | Layer split | Stage 25 — split layers across GPUs (`--나누기 P` parts, `--장치 a,b,…` devices, `--예산 GB` budget). Emulated on one GPU with one CUDA context per part: 16 split runs are bit-identical to the single-part run; decoding with two parts takes 1.025–1.029× (mostly the emulation's context switching; 1.002–1.003× with a shared context). 14B in two parts did not fit at context 8192 on 12 GB, so that pre-registered cell was not measured (criterion 25c not passed). |
 | Not yet | Real multi-GPU runs; measuring the contract's loss with the real engine on 7B+ (done for 0.5B; simulated for 7B · 14B); Q2_K · Q3_K · IQ formats · Q5_0 (real 72B k-quant files use Q5_0 · Q8_0 for ffn_down); MoE; sampling (greedy only); server features; Linux; reproduction on another GPU. |
@@ -95,6 +96,22 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
    Qwen2 shapes; format `K` builds one module holding the Q4_K · Q5_K · Q6_K kernels.
 5. **Multiple GPUs** (layer split): `빌드/글/실행기.exe model.gguf --장치 0,1` (one part per device), `--예산 GB` to fill devices up to a
    memory budget, `--나누기 P` to emulate P parts on one GPU. Only the one-GPU emulation has been tested.
+6. **Server** (stage 28, head-128 Qwen2: 7B · 14B): a program written in the geul language that serves an OpenAI-compatible HTTP API. It
+   imports only the runner's three DLLs plus Windows sockets (`ws2_32.dll`). It serves several requests at once (continuous batching over
+   slots), and a request returns the same bits whatever else runs with it. It uses the same modules as the runner; from stage 28 the
+   head-128 modules contain the server's table kernels, so rebuild modules made by earlier stages.
+   ```
+   GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러.exe 호스트/서버.gl -o 빌드/글/서버.exe
+   빌드/글/서버.exe qwen2.5-7b-instruct-q4_0-pure.gguf --슬롯 4 --문맥 4096 --포트 8080
+   ```
+   - Endpoints: `GET /health`, `GET /v1/models`, `POST /v1/chat/completions`, `POST /v1/completions` (`"stream": true` streams SSE).
+   - Fields: OpenAI's `messages`, `prompt` (text or token ids), `max_tokens`, `temperature`, `top_p`, `seed`, `stop`,
+     `stream_options.include_usage`, plus llama.cpp's `top_k`, `min_p`, `ignore_eos`, `cache_prompt`.
+   - Sampling follows [the contract](docs/contract.md), section 5. The same seed gives the same tokens, and a request without a seed can
+     be replayed from `geulpu.seed` in the response.
+   - Clients that speak the OpenAI API connect with base URL `http://127.0.0.1:8080/v1`. Only the Python standard library and curl were
+     tested as clients.
+   - The server listens on 127.0.0.1 by default and has no authentication.
 
 ## Checks
 

@@ -1,4 +1,4 @@
-# Research log — how GeulPU came about (stages 0–27, 2026-10-08 to 10-12)
+# Research log — how GeulPU came about (stages 0–28, 2026-10-08 to 10-12)
 
 *English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
 `research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
@@ -42,8 +42,9 @@ same GGUF file: r < 1 means GeulPU is faster.
 | Review | Contract-loss review — does a larger model show a sign that the contract must change? fp64 forward passes simulating only the rounding points (ground truth · contract · llama.cpp-like) | The simulation matches the measured 0.5B (1/637 vs 1/615). 7B · 14B: 1/3805 · 1/4467 — the contract's advantage grows with size. One pre-registered rule fired: attention probabilities (two digits per 32-key block) are at f16 level and worse than f16 in 12/28 (7B) · 34/48 (14B) layers, contributing 9% of the contract's KL at 7B. No contract change; long-context probabilities to be checked |
 | 26 | k-quants (Q4_K · Q5_K · Q6_K) in the contract — the file's integers and scales as stored, per-tensor formats, a `qwen2K_{shape}` module | 26a passed: 243 kernel cases and three files end-to-end (26.16 M logits each) 0 differences. 26b passed. 26c passed: nine decode cells r 0.977–1.009 (1.13–1.17× the floor). 26d (record): prompts Q4_K_M 1.46 · 1.58, Q5_K_M 1.51 · 1.62, Q6_K 2.06 · 2.12. 14B Q4_K_M decode 1.009 · 1.012 |
 | 27 | Prompt tiles: fill the tensor pipe (values unchanged). Nsight: tiles kept the tensor pipe 54–58% busy with 14–17 instructions per integer MMA, MMAs bunched by ptxas | 27a–27d passed. Q6_K: one m16n8k16 integer MMA per 16-value sub-block (new `정수텐서곱16` intrinsic in the geul PTX backend) with signed 4(q − 32) operands from a pre-arranged high-bit layout; a magic-number accumulator for Q4_0 · Q4_K; hoisted prefetch addressing in k-quant tiles. 349 kernel cases and three files end-to-end (26,155,008 logits each) 0 differences; five paths unchanged. Prompt time vs the stage-26 build (2048 · 8192): Q6_K 0.698 · 0.731, Q4_K_M 0.859 · 0.881, Q5_K_M 0.905 · 0.919, Q4_0 0.915 · 0.933, Q8_0 1.000 · 1.001; decode 0.991–1.003. Prompts vs llama.cpp: 1.13–1.30× (Q4_0 · Q8_0), 1.25–1.56× (k-quants). A chat record failed once: since stage 26 a worker thread built kernel names through the standard library's single formatting buffer while the main thread used it — fixed after the run |
+| 28 | Server: an OpenAI-compatible HTTP API written in the geul language (Winsock, JSON, SSE), slots with continuous batching and prompt caching, a sampling contract (float64, a written exp, SplitMix64), and three "table" decode kernels that read each sequence's position and KV slot from a device table | 28a–28e passed. Over four models (7B Q4_0 · Q8_0 · Q4_K_M · 14B Q4_0), twelve requests sent alone, all at once, in reverse with random gaps and in duplicate gave identical tokens and per-step logit hashes; prompt-cache reuse equals no cache; 128 logit rows equal the one-shot engine path. The diagnosis found llama-server's greedy answer changing in 11 of 12 cases with concurrent requests. 24,000 sampler cases and 1,708 served sampling steps match the Python contract. One stream is 1.013× the engine alone; aggregate throughput 2.79× with four streams and 4.73× with eight. Versus llama-server: one stream 0.96×, four streams 1.20× and eight 1.25× the step time (record — no multi-row decode kernel yet) |
 
-## What remains (after stage 27)
+## What remains (after stage 28)
 
 - **Prompt speed.** The two-digit contract does twice the integer tensor work of 8-bit activations; the remaining gap is in the tile
   kernels' epilogue cost and MMA scheduling. CPU-only SASS analysis (the CI's ptxas step) shows the head-128 prompt attention kernel spills
@@ -51,6 +52,10 @@ same GGUF file: r < 1 means GeulPU is faster.
   T-sum MMAs (an upper-bound experiment: 3–5%).
 - **Decode** is at parity with llama.cpp and 1.11–1.17× the bandwidth floor; the remaining distance is in small matmuls, per-layer small
   kernels and attention at 8192.
-- **Formats and models**: Q2_K · Q3_K · IQ · Q5_0 (needed for real 72B k-quant files), official k-quant files, MoE, sampling, server
-  features, Linux.
+- **Server throughput with several streams.** Four and eight concurrent streams take 1.20× and 1.25× llama-server's step time on 7B Q4_0:
+  the decode GEMVs for 2–4 rows reuse an older kernel and k-quants fall back to tile kernels. A multi-row version of the async-copy row
+  kernel is stage 29.
+- **Formats and models**: Q2_K · Q3_K · IQ · Q5_0 (needed for real 72B k-quant files), official k-quant files, MoE.
+- **Linux**: a Linux x86-64 target for the geul compiler (ELF, System V calls to libc, a Linux standard-library layer) is in progress;
+  GeulPU's host layer (file mapping, threads, sockets, libcuda.so.1) comes after it.
 - **Reproduction** on other GPUs; real multi-GPU layer split; measuring the contract's loss with the real engine on 7B+.

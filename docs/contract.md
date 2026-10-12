@@ -118,7 +118,41 @@ The head-64 contract is unchanged. Three things differ at head size 128:
 3. **Output o_d** uses the formula of section 2.4 for each of the four 32-value blocks of values (d = 0 … 127). Written exp, the sum l
    and the two-level fold are unchanged. A group or chunk state is (M, L, two spare, O[128]) = 132 values.
 
-## 5. What the tests check ([`시험/`](../시험/))
+## 5. Sampling (stage 28 — the server)
+
+Non-greedy generation picks the next token from one row of logits z (the V float32 values the engine produced) by this contract. All
+arithmetic is float64, rounded once per operation in the written order, with no fused multiply-add. The chosen token depends only on
+(that row of logits, the parameters, the seed, the step). The logits do not depend on the batch, the slot or how the prompt was fed
+(sections 1–4), so sampling does not either. The geul-language version is [`호스트/뽑기.gl`](../호스트/뽑기.gl); the Python version is
+[`시험/뽑기.py`](../시험/뽑기.py).
+
+Inputs: temperature T (≥ 0), top_k K (integer ≥ 0, 0 = off), top_p P (0 < P ≤ 1), min_p Q (0 ≤ Q < 1), seed s (u64), step i (0 for the
+first generated token of a request).
+
+1. If T = 0 or K = 1, pick the smallest index whose z is the maximum (the same as the device argmax).
+2. Order the indices by (z descending, then index ascending — −0 and +0 are equal): j₁, j₂, ….
+3. a_k = (f64(z_{j_k}) − f64(z_{j₁})) / T. The candidates are the prefix with a_k ≥ −40 (length n_F). This is a declared loss:
+   probabilities below e⁻⁴⁰ ≈ 4 × 10⁻¹⁸ of the largest are set to 0.
+4. n_K = min(K, n_F) if K > 0, else n_F.
+5. w_k = exp_w(a_k) for k ≤ n_K (w₁ = 1), and c_k = c_{k−1} + w_k (c₀ = 0, in order).
+6. top-p: if P < 1, n_P is the smallest k with c_k ≥ P × c_{n_K}; else n_P = n_K.
+7. min-p: n_Q is the number of k ≤ n_K with w_k ≥ Q (n_K if Q = 0).
+8. n = min(n_P, n_Q) (≥ 1).
+9. u = (splitmix64(s, i) ≫ 11) × 2⁻⁵³ and t = u × c_n. Pick j_k for the smallest k ≤ n with c_k > t, or j_n if none (rounding).
+
+- **splitmix64(s, i)**: start from x = s + (i + 1) · 0x9E3779B97F4A7C15 (mod 2⁶⁴), then x ← (x ⊕ (x ≫ 30)) · 0xBF58476D1CE4E5B9,
+  x ← (x ⊕ (x ≫ 27)) · 0x94D049BB133111EB, x ← x ⊕ (x ≫ 31), with logical shifts. This is the (i + 1)-th output of SplitMix64 seeded with s.
+- **exp_w(a)**, a ∈ [−40, 0]:
+  - k = ⌊a × 0x3FF71547652B82FE + 0.5⌋
+  - r = (a − k × 0x3FE62E42FEE00000) − k × 0x3DEA39EF35793C76 (float64 bit patterns: 1/ln 2, and fdlibm's high and low parts of ln 2)
+  - p ← 1/13!, then p ← p × r + 1/n! for n = 12 … 0, where 1/n! = f64(1) / f64(n!)
+  - the value is p × 2^k (2^k built from its bits, so the multiply is exact)
+
+Defaults when a request omits a field are those of llama-server: T 0.8, K 40, P 0.95, Q 0.05. Without a seed, the server draws one and
+returns it in `geulpu.seed`, so the response can be reproduced. The order differs from llama.cpp, which applies top-k, top-p and min-p
+to the temperature-1 distribution and the temperature last. This contract applies the temperature first (the Hugging Face order).
+
+## 6. What the tests check ([`시험/`](../시험/))
 
 | Test | What |
 |---|---|

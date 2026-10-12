@@ -1,0 +1,350 @@
+[
+ {
+  "K": 1,
+  "합처리량": 107.35557454542466,
+  "걸음ms": 9.304900002462091,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   40.11909999826457
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 178.7794117205455,
+  "걸음ms": 11.178349999681814,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   48.75499999616295,
+   22.959599999012426
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 4,
+  "합처리량": 300.37055156369183,
+  "걸음ms": 13.279999999213032,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   111.59620000398718,
+   44.243899996217806,
+   76.58860000083223,
+   17.874000004667323
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 8,
+  "합처리량": 508.24965243453164,
+  "걸음ms": 15.684299996792106,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   137.04560000041965,
+   44.01710000092862,
+   72.90020000073127,
+   18.776699995214585,
+   250.77789999340894,
+   174.7255000009318,
+   102.49509999994189,
+   212.94559999660123
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl",
+   "### The Moon's Solitary Watcher\n\nIn the vast expanse of space, the moon was a si",
+   "In the quaint town of Willowbrook, nestled between rolling hills and dense fores",
+   "In the quaint village of Willowbrook, nestled between rolling hills and a sparkl",
+   "In the city of Glass, where the sun shone through the crystal-clear buildings an"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 107.5786365027427,
+  "걸음ms": 9.287299995776266,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   41.100900001765694
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 178.80271939237747,
+  "걸음ms": 11.179500001162523,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.52820000349311,
+   17.760000002454035
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 4,
+  "합처리량": 299.86841559295965,
+  "걸음ms": 13.298500001837965,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   100.62099999777274,
+   44.016100000590086,
+   71.72910000372212,
+   17.702299999655224
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 8,
+  "합처리량": 508.3578785038953,
+  "걸음ms": 15.701899999839952,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   163.86290000082226,
+   72.74499999766704,
+   102.00759999861475,
+   44.35180000291439,
+   17.578999999386724,
+   196.21680000273045,
+   132.36239999969257,
+   228.83780000120169
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl",
+   "### The Moon's Solitary Watcher\n\nIn the vast expanse of space, the moon was a si",
+   "In the quaint town of Willowbrook, nestled between rolling hills and dense fores",
+   "In the quaint village of Willowbrook, nestled between rolling hills and a sparkl",
+   "In the city of Glass, where the sun shone through the crystal-clear buildings an"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 107.47617779981938,
+  "걸음ms": 9.299550001742318,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   33.04580000258284
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 178.147036801766,
+  "걸음ms": 11.206600000150502,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.60599999927217,
+   17.704099998809397
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 4,
+  "합처리량": 300.47601254544804,
+  "걸음ms": 13.289450002048397,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   43.98070000024745,
+   18.66919999883976,
+   100.87949999433476,
+   72.20500000403263
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 8,
+  "합처리량": 510.9042089406885,
+  "걸음ms": 15.632549999281764,
+  "토큰수": [
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   196.63269999728072,
+   101.86160000012023,
+   131.56039999739733,
+   73.13280000380473,
+   44.667799993476365,
+   228.7605999954394,
+   164.28479999740375,
+   17.989500003750436
+  ],
+  "라마시간": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "글머리": [
+   "In the heart of the rugged coastline, where the Atlantic Ocean roared with an un",
+   "In the heart of a bustling metropolis, where towering skyscrapers kissed the clo",
+   "In the quaint town of Millbrook, nestled between rolling hills and a sparkling r",
+   "In the bustling heart of New York City, where towering skyscrapers kissed the cl",
+   "### The Moon's Solitary Watcher\n\nIn the vast expanse of space, the moon was a si",
+   "In the quaint town of Willowbrook, nestled between rolling hills and dense fores",
+   "In the quaint village of Willowbrook, nestled between rolling hills and a sparkl",
+   "In the city of Glass, where the sun shone through the crystal-clear buildings an"
+  ],
+  "바퀴": 2
+ }
+]

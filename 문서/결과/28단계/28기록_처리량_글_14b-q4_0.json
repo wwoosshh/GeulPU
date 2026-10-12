@@ -1,0 +1,122 @@
+[
+ {
+  "K": 1,
+  "합처리량": 55.04804139717509,
+  "걸음ms": 18.16990000224905,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   27.558300003875047
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 2,
+  "합처리량": 91.00408958378206,
+  "걸음ms": 21.933399999397807,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   27.542499999981374,
+   86.83079999900656
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Pixel\n\nIn the heart of a bustling city, nestled between tow"
+  ],
+  "바퀴": 0
+ },
+ {
+  "K": 1,
+  "합처리량": 55.04607594010196,
+  "걸음ms": 18.161150001105852,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   40.34520000277553
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 2,
+  "합처리량": 91.05508228447795,
+  "걸음ms": 21.926400000666035,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   27.898299995285925,
+   90.41989999968791
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Pixel\n\nIn the heart of a bustling city, nestled between tow"
+  ],
+  "바퀴": 1
+ },
+ {
+  "K": 1,
+  "합처리량": 55.042418709787476,
+  "걸음ms": 18.160150000767317,
+  "토큰수": [
+   256
+  ],
+  "첫토큰ms": [
+   51.20870000246214
+  ],
+  "라마시간": [
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me"
+  ],
+  "바퀴": 2
+ },
+ {
+  "K": 2,
+  "합처리량": 91.17783218495815,
+  "걸음ms": 21.948950001387857,
+  "토큰수": [
+   256,
+   256
+  ],
+  "첫토큰ms": [
+   72.39000000117812,
+   27.408699999796227
+  ],
+  "라마시간": [
+   null,
+   null
+  ],
+  "글머리": [
+   "### The Keeper of the Lighthouse\n\nIn the heart of the Atlantic, where the sea me",
+   "### The Awakening of Pixel\n\nIn the heart of a bustling city, nestled between tow"
+  ],
+  "바퀴": 2
+ }
+]
