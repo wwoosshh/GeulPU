@@ -1,0 +1,3 @@
+모델을 올리는 중…
+커널을 찾을 수 없다: b��수깊은넓은타일선형_잔차_Q6_K (_G62a095ec8898eab98aec9d80eb8493ec9d80ed8380ec9dbcec84a0ed98955fec9e94ecb0a85f51365f4b)
+CUDA 드라이버 오류 500: cuModuleGetFunction — named symbol not found

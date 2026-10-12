@@ -27,9 +27,9 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
     indistinguishable from fp64 (relative −6.6 × 10⁻⁶), while llama.cpp's is 0.34% higher — the same order as the Q8_0 weight quantization
     itself (0.24%). How this was measured: [docs/hidden-loss.md](docs/hidden-loss.md).
   - Qwen2.5-7B / 14B (Q8_0 · Q4_0 · k-quants): decoding is at parity with llama.cpp (0.970–1.012× its time), 1.11–1.17× the bandwidth
-    floor (llama.cpp: 1.13–1.19×). Prompts are slower: 1.15–1.38× for Q8_0 · Q4_0 and 1.46–2.12× for k-quants as of stage 26. The two-digit activations
-    double the integer tensor-core work of 8-bit activations; stage 27 (in progress) narrows the gap — see the
-    [research log](docs/research-log.md).
+    floor (llama.cpp: 1.13–1.19×). Prompts are slower: 1.13–1.30× for Q4_0 · Q8_0 and 1.25–1.56× for k-quants after stage 27 (stage 26: up to 2.12×). The
+    two-digit activations double the integer tensor-core work of 8-bit activations; stage 27 narrowed the gap without changing a
+    bit — see the [research log](docs/research-log.md).
 - **Larger models keep the advantage.** A simulation that reproduces only the rounding points (validated against the measured 0.5B value:
   1/637 simulated vs 1/615 measured) gives a hidden loss of 1/3805 (7B Q8_0) and 1/4467 (14B Q4_0) of a llama.cpp-like pipeline.
 
@@ -117,7 +117,8 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 The engine came out of a research program started on 2026-10-08: stages 0–13 in the `research/gpu` branch of the geul repository, stage
 14 onward here. Every stage commits its pass/fail criteria before measuring, compares every variant bit for bit before timing it, and
 keeps failures and missed criteria. English summary: [docs/research-log.md](docs/research-log.md). Korean stage reports:
-[`문서/`](문서/). A short technical brief for outside reviewers: [docs/brief.md](docs/brief.md).
+[`문서/`](문서/). A short technical brief for outside reviewers: [docs/brief.md](docs/brief.md). What the geul compiler caught and
+missed over stages 1–27, counted case by case: [docs/compiler-catches.md](docs/compiler-catches.md).
 
 ## License
 
