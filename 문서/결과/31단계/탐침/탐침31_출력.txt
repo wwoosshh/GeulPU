@@ -1,0 +1,61 @@
+CPU 기준 계산 중 …
+  무작위: 칸 4096 · 합친 대 따로 다른 칸 850 · 비정규수 보존 대 버림 다른 칸 0
+  큰T: 칸 256 · 합친 대 따로 다른 칸 54 · 비정규수 보존 대 버림 다른 칸 0
+  비정규수: 칸 256 · 합친 대 따로 다른 칸 0 · 비정규수 보존 대 버림 다른 칸 47
+  큰지수: 칸 256 · 합친 대 따로 다른 칸 63 · 비정규수 보존 대 버림 다른 칸 0
+
+== Intel(R) UHD Graphics 770 (Vulkan 1.4.323, 업체 0x8086)
+  subgroup_size: 32
+  subgroup_min_max: (8, 32)
+  denorm_preserve_f32: True
+  denorm_ftz_f32: True
+  rte_f32: True
+  denorm_independence: 1
+  dot_4x8_packed_signed_accel: True
+  VK_KHR_shader_fma: False
+  VK_KHR_cooperative_matrix: False
+  VK_NV_cooperative_matrix2: False
+  coopmat int8 모양: 없음
+  무작위/fma: fused 4096/4096 · sep 3246/4096 · fused_ftz 4096/4096 · sep_ftz 3246/4096  → ['fused', 'fused_ftz']
+  무작위/sep: fused 3246/4096 · sep 4096/4096 · fused_ftz 3246/4096 · sep_ftz 4096/4096  → ['sep', 'sep_ftz']
+  무작위/fma+preserve: fused 4096/4096 · sep 3246/4096 · fused_ftz 4096/4096 · sep_ftz 3246/4096  → ['fused', 'fused_ftz']
+  무작위/sep+preserve: fused 3246/4096 · sep 4096/4096 · fused_ftz 3246/4096 · sep_ftz 4096/4096  → ['sep', 'sep_ftz']
+  무작위/fma+ftz: fused 4096/4096 · sep 3246/4096 · fused_ftz 4096/4096 · sep_ftz 3246/4096  → ['fused', 'fused_ftz']
+  큰T/fma: fused 256/256 · sep 202/256 · fused_ftz 256/256 · sep_ftz 202/256  → ['fused', 'fused_ftz']
+  큰T/sep: fused 202/256 · sep 256/256 · fused_ftz 202/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+  큰T/fma+preserve: fused 256/256 · sep 202/256 · fused_ftz 256/256 · sep_ftz 202/256  → ['fused', 'fused_ftz']
+  큰T/sep+preserve: fused 202/256 · sep 256/256 · fused_ftz 202/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+  큰T/fma+ftz: fused 256/256 · sep 202/256 · fused_ftz 256/256 · sep_ftz 202/256  → ['fused', 'fused_ftz']
+  비정규수/fma: fused 209/256 · sep 209/256 · fused_ftz 254/256 · sep_ftz 254/256  → 어느 기준과도 다 맞지 않음
+  비정규수/sep: fused 209/256 · sep 209/256 · fused_ftz 254/256 · sep_ftz 254/256  → 어느 기준과도 다 맞지 않음
+  비정규수/fma+preserve: fused 256/256 · sep 256/256 · fused_ftz 209/256 · sep_ftz 209/256  → ['fused', 'sep']
+  비정규수/sep+preserve: fused 256/256 · sep 256/256 · fused_ftz 209/256 · sep_ftz 209/256  → ['fused', 'sep']
+  비정규수/fma+ftz: fused 209/256 · sep 209/256 · fused_ftz 254/256 · sep_ftz 254/256  → 어느 기준과도 다 맞지 않음
+  큰지수/fma: fused 256/256 · sep 193/256 · fused_ftz 256/256 · sep_ftz 193/256  → ['fused', 'fused_ftz']
+  큰지수/sep: fused 193/256 · sep 256/256 · fused_ftz 193/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+  큰지수/fma+preserve: fused 256/256 · sep 193/256 · fused_ftz 256/256 · sep_ftz 193/256  → ['fused', 'fused_ftz']
+  큰지수/sep+preserve: fused 193/256 · sep 256/256 · fused_ftz 193/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+  큰지수/fma+ftz: fused 256/256 · sep 193/256 · fused_ftz 256/256 · sep_ftz 193/256  → ['fused', 'fused_ftz']
+
+== NVIDIA GeForce RTX 4070 Ti (Vulkan 1.4.351, 업체 0x10de)
+  subgroup_size: 32
+  subgroup_min_max: (32, 32)
+  denorm_preserve_f32: False
+  denorm_ftz_f32: False
+  rte_f32: True
+  denorm_independence: 1
+  dot_4x8_packed_signed_accel: True
+  VK_KHR_shader_fma: True
+  VK_KHR_cooperative_matrix: True
+  VK_NV_cooperative_matrix2: True
+  coopmat int8 모양: [(16, 8, 32, 'SINT8', 'SINT32', 'SINT32', 'Subgroup'), (16, 8, 32, 'UINT8', 'UINT32', 'UINT32', 'Subgroup'), (16, 16, 32, 'SINT8', 'SINT32', 'SINT32', 'Subgroup'), (16, 16, 32, 'UINT8', 'UINT32', 'UINT32', 'Subgroup')]
+  무작위/fma: fused 4096/4096 · sep 3246/4096 · fused_ftz 4096/4096 · sep_ftz 3246/4096  → ['fused', 'fused_ftz']
+  무작위/sep: fused 3246/4096 · sep 4096/4096 · fused_ftz 3246/4096 · sep_ftz 4096/4096  → ['sep', 'sep_ftz']
+  큰T/fma: fused 256/256 · sep 202/256 · fused_ftz 256/256 · sep_ftz 202/256  → ['fused', 'fused_ftz']
+  큰T/sep: fused 202/256 · sep 256/256 · fused_ftz 202/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+  비정규수/fma: fused 209/256 · sep 209/256 · fused_ftz 254/256 · sep_ftz 254/256  → 어느 기준과도 다 맞지 않음
+  비정규수/sep: fused 209/256 · sep 209/256 · fused_ftz 256/256 · sep_ftz 256/256  → ['fused_ftz', 'sep_ftz']
+  큰지수/fma: fused 256/256 · sep 193/256 · fused_ftz 256/256 · sep_ftz 193/256  → ['fused', 'fused_ftz']
+  큰지수/sep: fused 193/256 · sep 256/256 · fused_ftz 193/256 · sep_ftz 256/256  → ['sep', 'sep_ftz']
+
+결과 → 탐침31.json
