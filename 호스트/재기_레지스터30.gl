@@ -7,7 +7,7 @@
 포함 "쿠다.gl"
 포함 "파일.gl"
 
-외부 "nvcuda.dll" "cuFuncGetAttribute" [공허 참조 값을 중간정수 속성을 공허 참조 함수를 cuFuncGetAttribute]는 -> 중간정수.
+(* cuFuncGetAttribute 는 쿠다선언.gl 에(32단계) *)
 
 (* CUfunction_attribute: 1 공유(정적) · 3 지역 · 4 레지스터 *)
 [공허 참조 f를 중간정수 속성을 함수속성]는 -> 정수 {

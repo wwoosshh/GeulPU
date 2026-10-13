@@ -15,7 +15,7 @@ $Work = Join-Path $Here 'work'
 Set-Location -LiteralPath $Here
 [Environment]::SetEnvironmentVariable('CUDA_DEVICE_ORDER', 'PCI_BUS_ID', 'Process')   # CUDA 장치 0 = nvidia-smi 의 GPU 0
 
-$ScriptVersion = 'crosscheck-r1-v3'
+$ScriptVersion = 'crosscheck-r1-v4'
 $ModelName  = 'DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf'
 $ModelUrl   = 'https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf'
 $ModelSize  = 8098524896
@@ -216,7 +216,9 @@ function Finish([string]$headline, [string]$color) {
 }
 
 # 32단계 — 자기 진단: 이 기기의 바닥(메모리 읽기 대역 · 정수 텐서 코어 최고치)을 그 자리에서 재고, 7B 엔진의 커널 종류마다 시간과 바닥 대비를
-# 적는다(생성 한 줄 · 여덟 줄 · 프롬프트). 같은 자리에서 여러 번 재 가장 빠른 값을 쓴다. GPU 를 쓰는 다른 프로그램은 함께 적어 둔다.
+# 적는다(생성 한 줄 · 여덟 줄 · 프롬프트 · 슬롯 여덟 · 넷의 생성 걸음). 엔진이 이 기기에서 후보마다 잰 판과 고른 판, 그리고 31단계의 후보로
+# 고른 그래프와 모든 후보로 고른 그래프를 번갈아 잰 비(슬롯 여덟 · 넷)도 적는다. 같은 자리에서 여러 번 재 가장 빠른 값을 쓴다. GPU 를
+# 쓰는 다른 프로그램은 함께 적어 둔다.
 function RunDiag {
     Write-Host ''
     Say '자기 진단: 이 기기의 바닥과 커널마다의 바닥 대비를 잽니다 (1~2 분)...'
@@ -226,12 +228,14 @@ function RunDiag {
     $code = Tool $diagExe @($diagPtx, (Join-Path $Out 'diag.json'), $ModelPath, $modPtx) $Work 'diag'
     if ($code -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $Out 'diag.json'))) { Check '자기 진단' '경고' '실패 — logs 의 diag.log 를 보내 주세요'; return }
     $d = ReadJson (Join-Path $Out 'diag.json')
-    $EnvInfo.diag = [ordered]@{ read_bandwidth_gbs = $d.'바닥'.'읽기대역_GBs'; spec_bandwidth_gbs = $d.'바닥'.'사양대역_GBs'; int8_tops = $d.'바닥'.'정수텐서_TOPS' }
+    $EnvInfo.diag = [ordered]@{ read_bandwidth_gbs = $d.'바닥'.'읽기대역_GBs'; spec_bandwidth_gbs = $d.'바닥'.'사양대역_GBs'; int8_tops = $d.'바닥'.'정수텐서_TOPS';
+                                ab8_ratio = $d.'번갈아_여덟슬롯'.'비_가운데'; ab4_ratio = $d.'번갈아_네슬롯'.'비_가운데' }
     $line = '대역 {0:N1} GB/s (사양 {1:N1}) · 정수 텐서 {2:N1} TOPS' -f $d.'바닥'.'읽기대역_GBs', $d.'바닥'.'사양대역_GBs', $d.'바닥'.'정수텐서_TOPS'
-    foreach ($k in @('생성 문맥 1024', '여덟 줄 문맥 4096', '프롬프트 2048')) {
+    foreach ($k in @('생성 문맥 1024', '슬롯 여덟 걸음 문맥 2048', '프롬프트 2048')) {
         $c = $d.'커널'.$k
         if ($c) { $line += (' · {0} {1:N2} 배' -f $k, $c.'배') }
     }
+    if ($d.'번갈아_여덟슬롯') { $line += (' · 32/31 슬롯 여덟 {0:N3} · 넷 {1:N3}' -f $d.'번갈아_여덟슬롯'.'비_가운데', $d.'번갈아_네슬롯'.'비_가운데') }
     Check '자기 진단' '통과' $line
 }
 

@@ -38,7 +38,7 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
     and GPT-2 XL (prompts at 0.78–0.87×) come from kernel engineering — fusion and a megakernel — not from the contract being free.
   - The old motto's "it is not slower" was withdrawn in stage 30. Whether determinism itself, and bit-equality with the CPU reference, cost
     work at equal optimization has not been measured separately yet (a one-digit activation contract and the same kernels with each
-    constraint switched on and off are deferred; stage 32 now makes GeulPU tune itself on the machine it runs on, to reach that machine's floor; stage 31 — AMD GPUs through Vulkan — continues on top of it after switching the contract's float32 rule to subnormal flush). See the [research log](docs/research-log.md).
+    constraint switched on and off are deferred; stage 32 now makes GeulPU tune itself on the machine it runs on, to reach that machine's floor — self-diagnosis, a line-tile kernel for up to eight rows and a per-device plate cache are in, and runs on friends' PCs are pending; stage 31 — AMD GPUs through Vulkan — continues on top of it after switching the contract's float32 rule to subnormal flush). See the [research log](docs/research-log.md).
 - **Larger models keep the advantage.** A simulation that reproduces only the rounding points (validated against the measured 0.5B value:
   1/637 simulated vs 1/615 measured) gives a hidden loss of 1/3805 (7B Q8_0) and 1/4467 (14B Q4_0) of a llama.cpp-like pipeline.
 
