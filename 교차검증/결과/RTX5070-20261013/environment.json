@@ -1,0 +1,164 @@
+﻿{
+    "script":  "crosscheck-r1-v2",
+    "checked_at":  "2026-10-13 19:04:50 +09:00",
+    "os":  {
+               "caption":  "Microsoft Windows 11 Pro",
+               "display_version":  "25H2",
+               "build":  "26200.9457",
+               "architecture":  "64비트",
+               "locale":  "ko-KR"
+           },
+    "powershell":  "5.1.26100.9444",
+    "dotnet_release":  533509,
+    "cpu":  {
+                "name":  "AMD Ryzen 5 7500F 6-Core Processor",
+                "cores":  6,
+                "threads":  12,
+                "max_mhz":  3701
+            },
+    "ram_gb":  31.7,
+    "nvcuda_dll":  "32.0.15.9621",
+    "cuda_driver_version":  "13.2",
+    "gpus":  [
+                 {
+                     "index":  "0",
+                     "name":  "NVIDIA GeForce RTX 5070",
+                     "pci.bus_id":  "00000000:01:00.0",
+                     "driver_version":  "596.21",
+                     "driver_model.current":  "WDDM",
+                     "vbios_version":  "98.05.4a.00.55",
+                     "compute_cap":  "12.0",
+                     "memory.total":  "12227",
+                     "memory.used":  "1822",
+                     "pcie.link.gen.max":  "5",
+                     "pcie.link.width.max":  "16",
+                     "clocks.max.sm":  "3090",
+                     "clocks.max.memory":  "14001",
+                     "power.limit":  "250.00",
+                     "temperature.gpu":  "51"
+                 }
+             ],
+    "hardware_gpu_scheduling":  "default",
+    "power_plan":  "균형 조정",
+    "git":  "git version 2.56.0.windows.2",
+    "geulpu_commit":  "",
+    "geulpu_modified":  false,
+    "disk_free_gb":  46.2,
+    "model_present":  false,
+    "geul_commit":  "fc2b5a7181e41385199cecc4765af135028a77a9",
+    "build":  {
+                  "글 컴파일러":  "a02de09dd3c15555a088f61a006f07573bb38d0d4e1e8377214e39110d6cb15d",
+                  "PTX 뒷단":  "73f8c2316b0240a015d34dfde4f47d799dab3decd4077999784257960db6cc77",
+                  "서버 (R1)":  "6edccc6cd96c6a2ee286afa78b666fea7ec0b8f2bcf04059f9bd39f0c680db0c",
+                  "커널 생성기":  "442eeee1d9df485da761bb98b51b9f33888d7470c6445890e0cf9f2a3bb8e124",
+                  "7B 모듈 소스":  "84330fa322435d9fd16d0c26531a1530680179fb6ea5039a91f4b3a1079262d0",
+                  "7B 모듈 PTX":  "a26545fba9c2e398c5563d35fe09f0309c012b841dc697dca1eec6a983ebac5e"
+              },
+    "checks":  [
+                   {
+                       "name":  "운영체제",
+                       "state":  "통과",
+                       "detail":  "Microsoft Windows 11 Pro 25H2 (빌드 26200.9457)"
+                   },
+                   {
+                       "name":  "PowerShell · .NET",
+                       "state":  "정보",
+                       "detail":  "PowerShell 5.1.26100.9444 · .NET 4 릴리스 533509"
+                   },
+                   {
+                       "name":  "CPU · 메모리",
+                       "state":  "정보",
+                       "detail":  "AMD Ryzen 5 7500F 6-Core Processor · 6코어 12스레드 · RAM 31.7 GB"
+                   },
+                   {
+                       "name":  "CUDA 드라이버 (nvcuda.dll)",
+                       "state":  "통과",
+                       "detail":  "32.0.15.9621"
+                   },
+                   {
+                       "name":  "GPU 0",
+                       "state":  "정보",
+                       "detail":  "NVIDIA GeForce RTX 5070 · VRAM 12227 MiB · compute 12.0 · 드라이버 596.21 (WDDM) · VBIOS 98.05.4a.00.55 · PCIe 5x16 · 최대 SM 3090 MHz / 메모리 14001 MHz · 전력 한도 250.00 W"
+                   },
+                   {
+                       "name":  "CUDA 판",
+                       "state":  "정보",
+                       "detail":  "드라이버가 받는 CUDA 13.2"
+                   },
+                   {
+                       "name":  "연산 능력",
+                       "state":  "통과",
+                       "detail":  "compute 12.0 (8.0 이상 필요)"
+                   },
+                   {
+                       "name":  "VRAM",
+                       "state":  "통과",
+                       "detail":  "12227 MiB — 슬롯 8"
+                   },
+                   {
+                       "name":  "VRAM 사용 중",
+                       "state":  "경고",
+                       "detail":  "1822 MiB 를 다른 프로그램이 쓰고 있습니다. 게임·브라우저를 닫으면 안전합니다"
+                   },
+                   {
+                       "name":  "그래픽 일정 · 전원",
+                       "state":  "정보",
+                       "detail":  "하드웨어 가속 GPU 일정 default · 전원 계획 균형 조정"
+                   },
+                   {
+                       "name":  "git",
+                       "state":  "통과",
+                       "detail":  "git version 2.56.0.windows.2"
+                   },
+                   {
+                       "name":  "GeulPU 저장소",
+                       "state":  "통과",
+                       "detail":  "커밋 "
+                   },
+                   {
+                       "name":  "디스크 · 모델",
+                       "state":  "통과",
+                       "detail":  "여유 46.2 GB · 모델을 받습니다 (8.1 GB)"
+                   },
+                   {
+                       "name":  "첫 컴파일러 (글 1.3.1)",
+                       "state":  "통과",
+                       "detail":  "SHA-256 확인"
+                   },
+                   {
+                       "name":  "글 저장소",
+                       "state":  "통과",
+                       "detail":  "고정 커밋 fc2b5a7181e41385199cecc4765af135028a77a9"
+                   },
+                   {
+                       "name":  "글 컴파일러",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 a02de09dd3c1"
+                   },
+                   {
+                       "name":  "PTX 뒷단",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 73f8c2316b02"
+                   },
+                   {
+                       "name":  "서버 (R1)",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 6edccc6cd96c"
+                   },
+                   {
+                       "name":  "커널 생성기",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 442eeee1d9df"
+                   },
+                   {
+                       "name":  "7B 모듈 소스",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 84330fa32243"
+                   },
+                   {
+                       "name":  "7B 모듈 PTX",
+                       "state":  "통과",
+                       "detail":  "기준과 같음 a26545fba9c2"
+                   }
+               ]
+}
