@@ -2,8 +2,9 @@
 #   모델: DeepSeek-R1-Distill-Qwen-7B Q8_0 · 수학 문제 32 개 · 탐욕 생성(temperature 0) · 답 길이 상한 3200 토큰
 #   쓰는 법: git clone https://github.com/wwoosshh/GeulPU 한 뒤 교차검증\run.bat 을 실행한다.
 #     1. 환경 검사  2. 소스에서 빌드(글 컴파일러 → PTX 뒷단 → 생성기 · 서버 → 7B 모듈 — 단계마다 기준 PC 의 해시와 대조)
-#     3. 모델 받기(8.1 GB)  4. 생성  5. 기준 PC 의 출력과 비교  6. result-….zip
-param([switch]$BuildOnly, [switch]$CompareOnly, [string]$ResponsesDir = '', [string]$GeulC = '')
+#     3. 모델 받기(8.1 GB)  4. 생성  5. 기준 PC 의 출력과 비교  6. 자기 진단(32단계)  7. result-….zip
+#   진단만: diag.bat (-DiagOnly) — 빌드 · 모델 확인 뒤 생성은 건너뛰고 자기 진단만(이 기기의 바닥과 커널마다의 바닥 대비, 1~2 분).
+param([switch]$BuildOnly, [switch]$CompareOnly, [switch]$DiagOnly, [string]$ResponsesDir = '', [string]$GeulC = '')
 # 시험용 인자: -BuildOnly(빌드까지만) · -CompareOnly -ResponsesDir <폴더>(받은 응답으로 비교만) · -GeulC <geulc.exe>(첫 컴파일러를 받지 않고 이것으로)
 
 $ErrorActionPreference = 'Stop'
@@ -14,7 +15,7 @@ $Work = Join-Path $Here 'work'
 Set-Location -LiteralPath $Here
 [Environment]::SetEnvironmentVariable('CUDA_DEVICE_ORDER', 'PCI_BUS_ID', 'Process')   # CUDA 장치 0 = nvidia-smi 의 GPU 0
 
-$ScriptVersion = 'crosscheck-r1-v2'
+$ScriptVersion = 'crosscheck-r1-v3'
 $ModelName  = 'DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf'
 $ModelUrl   = 'https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf'
 $ModelSize  = 8098524896
@@ -214,6 +215,26 @@ function Finish([string]$headline, [string]$color) {
     Write-Host ('이 파일을 보내 주세요: ' + $zip)
 }
 
+# 32단계 — 자기 진단: 이 기기의 바닥(메모리 읽기 대역 · 정수 텐서 코어 최고치)을 그 자리에서 재고, 7B 엔진의 커널 종류마다 시간과 바닥 대비를
+# 적는다(생성 한 줄 · 여덟 줄 · 프롬프트). 같은 자리에서 여러 번 재 가장 빠른 값을 쓴다. GPU 를 쓰는 다른 프로그램은 함께 적어 둔다.
+function RunDiag {
+    Write-Host ''
+    Say '자기 진단: 이 기기의 바닥과 커널마다의 바닥 대비를 잽니다 (1~2 분)...'
+    $gs = (Native @('nvidia-smi', '--query-gpu=utilization.gpu,memory.used,clocks.sm,clocks.mem,power.draw,temperature.gpu', '--format=csv')) -join "`n"
+    $apps = (Native @('nvidia-smi', '--query-compute-apps=pid,process_name,used_memory', '--format=csv')) -join "`n"
+    [IO.File]::WriteAllText((Join-Path $Out 'diag-gpu-state.txt'), ($gs + "`n`n" + $apps + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    $code = Tool $diagExe @($diagPtx, (Join-Path $Out 'diag.json'), $ModelPath, $modPtx) $Work 'diag'
+    if ($code -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $Out 'diag.json'))) { Check '자기 진단' '경고' '실패 — logs 의 diag.log 를 보내 주세요'; return }
+    $d = ReadJson (Join-Path $Out 'diag.json')
+    $EnvInfo.diag = [ordered]@{ read_bandwidth_gbs = $d.'바닥'.'읽기대역_GBs'; spec_bandwidth_gbs = $d.'바닥'.'사양대역_GBs'; int8_tops = $d.'바닥'.'정수텐서_TOPS' }
+    $line = '대역 {0:N1} GB/s (사양 {1:N1}) · 정수 텐서 {2:N1} TOPS' -f $d.'바닥'.'읽기대역_GBs', $d.'바닥'.'사양대역_GBs', $d.'바닥'.'정수텐서_TOPS'
+    foreach ($k in @('생성 문맥 1024', '여덟 줄 문맥 4096', '프롬프트 2048')) {
+        $c = $d.'커널'.$k
+        if ($c) { $line += (' · {0} {1:N2} 배' -f $k, $c.'배') }
+    }
+    Check '자기 진단' '통과' $line
+}
+
 $failed = @($Checks | Where-Object { $_.state -eq '실패' }).Count
 if ($failed -gt 0 -and -not $CompareOnly) {
     Finish ('환경 검사에서 실패 {0} 건 — 위 내용을 확인해 주세요.' -f $failed) 'Red'
@@ -337,6 +358,15 @@ try {
         $code = Tool $ptxBackend @($modGl, '-o', $modPtx) $Root 'build-module-ptx'
         if ($code -ne 0) { Fail '모듈 PTX 빌드 실패.' }
         [void](BuildCheck '7B 모듈 PTX' $modPtx $want.module_ptx)
+
+        # g. 자기 진단 도구(32단계) — 진단 커널(PTX) · 진단 프로그램
+        Say '자기 진단 도구를 빌드합니다...'
+        $diagPtx = Join-Path $Work 'diag.ptx'
+        $code = Tool $ptxBackend @('커널/진단.gl', '-o', $diagPtx) $Root 'build-diag-ptx'
+        if ($code -ne 0) { Fail '진단 커널 빌드 실패.' }
+        $diagExe = Join-Path $Work 'diag.exe'
+        $code = Tool $comp @('호스트/진단.gl', '-o', $diagExe) $Root 'build-diag'
+        if ($code -ne 0) { Fail '진단 프로그램 빌드 실패.' }
         $EnvInfo.build = $Build
 
         if ($BuildOnly) { Finish '빌드만 했습니다 (-BuildOnly).' 'Green'; exit 0 }
@@ -354,6 +384,12 @@ try {
         Say '모델 파일 확인 중 (SHA-256, 1~2 분)...'
         if ((FileSha $ModelPath) -ne $ModelSha) { Fail '모델 파일의 SHA-256 이 다릅니다. 파일을 지우고 다시 실행해 주세요.' }
         Say '모델 확인 완료.'
+
+        if ($DiagOnly) {
+            RunDiag
+            Finish '자기 진단을 마쳤습니다 (-DiagOnly — 생성은 건너뜀).' 'Green'
+            exit 0
+        }
 
         # ================= 4. 서버를 띄우고(127.0.0.1 에서만) 32 문제를 한꺼번에 보낸다 =================
         $ok = $false
@@ -457,5 +493,6 @@ $total = @($exp.items).Count
 $run = [ordered]@{ slots = $slots; generate_minutes = [Math]::Round($genMinutes, 1); date = $Stamp; compare_only = [bool]$CompareOnly }
 $summary = [ordered]@{ environment = $EnvInfo; build = $Build; run = $run; reference = $exp.reference; same = $same; total = $total; items = $rows }
 $summary | ConvertTo-Json -Depth 7 | Out-File -FilePath (Join-Path $Out 'summary.json') -Encoding UTF8
+if (-not $CompareOnly -and $diagExe) { RunDiag }
 if ($same -eq $total) { Finish ('결과: 32 문제 모두 기준 PC 와 똑같은 출력입니다 ({0}/{1}).' -f $same, $total) 'Green' }
 else { Finish ('결과: {0}/{1} 문제만 기준 PC 와 같습니다.' -f $same, $total) 'Yellow' }

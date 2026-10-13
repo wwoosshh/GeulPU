@@ -1,0 +1,4 @@
+utilization.gpu [%], memory.used [MiB], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], temperature.gpu
+0 %, 0 MiB, 210 MHz, 405 MHz, 5.97 W, 36
+
+pid, process_name, used_gpu_memory [MiB]
