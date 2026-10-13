@@ -187,7 +187,7 @@ class Vk:
             "name": name, "api": f"{api >> 22}.{(api >> 12) & 1023}.{api & 4095}", "driver_raw": drv, "vendor": hex(vendor),
             "subgroup_size": s_size, "subgroup_min_max": (smin, smax),
             "denorm_preserve_f32": bool(f[6]), "denorm_ftz_f32": bool(f[9]), "rte_f32": bool(f[12]), "rtz_f32": bool(f[15]),
-            "denorm_independence": f[0], "rounding_independence": f[1],
+            "denorm_independence": f[0], "rounding_independence": f[1], "signed_zero_inf_nan_f32": bool(f[3]),
             "dot_8bit_signed_accel": bool(d6[1]), "dot_4x8_packed_signed_accel": bool(d6[4]),
         }
 
@@ -295,6 +295,14 @@ class Device:
         vk.vkDestroyPipelineLayout(self.dev, pl, None)
         vk.vkDestroyDescriptorSetLayout(self.dev, dsl, None)
         vk.vkDestroyShaderModule(self.dev, sm, None)
+
+    def release(self):
+        """지금까지 만든 버퍼를 모두 돌려준다(시험 여럿을 한 장치에서 돌릴 때)."""
+        vk.vkDeviceWaitIdle(self.dev)
+        for buf, mem in self.objs:
+            vk.vkDestroyBuffer(self.dev, buf, None)
+            vk.vkFreeMemory(self.dev, mem, None)
+        self.objs = []
 
     def close(self):
         vk.vkDeviceWaitIdle(self.dev)

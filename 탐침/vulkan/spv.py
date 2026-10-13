@@ -9,17 +9,18 @@ OpTypeRuntimeArray, OpTypeStruct, OpTypePointer, OpTypeFunction = 29, 30, 32, 33
 OpConstant, OpFunction, OpFunctionEnd, OpVariable, OpLoad, OpStore, OpAccessChain = 43, 54, 56, 59, 61, 62, 65
 OpDecorate, OpMemberDecorate, OpCompositeExtract = 71, 72, 81
 OpConvertSToF, OpBitcast, OpIAdd, OpFAdd, OpIMul, OpFMul, OpSLessThan = 111, 124, 128, 129, 132, 133, 177
+OpFDiv = 136
 OpLoopMerge, OpSelectionMerge, OpLabel, OpBranch, OpBranchConditional, OpReturn = 246, 247, 248, 249, 250, 253
 
 # 열거값
 CapShader = 1
-CapDenormPreserve, CapDenormFlushToZero = 4464, 4465
+CapDenormPreserve, CapDenormFlushToZero, CapSignedZeroInfNanPreserve = 4464, 4465, 4466
 ExecModeLocalSize = 17
-ExecModeDenormPreserve, ExecModeDenormFlushToZero = 4459, 4460
+ExecModeDenormPreserve, ExecModeDenormFlushToZero, ExecModeSignedZeroInfNanPreserve = 4459, 4460, 4461
 SCInput, SCFunction, SCStorageBuffer = 1, 7, 12
 DecBlock, DecArrayStride, DecBuiltIn, DecBinding, DecDescriptorSet, DecOffset, DecNoContraction = 2, 6, 11, 33, 34, 35, 42
 BuiltInGlobalInvocationId = 28
-GLSL_Fma = 50
+GLSL_RoundEven, GLSL_Sqrt, GLSL_Fma, GLSL_UnpackHalf2x16 = 2, 31, 50, 62
 
 
 def _str(s):
@@ -211,6 +212,94 @@ def q8_block_kernel(M, N, K, variant, denorm_mode=None):
     I(B, OpLabel, lab["om"])
     iy = op(OpIAdd, t_int, op(OpIMul, t_int, r, ci(N)), c)
     I(B, OpStore, op(OpAccessChain, p_sb_f, Yb, ci(0), iy), op(OpLoad, t_f32, v_y))
+    I(B, OpReturn)
+    I(B, OpFunctionEnd)
+    return m.binary()
+
+
+def elementwise_kernel(op, denorm_mode=None, szp=False):
+    """탐침 둘 — 원소마다 연산 하나: OUT[i] = op(A[i], B[i], C[i]). 입출력은 비트(부호 없는 정수)로 읽고 써서 불러오기 · 저장이 값을
+       건드리지 않게 한다. op: mul · add · fma (GLSL.std.450 Fma) · div (OpFDiv) · sqrt (GLSL Sqrt) · roundeven (GLSL RoundEven) ·
+       half (A 의 아래 16 비트를 반실수로 — UnpackHalf2x16). denorm_mode: None · 'preserve' · 'ftz' (32 비트), szp: SignedZeroInfNanPreserve.
+       바인딩 0 A · 1 B · 2 C · 3 OUT (모두 uint[]), 일꾼 묶음 64."""
+    m = Module()
+    I = m.ins
+    I(m.caps, OpCapability, CapShader)
+    if denorm_mode or szp:
+        I(m.exts, OpExtension, _str("SPV_KHR_float_controls"))
+    if denorm_mode:
+        I(m.caps, OpCapability, CapDenormPreserve if denorm_mode == "preserve" else CapDenormFlushToZero)
+    if szp:
+        I(m.caps, OpCapability, CapSignedZeroInfNanPreserve)
+    glsl = m.id()
+    I(m.imports, OpExtInstImport, glsl, _str("GLSL.std.450"))
+    I(m.memmodel, OpMemoryModel, 0, 1)                      # Logical, GLSL450
+    t_void, t_fn, t_uint, t_f32, t_v2f, t_v3u = (m.id() for _ in range(6))
+    p_in_v3u, t_rau, t_stu, p_sb_stu, p_sb_u = (m.id() for _ in range(5))
+    I(m.types, OpTypeVoid, t_void)
+    I(m.types, OpTypeFunction, t_fn, t_void)
+    I(m.types, OpTypeInt, t_uint, 32, 0)
+    I(m.types, OpTypeFloat, t_f32, 32)
+    I(m.types, OpTypeVector, t_v2f, t_f32, 2)
+    I(m.types, OpTypeVector, t_v3u, t_uint, 3)
+    I(m.types, OpTypePointer, p_in_v3u, SCInput, t_v3u)
+    I(m.types, OpTypeRuntimeArray, t_rau, t_uint)
+    I(m.types, OpTypeStruct, t_stu, t_rau)
+    I(m.types, OpTypePointer, p_sb_stu, SCStorageBuffer, t_stu)
+    I(m.types, OpTypePointer, p_sb_u, SCStorageBuffer, t_uint)
+    I(m.decos, OpDecorate, t_rau, DecArrayStride, 4)
+    I(m.decos, OpDecorate, t_stu, DecBlock)
+    I(m.decos, OpMemberDecorate, t_stu, 0, DecOffset, 0)
+    c0 = m.id()
+    I(m.types, OpConstant, t_uint, c0, 0)
+    gid = m.id()
+    I(m.globals_, OpVariable, p_in_v3u, gid, SCInput)
+    I(m.decos, OpDecorate, gid, DecBuiltIn, BuiltInGlobalInvocationId)
+    bufs = []
+    for b in range(4):
+        v = m.id()
+        I(m.globals_, OpVariable, p_sb_stu, v, SCStorageBuffer)
+        I(m.decos, OpDecorate, v, DecDescriptorSet, 0)
+        I(m.decos, OpDecorate, v, DecBinding, b)
+        bufs.append(v)
+    main = m.id()
+    I(m.entries, OpEntryPoint, 5, main, _str("main"), gid)
+    I(m.modes, OpExecutionMode, main, ExecModeLocalSize, 64, 1, 1)
+    if denorm_mode:
+        I(m.modes, OpExecutionMode, main, ExecModeDenormPreserve if denorm_mode == "preserve" else ExecModeDenormFlushToZero, 32)
+    if szp:
+        I(m.modes, OpExecutionMode, main, ExecModeSignedZeroInfNanPreserve, 32)
+    B = m.body
+    I(B, OpFunction, t_void, main, 0, t_fn)
+    I(B, OpLabel, m.id())
+
+    def op_(o, t, *args):
+        r = m.id()
+        I(B, o, t, r, *args)
+        return r
+
+    i = op_(OpCompositeExtract, t_uint, op_(OpLoad, t_v3u, gid), 0)
+    raw = [op_(OpLoad, t_uint, op_(OpAccessChain, p_sb_u, bufs[k], c0, i)) for k in range(3)]
+    a, b, c = (op_(OpBitcast, t_f32, x) for x in raw)
+    if op == "mul":
+        r = op_(OpFMul, t_f32, a, b)
+    elif op == "add":
+        r = op_(OpFAdd, t_f32, a, b)
+    elif op == "fma":
+        r = op_(OpExtInst, t_f32, glsl, GLSL_Fma, a, b, c)
+    elif op == "div":
+        r = op_(OpFDiv, t_f32, a, b)
+    elif op == "sqrt":
+        r = op_(OpExtInst, t_f32, glsl, GLSL_Sqrt, a)
+    elif op == "roundeven":
+        r = op_(OpExtInst, t_f32, glsl, GLSL_RoundEven, a)
+    elif op == "half":
+        r = op_(OpCompositeExtract, t_f32, op_(OpExtInst, t_v2f, glsl, GLSL_UnpackHalf2x16, raw[0]), 0)
+    else:
+        raise ValueError(op)
+    if op in ("mul", "add", "div"):
+        I(m.decos, OpDecorate, r, DecNoContraction)
+    I(B, OpStore, op_(OpAccessChain, p_sb_u, bufs[3], c0, i), op_(OpBitcast, t_uint, r))
     I(B, OpReturn)
     I(B, OpFunctionEnd)
     return m.binary()
