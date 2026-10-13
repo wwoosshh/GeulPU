@@ -3,7 +3,7 @@
   "gpu": "NVIDIA GeForce RTX 4070 Ti",
   "driver": "616.56",
   "os": "Windows 11",
-  "engine": "GeulPU 31a3b1b + 토크나이저_R1.diff",
+  "geulpu": "31a3b1b 의 호스트 · 커널 + 토크나이저_R1.diff",
   "runs": "함께 1 (한 번에 하나씩) · 함께 8 — 두 실행의 출력이 32 문제 모두 같았다"
  },
  "model": {
@@ -17,6 +17,14 @@
   "max_tokens": 3200,
   "context": 3584,
   "prompt": "BOS(151646) + llama-server 의 대화 틀"
+ },
+ "build": {
+  "self_compiler": "a02de09dd3c15555a088f61a006f07573bb38d0d4e1e8377214e39110d6cb15d",
+  "ptx_backend": "73f8c2316b0240a015d34dfde4f47d799dab3decd4077999784257960db6cc77",
+  "server_r1": "6edccc6cd96c6a2ee286afa78b666fea7ec0b8f2bcf04059f9bd39f0c680db0c",
+  "generator": "442eeee1d9df485da761bb98b51b9f33888d7470c6445890e0cf9f2a3bb8e124",
+  "module_source": "84330fa322435d9fd16d0c26531a1530680179fb6ea5039a91f4b3a1079262d0",
+  "module_ptx": "a26545fba9c2e398c5563d35fe09f0309c012b841dc697dca1eec6a983ebac5e"
  },
  "items": [
   {
