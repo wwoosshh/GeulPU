@@ -23,7 +23,7 @@
   "self_compiler": "a02de09dd3c15555a088f61a006f07573bb38d0d4e1e8377214e39110d6cb15d",
   "ptx_backend": "d2cd1276a60ffdb50bdd9b4b370872c2d03842b0a8b6f7ebfd98811ff6b6e305",
   "server_r1": "b24d61262c1ee4499ff5dd944caa02f32d2b31487eccd266383230aa36e5733b",
-  "generator": "52e8e2de5630db08a1ba7745a9ac4cf6b461261cb9f8aedcc24304b90dd962cf",
+  "generator": "0a6b222dc453a6862c1dfbd10560f924f341a67604e57d1dd413a916035134a1",
   "module_source": "f40b0b6fbdcc24acae53abbbe2b69505cf9072ae27eb3f25c35a1aadbe9faf3e",
   "module_ptx": "a5bb07bead6fe7dbae709ba6d535c50b178d125a31f7928a31d014dfb397fd53"
  },
