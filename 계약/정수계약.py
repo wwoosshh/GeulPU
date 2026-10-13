@@ -8,16 +8,76 @@
   출력 = y + 치우침.
 8단계 — 자리 둘(자리수=2): n = 가까운정수(x · 2^(13 − E)), |n| ≤ 2¹⁴, D₀ ∈ [−128, 127], D₁ ∈ [−64, 64], v_j = S_j · 2^(8j + E − 13),
 u = v₁ + v₀. 일반으로 자리수 m 의 고정소수점 비트는 P = 8m − 3.
+31단계 — 짧은실수 연산은 규칙 R(비정규수 버림 — 아래 비정규수버림 의 설명)을 따른다.
 """
 import numpy as np
 
 f32 = np.float32
 
+# ── 31단계 — 짧은실수 규칙 R(비정규수 버림 — 문서/31단계.md): 비정규수 입력은 부호를 지킨 0 으로 읽고, 결과는 가수 24 비트로(지수 제한
+#    없이) 반올림한 크기가 2⁻¹²⁶ 보다 작으면 부호를 지킨 0. GPU 는 PTX 의 .ftz(모듈 소스의 (* 비정규수버림 *) 표시)가, Vulkan 은 비정규수
+#    버림 모드가 이 규칙을 낸다(31d — NVIDIA Vulkan · Intel Vulkan · PTX .ftz 가 경계값까지 모두 이 규칙). numpy 는 IEEE(비정규수 그대로)라
+#    짧은실수 연산을 아래 함수(곱 · 더 · 빼기 · 나눔 · 제곱근 · fma32)로 해서 같은 규칙을 낸다. 비정규수버림 = False 면 IEEE 그대로 —
+#    표시가 없는 모듈(GPT-2 판 · 14단계의 파이썬판 Qwen2 — 3 ~ 16단계의 기록)과 견줄 때(시험/공통.py 가 끈다).
+비정규수버림 = True
+막정규 = f32(2.0 ** -126)
+_문턱 = 2.0 ** -126 - 2.0 ** -151        # fp64: 정확한 값의 크기가 이보다 작으면 가수 24 비트로(지수 제한 없이) 반올림한 값이 2⁻¹²⁶ 아래
+
+
+def 버림(x):
+    """규칙 R 의 입력 읽기 — 비정규수를 부호를 지킨 0 으로(비정규수버림 이 거짓이면 그대로)."""
+    x = np.asarray(x, f32)
+    if not 비정규수버림:
+        return x
+    return np.where(np.abs(x) < 막정규, np.copysign(f32(0), x), x).astype(f32)
+
+
+def 곱(a, b):
+    """짧은실수 a · b (반올림 하나) — 규칙 R. fp64 의 곱은 정확하다(가수 24 + 24 비트)."""
+    a, b = np.asarray(a, f32), np.asarray(b, f32)
+    if not 비정규수버림:
+        return (a * b).astype(f32)
+    p = 버림(a).astype(np.float64) * 버림(b).astype(np.float64)
+    return np.where(np.abs(p) < _문턱, np.copysign(0.0, p), p).astype(f32)
+
+
+def 더(a, b):
+    """짧은실수 a + b (반올림 하나) — 규칙 R. 정규수(또는 0) 둘의 합이 2⁻¹²⁶ 아래면 늘 정확해서, IEEE 결과의 비정규수를 버리면 된다."""
+    a, b = np.asarray(a, f32), np.asarray(b, f32)
+    if not 비정규수버림:
+        return (a + b).astype(f32)
+    return 버림((버림(a) + 버림(b)).astype(f32))
+
+
+def 빼기(a, b):
+    """짧은실수 a − b = 더(a, −b)."""
+    return 더(a, -np.asarray(b, f32))
+
+
+def 나눔(a, b):
+    """짧은실수 a / b (바른 반올림) — 규칙 R. IEEE 결과가 비정규수면 0. IEEE 결과가 정확히 2⁻¹²⁶ 인데 정확한 몫이 그보다 작은 것은
+    몫이 2⁻¹²⁶(1 − 2⁻²⁴) 일 때뿐이다(짧은실수 둘의 몫은 2⁻¹²⁶(1 − 2⁻²⁵) 과 2⁻¹²⁶ 사이에 오지 않는다) — 지수 제한 없이 반올림하면
+    2⁻¹²⁶ 아래라 0."""
+    a, b = np.asarray(a, f32), np.asarray(b, f32)
+    if not 비정규수버림:
+        return (a / b).astype(f32)
+    a, b = 버림(a), 버림(b)
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore", under="ignore"):
+        r = (a / b).astype(f32)
+    작음 = (np.abs(r) < 막정규) | ((np.abs(r) == 막정규) & (np.abs(a.astype(np.float64)) < 2.0 ** -126 * np.abs(b.astype(np.float64))))
+    return np.where(작음, np.copysign(f32(0), r), r).astype(f32)
+
+
+def 제곱근(x):
+    """짧은실수 √x (바른 반올림) — 규칙 R 은 입력만(결과는 비정규수가 될 수 없다)."""
+    return np.sqrt(버림(x)).astype(f32)
+
 
 def fma32(a, b, c):
     """짧은실수 a · b + c 를 반올림 한 번으로(가까운 쪽, 같으면 짝수) — fp64 로 곱하고(정확) 더한 뒤, 그 합이 짧은실수 두 수의
-    한가운데에 떨어졌을 때만 오차의 부호(TwoSum)로 바로잡는다. a · b 는 fp64 안에서 정확해야 한다(가수 합 53 비트 이하)."""
-    a, b, c = (np.asarray(v, dtype=f32).astype(np.float64) for v in (a, b, c))
+    한가운데에 떨어졌을 때만 오차의 부호(TwoSum)로 바로잡는다. a · b 는 fp64 안에서 정확해야 한다(가수 합 53 비트 이하).
+    규칙 R(31단계): 입력의 비정규수는 0, 정확한 값(= r + err)의 크기가 _문턱 보다 작으면 부호를 지킨 0."""
+    a, b, c = (버림(v).astype(np.float64) for v in (a, b, c))
     p = a * b
     r = p + c
     bb = r - p
@@ -28,7 +88,12 @@ def fma32(a, b, c):
     hi = np.where(fd <= r, np.nextafter(f, f32(np.inf)), f)
     mid = (lo.astype(np.float64) + hi.astype(np.float64)) / 2
     tie = (r == mid) & (err != 0)
-    return np.where(tie, np.where(err > 0, hi, lo), f).astype(f32)
+    g = np.where(tie, np.where(err > 0, hi, lo), f).astype(f32)
+    if not 비정규수버림:
+        return g
+    ar = np.abs(r)
+    작음 = (ar < _문턱) | ((ar == _문턱) & np.where(r > 0, err < 0, err > 0))
+    return np.where(작음, np.copysign(f32(0), r).astype(f32), g).astype(f32)
 
 
 def 자리로(x, 자리수=4):
@@ -70,9 +135,9 @@ def 행렬곱(x, q, d, 치우침, 자리수=4):
              for j in range(자리수)]
         u = v[자리수 - 1]
         for j in range(자리수 - 2, -1, -1):
-            u = u + v[j]
+            u = 더(u, v[j])
         y = fma32(u, np.broadcast_to(d[b][None, :], u.shape), y)
-    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+    return 더(y, np.asarray(치우침, f32)[None, :])
 
 
 # ── 9단계 — 정수 KV 계약: 어텐션의 CPU 참조 (docs/17 §7 "9단계" 의 계약 그대로) ──────────────────────────────────────────
@@ -92,16 +157,16 @@ def 적힌지수(x):
     더한다 — 정확), x < −87.3 이면 0. 가까운정수는 같으면 짝수(cvt.rni)."""
     x = np.asarray(x, f32)
     xc = np.maximum(x, _k["밑"]).astype(f32)
-    nf = (fma32(xc, _k["log2e"], f32(12582912.0)) - f32(12582912.0)).astype(f32)   # 정확한 곱의 가까운 정수(마법수 1.5·2²³)
+    nf = 빼기(fma32(xc, _k["log2e"], f32(12582912.0)), f32(12582912.0))   # 정확한 곱의 가까운 정수(마법수 1.5·2²³)
     n = nf.astype(np.int32)
     r = fma32(nf, -_k["C1"], xc)
     r = fma32(nf, _k["C2"], r)
-    z = (r * r).astype(f32)
+    z = 곱(r, r)
     y = fma32(_k["c5"], r, _k["c4"])
     for c in ("c3", "c2", "c1", "c0"):
         y = fma32(y, r, _k[c])
     y = fma32(y, z, r)
-    y = (y + f32(1)).astype(f32)
+    y = 더(y, f32(1))
     bits = y.view(np.int32) + (n.astype(np.int32) << 23)
     return np.where(x < _k["끝"], f32(0), bits.view(f32)).astype(f32)
 
@@ -139,19 +204,19 @@ def _조각몫(nq, nk, nv, Pq, Pk, Pv, Rr, 시작, n):
     for b in range(hd // 32):
         sl = slice(32 * b, 32 * b + 32)
         u = (nq[Rr][:, sl] @ nk[keys][:, sl].T).astype(f32)        # 정확한 정수 합 → 반올림 하나
-        부분 = (u * Pq[Rr, b][:, None]).astype(f32)                 # 정확
-        s = (부분 * Pk[keys, b][None, :]).astype(f32) if b == 0 else fma32(부분, np.broadcast_to(Pk[keys, b][None, :], 부분.shape), s)
-    s = (s * 점수눈금(hd)).astype(f32)
+        부분 = 곱(u, Pq[Rr, b][:, None])                            # 정확
+        s = 곱(부분, Pk[keys, b][None, :]) if b == 0 else fma32(부분, np.broadcast_to(Pk[keys, b][None, :], 부분.shape), s)
+    s = 곱(s, 점수눈금(hd))
     s = np.where(valid, s, f32(-3.0e38)).astype(f32)
     # 2. 최댓값 · 지수
     m = s.max(1)
-    e = np.where(valid, 적힌지수((s - m[:, None]).astype(f32)), f32(0)).astype(f32)
+    e = np.where(valid, 적힌지수(빼기(s, m[:, None])), f32(0)).astype(f32)
     # 3. 합 — 2⁻²³ 눈금의 정수 합, 반올림 하나
     l = (np.rint((e * f32(8388608.0)).astype(f32)).astype(np.int64).sum(1).astype(f32) * f32(2.0 ** -23)).astype(f32)
     # 4. 가중합 — 값의 블록 b 마다 e′ = e · 2^(E_v − 13), 키 32 개 블록 j 마다 자리 둘
     o = np.zeros((len(Rr), hd), f32)
     for b in range(hd // 32):
-        ep = (e * Pv[keys, b][None, :]).astype(f32)                 # 정확
+        ep = 곱(e, Pv[keys, b][None, :])                            # 정확(2⁻¹²⁶ 아래로 작아지면 규칙 R 로 0)
         uj = []
         for j in range(0, len(keys), 32):
             epj = np.zeros((len(Rr), 32), f32)
@@ -163,16 +228,16 @@ def _조각몫(nq, nk, nv, Pq, Pk, Pv, Rr, 시작, n):
         if len(uj) == 1:
             uj.append((np.zeros_like(uj[0][0]), 거듭제곱(np.full(len(Rr), -98))))
         (u0, P0), (u1, P1) = uj
-        o[:, 32 * b:32 * b + 32] = fma32(u1, P1[:, None], (u0 * P0[:, None]).astype(f32))
+        o[:, 32 * b:32 * b + 32] = fma32(u1, P1[:, None], 곱(u0, P0[:, None]))
     return m, l, o
 
 
 def _접기(M, L, O, m, l, o):
     """접기 한 걸음 — M′ = max(M, m), 가 = 적힌지수(M − M′), 나 = 적힌지수(m − M′), L′ = 곱해더하기(l, 나, L·가), O′ = 곱해더하기(o, 나, O·가)."""
     M2 = np.maximum(M, m)
-    가 = 적힌지수((M - M2).astype(f32))
-    나 = 적힌지수((m - M2).astype(f32))
-    return M2, fma32(l, 나, (L * 가).astype(f32)), fma32(o, 나[:, None], (O * 가[:, None]).astype(f32))
+    가 = 적힌지수(빼기(M, M2))
+    나 = 적힌지수(빼기(m, M2))
+    return M2, fma32(l, 나, 곱(L, 가)), fma32(o, 나[:, None], 곱(O, 가[:, None]))
 
 
 def 어텐션(q, k, v, 조각=64, 묶음=16, 첫행=0):
@@ -211,7 +276,7 @@ def 어텐션(q, k, v, 조각=64, 묶음=16, 첫행=0):
             M[selg], L[selg], O[selg] = Mg, Lg, Og
         else:
             M[selg], L[selg], O[selg] = _접기(M[selg], L[selg], O[selg], Mg, Lg, Og)
-    return (O / L[:, None]).astype(f32)
+    return 나눔(O, L[:, None])
 
 
 def 낱말차례(바이트):
@@ -263,14 +328,14 @@ def rms정규화(x, w, eps=1e-6):
         for c0 in range(0, D, 256):
             b = x[:, c0:c0 + 256]
             n = b.shape[1]
-            p[:, :n] = (p[:, :n] + (b * b).astype(f32)).astype(f32)
+            p[:, :n] = 더(p[:, :n], 곱(b, b))
     접기 = 128
     while 접기 > 0:
-        p[:, :접기] = (p[:, :접기] + p[:, 접기:2 * 접기]).astype(f32)
+        p[:, :접기] = 더(p[:, :접기], p[:, 접기:2 * 접기])
         접기 //= 2
-    평균 = (p[:, 0] / f32(D)).astype(f32)
-    r = (f32(1) / np.sqrt((평균 + f32(eps)).astype(f32))).astype(f32)
-    return ((x * r[:, None]).astype(f32) * np.asarray(w, f32)[None, :]).astype(f32)
+    평균 = 나눔(p[:, 0], f32(D))
+    r = 나눔(f32(1), 제곱근(더(평균, f32(eps))))
+    return 곱(곱(x, r[:, None]), np.asarray(w, f32)[None, :])
 
 
 def _십진파이():
@@ -364,16 +429,16 @@ def rope(x, cos, sin, 위치):
     c, s = cos[위치], sin[위치]                                      # [n][반]
     assert c.shape[1] == 반, "RoPE 표의 폭이 머리 크기의 반과 다르다"
     a, b = x[:, :반], x[:, 반:]
-    return np.concatenate([fma32(a, c, -(b * s).astype(f32)), fma32(b, c, (a * s).astype(f32))], 1).astype(f32)
+    return np.concatenate([fma32(a, c, -곱(b, s)), fma32(b, c, 곱(a, s))], 1).astype(f32)
 
 
 def swiglu(g, u):
     """SwiGLU 의 h = silu(g) · u — e = 적힌지수(0 − |g|), s = g ≥ 0 이면 g / (1 + e), 아니면 (g · e) / (1 + e), h = s · u (연산마다 IEEE 반올림)."""
     g, u = np.asarray(g, f32), np.asarray(u, f32)
-    e = 적힌지수((f32(0) - np.abs(g)).astype(f32))
-    d = (f32(1) + e).astype(f32)
-    s = np.where(g >= 0, (g / d).astype(f32), ((g * e).astype(f32) / d).astype(f32)).astype(f32)
-    return (s * u).astype(f32)
+    e = 적힌지수(빼기(f32(0), np.abs(g)))
+    d = 더(f32(1), e)
+    s = np.where(버림(g) >= 0, 나눔(g, d), 나눔(곱(g, e), d)).astype(f32)
+    return 곱(s, u)
 
 
 def 행렬곱빠른(x, q, d, 치우침):
@@ -389,9 +454,9 @@ def 행렬곱빠른(x, q, d, 치우침):
     for b in range(KB):
         qb = qf[32 * b:32 * b + 32]
         v = [np.ldexp((Df[j][:, 32 * b:32 * b + 32] @ qb).astype(f32), (8 * j + E[:, b] - 13)[:, None]).astype(f32) for j in range(2)]
-        u = (v[1] + v[0]).astype(f32)
+        u = 더(v[1], v[0])
         y = fma32(u, np.broadcast_to(d[b][None, :], u.shape), y)
-    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+    return 더(y, np.asarray(치우침, f32)[None, :])
 
 
 def 행렬곱블라스(x, qNK, dNK, 치우침, 일꾼=8, 칸한도=1 << 25):
@@ -420,7 +485,7 @@ def 행렬곱블라스(x, qNK, dNK, 치우침, 일꾼=8, 칸한도=1 << 25):
         y[:, n0:n1] = yy
     with ThreadPoolExecutor(일꾼) as ex:
         list(ex.map(열, range(0, N, 덩이)))
-    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+    return 더(y, np.asarray(치우침, f32)[None, :])
 
 
 def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=16, 끝행=None):
@@ -435,7 +500,7 @@ def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=1
     ids = np.asarray(ids)
     n = len(ids)
     eq, ed = W["embed"]                                           # q [어휘][D] 정수, d [어휘][D/32] 짧은실수
-    x = (eq[ids].astype(f32) * np.repeat(ed[ids], 32, axis=1)).astype(f32)      # 임베딩: q · d (정확)
+    x = 곱(eq[ids].astype(f32), np.repeat(ed[ids], 32, axis=1))                # 임베딩: q · d (정확)
     위치 = np.arange(첫위치, 첫위치 + n)
     캐시 = {} if 캐시 is None else 캐시
     G = NH // NKV
@@ -454,12 +519,12 @@ def qwen2_앞으로(W, 설정, ids, cos, sin, 첫위치=0, 캐시=None, 묶음=1
         캐시[l] = (k, v)
         y = np.concatenate([어텐션(np.concatenate([np.zeros((첫위치, hd), f32), q[:, a]], 0), k[:, a // G], v[:, a // G], 묶음=묶음, 첫행=첫위치)
                             for a in range(NH)], 1)
-        x = (x + 행렬곱빠른(y, *W[f"{l}.wo"], np.zeros(y.shape[1], f32))).astype(f32)
+        x = 더(x, 행렬곱빠른(y, *W[f"{l}.wo"], np.zeros(y.shape[1], f32)))
         h = rms정규화(x, W[f"{l}.n2"], eps)
         g = 행렬곱빠른(h, *W[f"{l}.wg"], np.zeros(W[f"{l}.wg"][0].shape[1], f32))
         u = 행렬곱빠른(h, *W[f"{l}.wu"], np.zeros(W[f"{l}.wu"][0].shape[1], f32))
         f = swiglu(g, u)
-        x = (x + 행렬곱빠른(f, *W[f"{l}.wd"], np.zeros(x.shape[1], f32))).astype(f32)
+        x = 더(x, 행렬곱빠른(f, *W[f"{l}.wd"], np.zeros(x.shape[1], f32)))
     h = rms정규화(x if 끝행 is None else x[-끝행:], W["norm"], eps)
     hq, hd_ = W["head"]
     return 행렬곱빠른(h, hq, hd_, np.zeros(hq.shape[1], f32))
@@ -537,7 +602,7 @@ def 행렬곱K(x, w, 치우침):
             T = n[:, 32 * j:32 * j + 32].sum(1)[:, None]
             w_ = np.broadcast_to(np.ldexp(T.astype(np.float64), e).astype(f32), u.shape)
             y = fma32(-w_, np.broadcast_to(np.asarray(b, f32)[:, j][None, :], u.shape), y)
-    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+    return 더(y, np.asarray(치우침, f32)[None, :])
 
 
 def 행렬곱K블라스(x, w, 치우침, 일꾼=8, 칸한도=1 << 25):
@@ -576,7 +641,7 @@ def 행렬곱K블라스(x, w, 치우침, 일꾼=8, 칸한도=1 << 25):
         y[:, n0:n1] = yy
     with ThreadPoolExecutor(일꾼) as ex:
         list(ex.map(열, range(0, N, 덩이)))
-    return (y + np.asarray(치우침, f32)[None, :]).astype(f32)
+    return 더(y, np.asarray(치우침, f32)[None, :])
 
 
 def 임베딩K(w, ids):
@@ -585,5 +650,5 @@ def 임베딩K(w, ids):
     ids = np.asarray(ids)
     qq = q[ids].astype(f32)
     if 형식 == "Q6_K":
-        return (qq * np.repeat(a[ids], 16, axis=1)).astype(f32)
-    return ((qq * np.repeat(a[ids], 32, axis=1)).astype(f32) - np.repeat(b[ids], 32, axis=1)).astype(f32)
+        return 곱(qq, np.repeat(a[ids], 16, axis=1))
+    return 빼기(곱(qq, np.repeat(a[ids], 32, axis=1)), np.repeat(b[ids], 32, axis=1))

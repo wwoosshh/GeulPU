@@ -5,7 +5,9 @@
   줄 판(정수줄자리 × 끝손질 셋 × 행 1 … 4 · 정수줄하나 × 끝손질 셋 × 행 1), 임베딩(낱말표의 q · d),
   RMS(RMS정규화정수줄 · RMS정규화정수줄펼침 — 행 9 개).
 
-  python -I 시험/판23.py <ptx> <7B gguf> <출력.json> [--빠르게]
+  python -I 시험/판23.py <ptx> <7B gguf> <출력.json> [--빠르게] [--극단]
+--극단(31단계 — 규칙 R 의 경계): 척도 d 의 절반을 2⁻¹⁴ 배(반실수 비정규수 둘레)로, 활성값은 블록마다 크기를 2⁻⁹⁰ … 2⁻¹²⁰ 과 0 으로
+섞는다 — 지수 E 가 −98 에서 잘리고 P · d 가 2⁻¹²⁶ 아래로 내려가는 칸이 생긴다(예전의 타일 끝셈 S · (P · d) 가 줄 판과 갈리던 경우).
 """
 import ctypes
 import json
@@ -64,6 +66,19 @@ def 깔기(q, d, 형식):
     return 값.tobytes(), 척.tobytes()
 
 
+def 극단척도(r, d):
+    """d 의 절반(무작위 칸)을 2⁻¹⁴ 배로 — 반실수로 반올림한 값(엔진이 쓰는 값 그대로)."""
+    작게 = r.random(d.shape) < 0.5
+    return np.where(작게, (d * f32(2.0 ** -14)).astype(np.float16).astype(f32), d).astype(f32)
+
+
+def 극단활성값(r, M, K):
+    """[M][K] — 블록(32 칸)마다 크기를 2⁻⁹⁰ · 2⁻⁹⁶ · 2⁻¹⁰² · 2⁻¹⁰⁸ · 2⁻¹¹⁴ · 2⁻¹²⁰ · 0 에서 고른다(지수가 −98 에서 잘리는 블록이 많다)."""
+    크기 = r.choice(np.array([2.0 ** -90, 2.0 ** -96, 2.0 ** -102, 2.0 ** -108, 2.0 ** -114, 2.0 ** -120, 0.0]), (M, K // 32))
+    x = r.standard_normal((M, K)).reshape(M, K // 32, 32) * 크기[:, :, None]
+    return x.reshape(M, K).astype(f32)
+
+
 def 다른칸(a, b):
     a, b = np.asarray(a), np.asarray(b)
     assert a.shape == b.shape, (a.shape, b.shape)
@@ -76,6 +91,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ptx, gguf, 출력 = sys.argv[1:4]
     빠르게 = "--빠르게" in sys.argv
+    극단 = "--극단" in sys.argv
     dr = G.드라이버()
     mod = dr.모듈(open(ptx, "rb").read())
     fn = {}
@@ -120,8 +136,10 @@ def main():
         순[64 * j + 32:64 * j + 64] = F + np.arange(32 * j, 32 * j + 32)
     가중["gu"] = (np.concatenate([wg, wu])[순], np.concatenate([dg, du])[순], None)
     가중["로짓"] = 양자읽기(g, "output.weight")[:2] + (None,)
-    결과 = {"형식": 형식, "경우": []}
-    print("형식", 형식, flush=True)
+    if 극단:
+        가중 = {이름: (q, 극단척도(r, d), b) for 이름, (q, d, b) in 가중.items()}
+    결과 = {"형식": 형식, "극단": 극단, "경우": []}
+    print("형식", 형식, "· 극단" if 극단 else "", flush=True)
     M = 100                                                  # 타일의 행(64 의 배수가 아니게 — 가장자리)
     for 이름, (q, d, b) in 가중.items():
         if 빠르게 and 이름 in ("down", "로짓"):
@@ -132,7 +150,7 @@ def main():
         치 = b if b is not None else np.zeros(N, f32)
         p치 = up(np.ascontiguousarray(치, f32))
         끝들 = {"qkv": [""], "로짓": [""], "o": ["_잔차"], "down": ["_잔차"], "gu": ["_SwiGLU정수"]}[이름]
-        X = (r.standard_normal((M, K)) * 10.0 ** r.uniform(-1, 1, (M, 1))).astype(f32)
+        X = 극단활성값(r, M, K) if 극단 else (r.standard_normal((M, K)) * 10.0 ** r.uniform(-1, 1, (M, 1))).astype(f32)
         바이트, M0 = 자리바이트(X)
         폭 = (M + 63) // 64 * 64
         정보 = np.zeros((K // 32, 폭), np.int32)
@@ -144,7 +162,7 @@ def main():
         if 끝들[0] == "_SwiGLU정수":
             gcol = np.concatenate([np.arange(64 * j, 64 * j + 32) for j in range(N // 64)])
             참자리, 참정보 = 자리바이트(C.swiglu(y[:, gcol], y[:, gcol + 32]))
-        참 = (잔 + y).astype(f32) if 끝들[0] == "_잔차" else y
+        참 = C.더(잔, y) if 끝들[0] == "_잔차" else y
         Np = (N + 63) // 64 * 64
         # 타일 판
         for 판, WM, WN, MT, NT in 판들:

@@ -68,6 +68,7 @@ exactly these translations.
 | 정보 | block info | Per row and per 32-block of activations: the "magic number" word that encodes the block exponent E. |
 | 마법수 | magic number | The float 1.5 · 2²³ · 2^(E−13), whose bit pattern turns an integer add into an exact float conversion. |
 | 적힌지수 | written exp | The exp function defined by a written polynomial (Cephes coefficients, IEEE float32 ops only) instead of a hardware approximation. |
+| 비정규수버림 · 규칙 R | subnormal flush, rule R | The float32 rule of the contract since stage 31: subnormal inputs read as signed zero; a result whose 24-bit rounding (unbounded exponent) is below 2⁻¹²⁶ becomes signed zero; fma does not round the product. Declared in a module's source as `(* 비정규수버림 *)`, emitted as PTX `.ftz`; NVIDIA Vulkan, Intel Vulkan and PTX `.ftz` all follow it bit for bit. |
 | 척 / 척도 | scale | Quantization scale of a weight block (Q8_0 · Q4_0 `d`; k-quant `d`, `m`, sub-block scales). |
 | 슈퍼블록 / 아래블록 | super-block / sub-block | k-quant structure: 256 values = 8 sub-blocks of 32 (Q4_K · Q5_K) or 16 of 16 (Q6_K). |
 | 높은 비트 · 니블 | high bits · nibble | Bits above the low 4 (Q5_K: 1 bit, Q6_K: 2 bits) · a 4-bit value. |

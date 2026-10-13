@@ -4,7 +4,8 @@
   "driver": "616.56",
   "os": "Windows 11",
   "geulpu": "31a3b1b 의 호스트 · 커널 + 토크나이저_R1.diff",
-  "runs": "함께 1 (한 번에 하나씩) · 함께 8 — 두 실행의 출력이 32 문제 모두 같았다"
+  "runs": "함께 1 (한 번에 하나씩) · 함께 8 — 두 실행의 출력이 32 문제 모두 같았다",
+  "build_note": "31단계(2026-10-14) — 계약의 짧은실수 규칙을 R(비정규수 버림)로 바꾼 빌드(글 7038fc6). 그 빌드로 기준 PC 에서 다시 돌려 32 문제의 로짓 해시 82,673 걸음이 이 기준과 모두 같았다 — 그래서 출력 기준은 그대로, 빌드 해시 넷(PTX 뒷단 · 생성기 · 모듈 소스 · 모듈 PTX)만 새 빌드의 값이다"
  },
  "model": {
   "file": "DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf",
@@ -20,11 +21,11 @@
  },
  "build": {
   "self_compiler": "a02de09dd3c15555a088f61a006f07573bb38d0d4e1e8377214e39110d6cb15d",
-  "ptx_backend": "73f8c2316b0240a015d34dfde4f47d799dab3decd4077999784257960db6cc77",
+  "ptx_backend": "d2cd1276a60ffdb50bdd9b4b370872c2d03842b0a8b6f7ebfd98811ff6b6e305",
   "server_r1": "6edccc6cd96c6a2ee286afa78b666fea7ec0b8f2bcf04059f9bd39f0c680db0c",
-  "generator": "442eeee1d9df485da761bb98b51b9f33888d7470c6445890e0cf9f2a3bb8e124",
-  "module_source": "84330fa322435d9fd16d0c26531a1530680179fb6ea5039a91f4b3a1079262d0",
-  "module_ptx": "a26545fba9c2e398c5563d35fe09f0309c012b841dc697dca1eec6a983ebac5e"
+  "generator": "78907bb240129a184ae5ac8da0d2346c53264d6dad17f2f14368a11f2bc98ec2",
+  "module_source": "9408d86ff9c9c1d0453412d4c28272847d4ac68ff6025f65585e732679225fb4",
+  "module_ptx": "9a27f716e7208546e098ab3577ebc7932458e8c7d7c6109b606899cde3f626a6"
  },
  "items": [
   {

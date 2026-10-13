@@ -5,6 +5,8 @@
   2. 행렬곱(느린 — 자리 둘) 대 행렬곱빠른 대 행렬곱블라스 — Q8_0 · Q4_0 의 정수와 반실수 척도
   3. 행렬곱K(느린) 대 행렬곱K블라스 — Q4_K · Q5_K · Q6_K 의 날 블록(GGUF 꼴)을 만들어 풀기K 로
   4. 임베딩K 대 날 블록에서 값 하나씩 푼 것(llama.cpp 의 dequantize_row_q*_K 와 같은 식) — 풀기K 의 배치도 함께 시험한다
+  5. 규칙 R(31단계 — 비정규수 버림)의 곱 · 더 · 빼기 · fma32 · 나눔 · 제곱근 대 정확한 유리수 셈 — 막 정규수(2⁻¹²⁶) 둘레의 경계값과
+     비정규수 입력. 스위치를 끈 IEEE 쪽(비정규수버림 = False — GPT-2 판)도 같은 자료로 IEEE 반올림과 견준다
 활성값은 블록마다 크기가 다르게(2^−20 … 2^20) 하고, 0 인 블록 · 최댓값이 2 의 거듭제곱인 블록을 섞는다.
 
   python -I -X utf8 시험/계약자체.py
@@ -54,6 +56,38 @@ def 반올림32(r):
     return f32(부호 * n * 2.0 ** 밑)                                 # fp64 로 정확(24 비트 · 2 의 거듭제곱) → 짧은실수로 정확
 
 
+def 반올림R(r, 영음수=False):
+    """정확한 유리수 r → 규칙 R 의 짧은실수: 가수 24 비트로(지수 제한 없이) 반올림, 크기가 2⁻¹²⁶ 보다 작으면 부호를 지킨 0.
+    r 이 0 이면 영음수 가 부호(IEEE 의 정확한 0 의 부호)."""
+    if r == 0:
+        return f32(-0.0) if 영음수 else f32(0.0)
+    부호 = -1 if r < 0 else 1
+    a = abs(r)
+    e = a.numerator.bit_length() - a.denominator.bit_length()
+    if Fraction(2) ** e > a:
+        e -= 1
+    밑 = e - 23
+    q = a / (Fraction(2) ** 밑)
+    n = q.numerator // q.denominator
+    나머지 = q - n
+    if 나머지 > Fraction(1, 2) or (나머지 == Fraction(1, 2) and n % 2 == 1):
+        n += 1
+    v = n * Fraction(2) ** 밑
+    if v < Fraction(1, 2 ** 126):
+        return f32(-0.0) if 부호 < 0 else f32(0.0)
+    if v >= Fraction(2) ** 128:
+        return f32(부호 * np.inf)
+    return f32(부호 * float(v))
+
+
+def 반올림I(r, 영음수=False):
+    """정확한 유리수 r → IEEE 짧은실수(비정규수 그대로) — 반올림32 에 0 의 부호를 더한 것."""
+    if r == 0:
+        return f32(-0.0) if 영음수 else f32(0.0)
+    v = 반올림32(r)
+    return (f32(-0.0) if r < 0 else f32(0.0)) if v == 0 else v       # 0 으로 반올림되면 부호를 지킨다(반올림32 는 부호를 잃는다)
+
+
 def 활성값(r, M, K):
     """[M][K] 짧은실수 — 블록(32 칸)마다 크기를 2^−20 … 2^20 로, 0 인 블록과 최댓값이 2 의 거듭제곱인 블록을 섞는다."""
     x = r.standard_normal((M, K)).astype(np.float64)
@@ -80,7 +114,7 @@ def 시험_fma32(r):
     c[:500] = (-(a[:500].astype(np.float64) * b[:500])).astype(f32)  # 거의 지워지는 경우
     c[500:1000] = 0.0
     got = C.fma32(a, b, c)
-    want = np.array([반올림32(Fraction(float(a[i])) * Fraction(float(b[i])) + Fraction(float(c[i]))) for i in range(n)], f32)
+    want = np.array([반올림R(Fraction(float(a[i])) * Fraction(float(b[i])) + Fraction(float(c[i]))) for i in range(n)], f32)
     d = 다른칸(got, want)
     확인("fma32 — 정확한 유리수의 반올림", d == 0, f"{n} 개 중 다른 칸 {d}")
 
@@ -174,12 +208,96 @@ def 시험_K(r):
         확인(f"임베딩K {이름} — 날 블록에서 값 하나씩", 다른칸(풀린, 하나씩) == 0, f"다른 칸 {다른칸(풀린, 하나씩)} / {N * K}")
 
 
+def _경계자료(r):
+    """막 정규수 둘레의 짧은실수 a, b, c (탐침31_셈.py 의 경계 꼴을 줄인 것)."""
+    작 = 2.0 ** -126
+    부 = lambda x: -x if r.random() < 0.5 else x          # noqa: E731
+    비정규 = lambda: 부(float(r.integers(1, 1 << 23)) * 2.0 ** -149)        # noqa: E731
+    곱, 더, fma, 나 = [], [], [], []
+    for k in list(range(1, 41)) + list(range(1440, 1461)) + list(range(2040, 2061)):   # a·b = 2⁻¹²⁶ − k²·2⁻¹⁷²
+        a, b = 부(((1 << 23) + k) * 2.0 ** -24), 부(((1 << 24) - 2 * k) * 2.0 ** -149)
+        곱.append((a, b, 0.0))
+        fma.append((a, b, 부(0.0)))
+    for j in range(1, 17):                                  # 2⁻¹²⁶ − j·2⁻¹⁵⁰
+        곱.append((부(((1 << 24) - j) * 2.0 ** -24), 부(작), 0.0))
+        나.append((부(((1 << 24) - j) * 2.0 ** -24), 부(2.0 ** 126), 0.0))
+    for _ in range(200):
+        곱.append((비정규(), 부(2.0 ** float(r.integers(0, 40))), 0.0))                     # 비정규수 입력
+        a = 부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -149)
+        b = -np.sign(a) * float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -149
+        더.append((a, float(b), 0.0))                                                        # 상쇄로 비정규수
+        더.append((비정규(), 부(float(r.integers(1 << 23, 1 << 26)) * 2.0 ** -149), 0.0))       # 비정규수 + 작은 정규수
+        x = 부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -86)
+        y = 부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -86)                               # x·y ≈ 2⁻¹²⁴, c 로 2⁻¹²⁶ 근처까지 지운다
+        p = Fraction(x) * Fraction(y)
+        q = Fraction(float(반올림R(p)))
+        c = float(np.sign(float(p)) * float(r.choice([(1 << 23) - 4, 1 << 23, 1 << 23, (1 << 23) + 4])) * 2.0 ** -149 - float(q))
+        if f32(c) == c:
+            fma.append((x, y, c))
+        n = int(r.integers((1 << 24) + 1, 1 << 25)) | 1                                     # 곱이 정확히 한가운데 — c 의 부호로 갈린다
+        pf = next((t for t in range(3, 4096, 2) if n % t == 0), None)
+        if pf is not None and n // pf < (1 << 24):
+            fma.append((부(pf * 2.0 ** -12), (n // pf) * 2.0 ** -12, 비정규()))
+        나.append((부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -149 * 2.0 ** float(r.integers(0, 16))),
+                  부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** float(r.integers(-22, 8))), 0.0))  # 몫이 비정규수 둘레
+        나.append((비정규(), 부(float(r.integers(1 << 23, 1 << 24)) * 2.0 ** -40), 0.0))            # 비정규수 나뉨수
+    근 = [(abs(비정규()), 0.0, 0.0) for _ in range(100)] + [(0.0, 0.0, 0.0), (-0.0, 0.0, 0.0)]
+    return {"곱": 곱, "더": 더, "fma32": fma, "나눔": 나, "제곱근": 근}
+
+
+def _정확(연산, a, b, c, 규칙R):
+    """한 칸의 기대값 — 규칙R 이면 입력의 비정규수를 부호를 지킨 0 으로 읽고 반올림R, 아니면 반올림I."""
+    작 = 2.0 ** -126
+    if 규칙R:
+        a, b, c = ((-0.0 if np.signbit(v) else 0.0) if (v != 0 and abs(v) < 작) else v for v in (a, b, c))
+    음 = lambda v: bool(np.signbit(v))                     # noqa: E731
+    반 = 반올림R if 규칙R else 반올림I
+    A, B, C_ = Fraction(a), Fraction(b), Fraction(c)
+    if 연산 == "곱":
+        return 반(A * B, 음(a) != 음(b))
+    if 연산 == "더":
+        return 반(A + B, 음(a) and 음(b))
+    if 연산 == "fma32":
+        return 반(A * B + C_, (음(a) != 음(b)) and 음(c))
+    if 연산 == "나눔":
+        return 반(A / B, 음(a) != 음(b))
+    return f32(np.sqrt(np.float64(a))) if a != 0 else f32(a)     # 제곱근: 입력이 정규수면 fp64 의 √ 를 짧은실수로 — 바른 반올림(53 ≥ 2·24 + 2)
+
+
+def 시험_규칙R(r):
+    자료 = _경계자료(r)
+    for 규칙R in (True, False):
+        C.비정규수버림 = 규칙R
+        for 연산, 칸 in 자료.items():
+            a, b, c = (np.array([t[i] for t in 칸], f32) for i in range(3))
+            if 연산 == "곱":
+                got = C.곱(a, b)
+            elif 연산 == "더":
+                got = C.더(a, b)
+            elif 연산 == "fma32":
+                got = C.fma32(a, b, c)
+            elif 연산 == "나눔":
+                got = C.나눔(a, b)
+            else:
+                got = C.제곱근(a)
+            want = np.array([_정확(연산, float(a[i]), float(b[i]), float(c[i]), 규칙R) for i in range(len(칸))], f32)
+            d = 다른칸(got, want)
+            확인(f"규칙 {'R' if 규칙R else 'IEEE'} — {연산} 경계값", d == 0, f"{len(칸)} 개 중 다른 칸 {d}")
+    C.비정규수버림 = True
+    # 빼기는 더(a, −b)
+    a = np.array([t[0] for t in 자료["더"]], f32)
+    b = np.array([t[1] for t in 자료["더"]], f32)
+    d = 다른칸(C.빼기(a, -b), C.더(a, b))
+    확인("규칙 R — 빼기 = 더(a, −b)", d == 0, f"다른 칸 {d}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     r = np.random.default_rng(27)
     시험_fma32(r)
     시험_행렬곱(r)
     시험_K(r)
+    시험_규칙R(r)
     print("계약 자체 시험:", "모두 통과" if not 실패 else f"못 미침 {실패}", flush=True)
     return 0 if not 실패 else 1
 

@@ -3,7 +3,9 @@
 (파일의 정수 · 척도 그대로 — 엔진과 같은 배치로 깔아)와 무작위 활성값으로: 정수줄하나 × 끝손질 셋(qkv 의 구간 · o · down 잔차 · gate·up
 SwiGLU정수 · 로짓), (뒤에) 타일 판 · 임베딩.
 
-  python -I 시험/판26.py <ptx> <gguf …> <출력.json>
+  python -I 시험/판26.py <ptx> <gguf …> <출력.json> [--극단]
+--극단(31단계 — 규칙 R 의 경계): 슈퍼블록의 절반에서 반실수 척도(d · dmin, Q6_K 는 d)를 2⁻¹⁴ 배로, 활성값은 블록마다 크기를
+2⁻⁹⁰ … 2⁻¹²⁰ 과 0 으로 — P · a 가 2⁻¹²⁶ 아래로 내려가는 칸이 생긴다(예전의 타일 끝셈 S · (P · a) 가 줄 판과 갈리던 경우).
 """
 import ctypes
 import json
@@ -21,6 +23,7 @@ import 글gpt2 as G          # noqa: E402
 import gguf읽기 as GR       # noqa: E402
 import 정수계약 as C        # noqa: E402
 from 머리128 import 자리바이트    # noqa: E402
+from 판23 import 극단활성값    # noqa: E402
 
 f32 = np.float32
 u64, i64 = G.c_u64, G.c_i64
@@ -67,6 +70,19 @@ def 엔진배치K(t, raw, N, K):
     return b"".join(부분), 척, (형식, q, a, b)
 
 
+def 극단날(t, raw, N, K, r):
+    """k-양자화 날 바이트의 반실수 척도(d · dmin — Q6_K 는 d)를 슈퍼블록의 절반(무작위)에서 2⁻¹⁴ 배로(반실수로 반올림)."""
+    bb = {12: 144, 13: 176, 14: 210}[t]
+    KS = K // 256
+    bl = np.array(raw, dtype=np.uint8, copy=True).reshape(N, KS, bb)
+    작게 = r.random((N, KS)) < 0.5
+    for a in ((0, 2) if t in (12, 13) else (208,)):
+        h = np.ascontiguousarray(bl[:, :, a:a + 2]).view(np.float16)[..., 0]
+        h2 = np.where(작게, (h.astype(f32) * f32(2.0 ** -14)).astype(np.float16), h).astype(np.float16)
+        bl[:, :, a:a + 2] = np.ascontiguousarray(h2).view(np.uint8).reshape(N, KS, 2)
+    return bl.reshape(-1)
+
+
 def 다른칸(a, b):
     a, b = np.asarray(a), np.asarray(b)
     assert a.shape == b.shape, (a.shape, b.shape)
@@ -77,8 +93,10 @@ def 다른칸(a, b):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    ptx, 출력 = sys.argv[1], sys.argv[-1]
-    파일들 = sys.argv[2:-1]
+    극단 = "--극단" in sys.argv
+    인자 = [a for a in sys.argv[1:] if a != "--극단"]
+    ptx, 출력 = 인자[0], 인자[-1]
+    파일들 = 인자[1:-1]
     dr = G.드라이버()
     mod = dr.모듈(open(ptx, "rb").read())
     fn = {}
@@ -107,7 +125,7 @@ def main():
         dr.할당들 = []
 
     r = np.random.default_rng(26)
-    결과 = {"경우": []}
+    결과 = {"극단": 극단, "경우": []}
     for 파일 in 파일들:
         g = GR.GGUF(파일)
         이름파일 = os.path.basename(파일)
@@ -138,12 +156,14 @@ def main():
                     순[64 * j:64 * j + 32] = np.arange(32 * j, 32 * j + 32)
                     순[64 * j + 32:64 * j + 64] = F + np.arange(32 * j, 32 * j + 32)
                 raw = np.ascontiguousarray(rows[순]).reshape(-1)
+            if 극단:
+                raw = 극단날(t, raw, N, K, r)
             값, 척, w = 엔진배치K(t, raw, N, K)
             형식 = w[0]
             p값, p척 = up(값), up(척)
             치 = np.concatenate([g.풀기(n) for n in 치들]).astype(f32) if 치들 else np.zeros(N, f32)
             p치 = up(치)
-            X = (r.standard_normal((1, K)) * 10.0 ** r.uniform(-1, 1, (1, 1))).astype(f32)
+            X = 극단활성값(r, 1, K) if 극단 else (r.standard_normal((1, K)) * 10.0 ** r.uniform(-1, 1, (1, 1))).astype(f32)
             바이트, M0 = 자리바이트(X)
             정보 = np.zeros((K // 32, 64), np.int32)
             정보[:, :1] = M0.T
@@ -165,7 +185,7 @@ def main():
                 if e == "_잔차":
                     잔 = (r.standard_normal((1, N)) * 3.0).astype(f32)
                     p잔 = up(잔)
-                    참 = (잔 + y).astype(f32)
+                    참 = C.더(잔, y)
                     띄우기(kn, ((N + W - 1) // W, 1), 128, [(1, p자), (1, p정), (1, p값), (1, p척), (1, p치), (1, p잔), (1, p출), (0, 1), (0, K), (0, N)])
                 else:
                     띄우기(kn, ((N + W - 1) // W, 1), 128, [(1, p자), (1, p정), (1, p값), (1, p척), (1, p치), (1, p출), (0, 1), (0, K), (0, N)])
@@ -176,7 +196,7 @@ def main():
             print(("다름! " if sum(다.values()) else "") + f"{이름} ({형식}) {kn} K {K} · N {N}: {다}", flush=True)
             # 타일 판 — 행 M (64 의 배수가 아니게)
             M = 100
-            Xm = (r.standard_normal((M, K)) * 10.0 ** r.uniform(-1, 1, (M, 1))).astype(f32)
+            Xm = 극단활성값(r, M, K) if 극단 else (r.standard_normal((M, K)) * 10.0 ** r.uniform(-1, 1, (M, 1))).astype(f32)
             바이트m, M0m = 자리바이트(Xm)
             폭 = (M + 63) // 64 * 64
             정보m = np.zeros((K // 32, 폭), np.int32)
@@ -204,7 +224,7 @@ def main():
                     참m = ym
                     if e == "_잔차":
                         잔m = (r.standard_normal((M, N)) * 3.0).astype(f32)
-                        참m = (잔m + ym).astype(f32)
+                        참m = C.더(잔m, ym)
                         dr.확인(dr.cu.cuMemcpyHtoD_v2(p출, 잔m.ctypes.data, 잔m.nbytes))
                         띄우기(kn2, grid, T, 앞 + [(1, p출), (1, p출)] + 뒤)
                     else:

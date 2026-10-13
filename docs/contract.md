@@ -11,7 +11,22 @@ pieces, one token at a time, as a conversation, batched, or in the megakernel). 
 
 - float32 additions, subtractions and multiplications are emitted with an explicit rounding mode (`.rn`), so the driver cannot fuse a
   multiply and an add into an FMA. A fused multiply-add exists only where the source writes `곱해더하기` (fma).
-- No approximate instructions (`ex2.approx` …) and no flush-to-zero (`.ftz`). exp is a written polynomial ("written exp", below).
+- No approximate instructions (`ex2.approx` …). exp is a written polynomial ("written exp", below).
+- **float32 rule R — subnormal flush** (stage 31 — [`문서/31단계.md`](../문서/31단계.md)). Every float32 operation below follows this
+  rule: multiplication, addition, subtraction, fma, division and square root — everywhere this document says "IEEE rounding".
+  - A subnormal input (magnitude above 0 and below 2⁻¹²⁶) is read as a zero of the same sign.
+  - The result is rounded to a 24-bit significand with an unbounded exponent (round to nearest, ties to even). If its magnitude is
+    below 2⁻¹²⁶, it becomes a zero of the same sign.
+  - fma does not round the product.
+
+  A module's source declares the rule with `(* 비정규수버림 *)` ("flush subnormals"), and the PTX backend then adds `.ftz` to every
+  float32 operation. It adds `.ftz` only when the source declares it, which keeps PTX contract P2. Three paths were checked to follow
+  exactly this rule down to the boundary values:
+  - NVIDIA's Vulkan driver, which cannot preserve subnormals;
+  - Intel's Vulkan driver, in its default and flush modes;
+  - PTX `.ftz`.
+
+  That is what lets CUDA and Vulkan produce the same bits. Real model outputs are unchanged by the switch (checked in stage 31).
 - A float → int conversion that overflows sets the module's error cell — there are no silent values. Tests require the error cell
   to stay 0.
 

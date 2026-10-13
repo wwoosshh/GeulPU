@@ -19,6 +19,7 @@ for _d in ("엔진", "계약", "커널"):
 import 글gpt2 as G          # noqa: E402
 import gguf읽기 as GR       # noqa: E402
 import 정수계약 as C        # noqa: E402
+C.비정규수버림 = False        # 31단계: GPT-2 판 · 14단계 파이썬판 Qwen2 의 모듈에는 (* 비정규수버림 *) 표시가 없다 — IEEE 그대로 견준다
 
 모델 = os.environ.get("GEULPU_MODELS", os.path.join(ROOT, "모델"))
 결과폴더 = os.path.join(ROOT, "빌드", "결과")

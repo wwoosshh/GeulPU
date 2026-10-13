@@ -71,6 +71,18 @@ LAUNCH_BOUNDS = {}                               # 커널 이름 -> (블록당 �
 # Delight 10장의 마법수) — 몫과 나머지가 div · rem(0 쪽으로 자름)과 모든 입력에서 같다. 모듈의 주석 (* 상수나눗셈 *) 이 켠다(그 주석이 없는
 # 모듈 — 8단계까지 — 의 PTX 는 예전과 바이트까지 같다).
 CONST_DIV = False
+# 31단계: 모듈의 주석 (* 비정규수버림 *) 이 켠다 — 짧은실수 연산에 .ftz (비정규수 입력은 부호를 지킨 0, 반올림한 결과가 2⁻¹²⁶ 보다 작으면
+# 부호를 지킨 0 — GeulPU 문서/31단계.md 의 규칙 R). 그 주석이 없는 모듈의 PTX 는 예전과 바이트까지 같다. 반실수 · 실수(64 비트)에는 .ftz 가 없다.
+FTZ = False
+FTZ_HEAD = "// 31: the source declares subnormal flush - f32 ops carry .ftz (inputs and tiny results become signed zero)"
+
+
+def fz(t):
+    return ".ftz" if FTZ and t.is_float() and t.bits == 32 else ""
+
+
+def fz32():
+    return ".ftz" if FTZ else ""
 
 
 def magic_s64(d):
@@ -963,11 +975,11 @@ class FuncPTX:
                 ty = ".u64"
             else:
                 ty = self.int_type(t, signed=not i.cond.startswith("u") and t.signed)
-            e(f"setp.{cond}{ty} %p, {self.r(i.a)}, {self.r(i.b)};")
+            e(f"setp.{cond}{fz(t)}{ty} %p, {self.r(i.a)}, {self.r(i.b)};")
             e(f"selp.u32 {self.r(i.dst)}, 1, 0, %p;")
         elif op == "neg":
             t = i.dst.type
-            e(f"neg{reg_type(t) if t.is_float() else self.int_type(t, signed=True)} {self.r(i.dst)}, {self.r(i.a)};")
+            e(f"neg{fz(t) + reg_type(t) if t.is_float() else self.int_type(t, signed=True)} {self.r(i.dst)}, {self.r(i.a)};")
             self.normalize(self.r(i.dst), t)
         elif op == "not":
             e(f"not.b{width(i.dst.type)} {self.r(i.dst)}, {self.r(i.a)};")
@@ -976,7 +988,7 @@ class FuncPTX:
             t = i.type
             zero = ("0f00000000" if t.bits == 32 else "0d0000000000000000") if t.is_float() else "0"
             ty = reg_type(t) if t.is_float() else (".u64" if width(t) == 64 else ".u32")
-            e(f"setp.eq{ty} %p, {self.r(i.a)}, {zero};")
+            e(f"setp.eq{fz(t)}{ty} %p, {self.r(i.a)}, {zero};")
             e(f"selp.u32 {self.r(i.dst)}, 1, 0, %p;")
         elif op == "cast":
             self.cast(i)
@@ -1000,7 +1012,7 @@ class FuncPTX:
         d, a, b = self.r(i.dst), self.r(i.a), self.r(i.b)
         base = BIN[i.bop]
         if t.is_float():
-            self.emit(f"{base}{reg_type(t)} {d}, {a}, {b};")
+            self.emit(f"{base}{fz(t)}{reg_type(t)} {d}, {a}, {b};")
             return
         if i.bop in ("and", "or", "xor"):
             self.emit(f"{base}.b{width(t)} {d}, {a}, {b};")
@@ -1120,7 +1132,7 @@ class FuncPTX:
             e("mov.b32 %x3, 0x4B400000;")
             e(f"prmt.b32 %x1, {src}, %x3, {0x7650 | (s // 8)};")
             e("mov.b32 %fw0, %x1;")
-            e(f"sub.rn.f32 {d}, %fw0, {flit(12582912.0 + c, dt)};")
+            e(f"sub.rn{fz32()}.f32 {d}, %fw0, {flit(12582912.0 + c, dt)};")
         elif k in ("sitofp", "uitofp") and dt.bits == 32 and self.rng.get(i.src) is not None and \
                 -(1 << 22) <= self.rng[i.src][0] and self.rng[i.src][1] < (1 << 22):
             # 5단계: 범위가 증명된 작은 정수(|x| < 2²²)는 같은 값을 빠른 명령으로 — 실수 12582912 의 비트에 x 를 더하면 그 실수는
@@ -1129,7 +1141,7 @@ class FuncPTX:
             e(f"cvt.u32.u64 %x1, {s};" if width(st) == 64 else f"mov.b32 %x1, {s};")
             e("add.u32 %x1, %x1, 0x4B400000;")
             e("mov.b32 %fw0, %x1;")
-            e(f"sub.rn.f32 {d}, %fw0, 0f4B400000;")
+            e(f"sub.rn{fz32()}.f32 {d}, %fw0, 0f4B400000;")
         elif k in ("sitofp", "uitofp"):
             e(f"cvt.rn{reg_type(dt)}{self.int_type(st, signed=(k == 'sitofp'))} {d}, {s};")
         elif k in ("fptosi", "fptoui"):
@@ -1138,15 +1150,15 @@ class FuncPTX:
                 lo, hi = (-(2.0 ** (bits - 1)), 2.0 ** (bits - 1)) if k == "fptosi" else (-1.0, 2.0 ** bits)
                 ft = reg_type(st)
                 cmp_lo = "ge" if k == "fptosi" else "gt"
-                e(f"setp.{cmp_lo}{ft} %q, {s}, {flit(lo, st)};")
-                e(f"setp.lt.and{ft} %q, {s}, {flit(hi, st)}, %q;")
+                e(f"setp.{cmp_lo}{fz(st)}{ft} %q, {s}, {flit(lo, st)};")
+                e(f"setp.lt.and{fz(st)}{ft} %q, {s}, {flit(hi, st)}, %q;")
                 e("@!%q red.global.or.b32 [__geul_err], 1;")
-            e(f"cvt.rzi{self.int_type(dt, signed=(k == 'fptosi'))}{reg_type(st)} {d}, {s};")
+            e(f"cvt.rzi{fz(st)}{self.int_type(dt, signed=(k == 'fptosi'))}{reg_type(st)} {d}, {s};")
             self.normalize(d, dt)
         elif k == "fpext" and st.bits == 16:     # 반실수 → 짧은실수·실수: 정확하다
             e(f"cvt{'.f32' if dt.bits == 32 else '.f64'}.f16 {d}, {s};")
         elif k == "fpext":
-            e(f"cvt.f64.f32 {d}, {s};")
+            e(f"cvt{fz32()}.f64.f32 {d}, {s};")
         elif k == "fptrunc" and dt.bits == 16:
             if st.bits != 32:
                 raise PTXError("실수 → 반실수 는 아직 받지 않는다 — 짧은실수를 거쳐 밝혀라(반올림이 두 번이 된다)")
@@ -1158,7 +1170,7 @@ class FuncPTX:
                 e("and.pred %q, %q, %p;")
                 e("@%q red.global.or.b32 [__geul_err], 4;")
         elif k == "fptrunc":
-            e(f"cvt.rn.f32.f64 {d}, {s};")
+            e(f"cvt.rn{fz32()}.f32.f64 {d}, {s};")
             if RANGE_CHECK:            # 2c: 유한한 실수가 짧은실수로 오며 무한이 되면 오류 칸에 2
                 e(f"testp.infinite.f32 %q, {d};")
                 e(f"testp.finite.f64 %p, {s};")
@@ -1314,10 +1326,10 @@ class FuncPTX:
             if i.args[0].type.bits != 32 or i.dst.type.bits != 32:
                 raise PTXError("가까운정수 는 짧은실수 → 중간정수만 받는다")
             if RANGE_CHECK:
-                e(f"setp.ge.f32 %q, {x}, 0fCF000000;")
-                e(f"setp.lt.and.f32 %q, {x}, 0f4F000000, %q;")
+                e(f"setp.ge{fz32()}.f32 %q, {x}, 0fCF000000;")
+                e(f"setp.lt.and{fz32()}.f32 %q, {x}, 0f4F000000, %q;")
                 e("@!%q red.global.or.b32 [__geul_err], 1;")
-            e(f"cvt.rni.s32.f32 {d}, {x};")
+            e(f"cvt.rni{fz32()}.s32.f32 {d}, {x};")
             return
         if name == "비트실수":
             e(f"mov.b32 {d}, {self.r(i.args[0])};")
@@ -1328,16 +1340,16 @@ class FuncPTX:
             return
         if name == "곱해더하기":
             x, y, z = (self.r(a) for a in i.args)
-            e(f"fma.rn{reg_type(i.dst.type)} {d}, {x}, {y}, {z};")
+            e(f"fma.rn{fz(i.dst.type)}{reg_type(i.dst.type)} {d}, {x}, {y}, {z};")
         elif name == "근사지수":
             if i.dst.type.bits != 32:
                 raise PTXError("근사지수는 짧은실수만 받는다")
-            e(f"mul.rn.f32 %fw0, {self.r(i.args[0])}, 0f3FB8AA3B;")      # x · log2(e)
-            e(f"ex2.approx.f32 {d}, %fw0;")
+            e(f"mul.rn{fz32()}.f32 %fw0, {self.r(i.args[0])}, 0f3FB8AA3B;")      # x · log2(e)
+            e(f"ex2.approx{fz32()}.f32 {d}, %fw0;")
         elif name == "제곱근":
-            e(f"sqrt.rn{reg_type(i.dst.type)} {d}, {self.r(i.args[0])};")
+            e(f"sqrt.rn{fz(i.dst.type)}{reg_type(i.dst.type)} {d}, {self.r(i.args[0])};")
         elif name == "큰쪽":
-            e(f"max{reg_type(i.dst.type)} {d}, {self.r(i.args[0])}, {self.r(i.args[1])};")
+            e(f"max{fz(i.dst.type)}{reg_type(i.dst.type)} {d}, {self.r(i.args[0])}, {self.r(i.args[1])};")
         elif name == "시각":
             e(f"mov.u64 {d}, %globaltimer;")
         elif name == "원자더하기":
@@ -1385,13 +1397,14 @@ class FuncPTX:
 def translate(src):
     # 3단계 성능: 소스의 주석 `(* 실행한도 이름 스레드수 블록수 *)` — 그 커널을 블록당 그 스레드 수 이하로만 띄우고 SM 하나에
     # 블록을 그만큼 올리겠다는 약속(PTX .maxntid·.minnctapersm). 드라이버 컴파일러가 레지스터 수를 거기에 맞춘다. 값과는 상관없다.
-    global CONST_DIV
+    global CONST_DIV, FTZ
     LAUNCH_BOUNDS.clear()
     text = open(src, encoding="utf-8").read()
     pat = r"\(\*\s*실행한도\s+(\S+)\s+(\d+)\s+(\d+)\s*\*\)"
     for name, nt, nb in re.findall(pat, text):
         LAUNCH_BOUNDS[name] = (int(nt), int(nb))
     CONST_DIV = re.search(r"\(\*\s*상수나눗셈\s*\*\)", text) is not None     # 12단계 — 위 CONST_DIV 의 설명
+    FTZ = re.search(r"\(\*\s*비정규수버림\s*\*\)", text) is not None       # 31단계 — 위 FTZ 의 설명
     research.enable()                 # 연구 옵션의 언어 확장(반실수) — 1.x 의 geulc.py 는 켜지 않는다
     program = load_program(src, os.path.join(HERE, "표준"), auto_std=False)     # 표준 라이브러리는 쓰지 않는다(GPU 커널은 포함하지 않는다)
     unit = sema.analyze(program, fragment=True)
@@ -1408,7 +1421,7 @@ def translate(src):
             ".address_size 64", "",
             "// 2c: range-check error cell (bit 1: float->int out of range, bit 2: float64->float32 overflow" +
             (", bit 4: float32->half overflow)" if uses_half else ")"),
-            ".visible .global .align 4 .u32 __geul_err;", ""]
+            ".visible .global .align 4 .u32 __geul_err;"] + ([FTZ_HEAD] if FTZ else []) + [""]
     body = [FuncPTX(f).gen() for f in kernels]
     return "\n".join(head) + "\n\n".join(body) + "\n", [(f.name, ptx_name(f.name)) for f in kernels]
 
