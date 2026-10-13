@@ -37,8 +37,8 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
   - The 0.5B results (prompts of 128–8192 tokens at 0.55–0.82× llama.cpp's time, decoding at 0.63–0.65× with a generation megakernel)
     and GPT-2 XL (prompts at 0.78–0.87×) come from kernel engineering — fusion and a megakernel — not from the contract being free.
   - The old motto's "it is not slower" was withdrawn in stage 30. Whether determinism itself, and bit-equality with the CPU reference, cost
-    work at equal optimization has not been measured separately yet; stage 31 does that (a one-digit activation contract plus the same
-    kernels with each constraint switched on and off). See the [research log](docs/research-log.md).
+    work at equal optimization has not been measured separately yet (a one-digit activation contract and the same kernels with each
+    constraint switched on and off are deferred; stage 31 now takes GeulPU to AMD GPUs through Vulkan). See the [research log](docs/research-log.md).
 - **Larger models keep the advantage.** A simulation that reproduces only the rounding points (validated against the measured 0.5B value:
   1/637 simulated vs 1/615 measured) gives a hidden loss of 1/3805 (7B Q8_0) and 1/4467 (14B Q4_0) of a llama.cpp-like pipeline.
 
