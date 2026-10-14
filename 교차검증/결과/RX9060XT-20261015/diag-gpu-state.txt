@@ -1,0 +1,16 @@
+어댑터 00015669: 전용 0 MiB · 공유 1 MiB
+어댑터 0001562A: 전용 0 MiB · 공유 0 MiB
+어댑터 00013452: 전용 2,375 MiB · 공유 368 MiB
+프로그램 chrome (pid 40964): 전용 165 MiB
+프로그램 msedge (pid 36684): 전용 82 MiB
+프로그램 RadeonSoftware (pid 18224): 전용 117 MiB
+프로그램 ChatGPT (pid 45780): 전용 87 MiB
+프로그램 msedgewebview2 (pid 45716): 전용 78 MiB
+프로그램 msedgewebview2 (pid 11144): 전용 112 MiB
+프로그램 msedgewebview2 (pid 39972): 전용 89 MiB
+프로그램 Discord (pid 24644): 전용 328 MiB
+프로그램 steamwebhelper (pid 37848): 전용 78 MiB
+프로그램 msedgewebview2 (pid 30452): 전용 91 MiB
+프로그램 explorer (pid 12128): 전용 161 MiB
+프로그램 dwm (pid 33988): 전용 6,818 MiB
+프로그램 csrss (pid 45712): 전용 94 MiB

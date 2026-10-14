@@ -1,0 +1,4 @@
+장치 0: AMD Radeon RX 9060 XT (제조 4098, 종류 2, Vulkan 1.4.329, 드라이버 AMD proprietary driver 2.0.373) ← 엔진이 고르는 장치
+  서브그룹 64 (32 … 64) · 공유 32768 · 푸시 256 · CU/SM 32 · 장치 메모리 17.1 GB · 할당 한도 2.15 GB · 비정규수 버림 모드 true · 협력 true(권 16x16x16) · 모듈 공유32 · 가중치를 층마다 잡음
+장치 1: AMD Radeon(TM) Graphics (제조 4098, 종류 1, Vulkan 1.4.315, 드라이버 AMD proprietary driver 2.0.353)
+  서브그룹 64 (32 … 64) · 공유 32768 · 푸시 256 · CU/SM 2 · 장치 메모리 11.3 GB · 할당 한도 2.15 GB · 비정규수 버림 모드 true · 협력 true(권 16x16x16) · 모듈 공유32 · 가중치를 층마다 잡음
