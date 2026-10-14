@@ -143,6 +143,19 @@ def 줄타일표들():
     return 표
 
 
+def 줄타일K표들():
+    """32단계 — k-양자화의 줄 타일 판 (이름, W, NW, S) 의 차례 목록을 곳마다."""
+    표 = {}
+    for 파일 in ("커널/생성줄타일.gl", "호스트/엔진K.gl"):
+        s = open(os.path.join(ROOT, *파일.split("/")), encoding="utf-8").read()
+        표[파일] = [(m[1], *map(int, m[2:5])) for m in re.findall(r'줄타일K하나\((\d+), "([^"]+)", (\d+), (\d+), (\d+)\)\.', s)]
+    트리 = ast.parse(open(os.path.join(ROOT, "시험", "판26.py"), encoding="utf-8").read())
+    for 노드 in 트리.body:
+        if isinstance(노드, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "줄타일K들" for t in 노드.targets):
+            표["시험/판26.py"] = [tuple(x) for x in ast.literal_eval(노드.value)]
+    return 표
+
+
 def 판표():
     표 = 판표들()
     기준 = 표["커널/생성타일.gl"]
@@ -150,8 +163,12 @@ def 판표():
     줄표 = 줄타일표들()
     줄기준 = 줄표["커널/생성줄타일.gl"]
     줄다름 = [곳 for 곳, 값 in 줄표.items() if 값 != 줄기준]
-    알림("판 표", bool(기준) and not 다름 and len(표) == 4 and bool(줄기준) and not 줄다름 and len(줄표) == 3,
-         f"{len(기준)} 판 · 곳 {len(표)} · 줄 타일 판 {len(줄기준)} · 곳 {len(줄표)}" + (f" — 생성기와 다른 곳 {다름 + 줄다름}" if 다름 or 줄다름 else ""))
+    K표 = 줄타일K표들()
+    K기준 = K표["커널/생성줄타일.gl"]
+    K다름 = [곳 for 곳, 값 in K표.items() if 값 != K기준]
+    알림("판 표", bool(기준) and not 다름 and len(표) == 4 and bool(줄기준) and not 줄다름 and len(줄표) == 3 and bool(K기준) and not K다름 and len(K표) == 3,
+         f"{len(기준)} 판 · 곳 {len(표)} · 줄 타일 판 {len(줄기준)} · 곳 {len(줄표)} · k-양자화 줄 타일 판 {len(K기준)} · 곳 {len(K표)}"
+         + (f" — 생성기와 다른 곳 {다름 + 줄다름 + K다름}" if 다름 or 줄다름 or K다름 else ""))
 
 
 # ---- 4 · 5 · 6. 빌드 · 모듈 · 가져오기 표 ----

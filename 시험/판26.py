@@ -33,6 +33,8 @@ _판표 = [("정수타일선형", 2, 2, 2, 8), ("정수좁은타일선형", 2, 2
         ("정수넓은타일선형", 2, 4, 2, 8), ("정수긴타일선형", 1, 4, 2, 8), ("정수긴4타일선형", 1, 4, 2, 8), ("정수긴2타일선형", 1, 4, 2, 8),
         ("정수깊은타일선형", 1, 4, 4, 4), ("정수깊은넓은타일선형", 2, 2, 4, 4), ("정수세판타일선형", 2, 2, 2, 8)]
 타일판들 = [(이름, 16 * MT * WM, 8 * NT * WN, 32 * WM * WN, NT) for 이름, WM, WN, MT, NT in _판표]
+# 32단계 — k-양자화의 줄 타일 판 표 (생성줄타일.gl 의 줄타일K표준비 — 이름 · W · NW · 판 수 S)
+줄타일K들 = [("정수줄타일", 64, 4, 3), ("정수줄타일좁은", 32, 2, 4), ("정수줄타일두워프", 64, 2, 3)]
 
 
 def 엔진배치K(t, raw, N, K):
@@ -94,7 +96,8 @@ def 다른칸(a, b):
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     극단 = "--극단" in sys.argv
-    인자 = [a for a in sys.argv[1:] if a != "--극단"]
+    줄타일만 = "--줄타일만" in sys.argv          # 32단계 — 줄 타일 판만(행 1 … 8)
+    인자 = [a for a in sys.argv[1:] if a not in ("--극단", "--줄타일만")]
     ptx, 출력 = 인자[0], 인자[-1]
     파일들 = 인자[1:-1]
     dr = G.드라이버()
@@ -171,6 +174,51 @@ def main():
             y = C.행렬곱K블라스(X, w, 치)
             W = 64 if e == "_SwiGLU정수" else 32
             kn = f"정수줄하나{e}_{형식}"
+            if 줄타일만:
+                # 32단계 — 줄 타일 판(행 1 … 8): 블록 하나가 열 W 개, 스레드 32 · NW. 출력폭 = N
+                M8 = 8
+                X8 = 극단활성값(r, M8, K) if 극단 else (r.standard_normal((M8, K)) * 10.0 ** r.uniform(-1, 1, (M8, 1))).astype(f32)
+                y8 = C.행렬곱K블라스(X8, w, 치)
+                Np = (N + 63) // 64 * 64
+                잔8 = (r.standard_normal((M8, N)) * 3.0).astype(f32)
+                for 판, W8, NW, _S in 줄타일K들:
+                    if e == "_SwiGLU정수" and W8 != 64:
+                        continue
+                    kn8 = f"{판}{e}_{형식}"
+                    for m in range(1, 9):
+                        바이트m, M0m = 자리바이트(X8[:m])
+                        정보m = np.zeros((K // 32, 64), np.int32)
+                        정보m[:, :m] = M0m.T
+                        p자m, p정m = up(바이트m), up(정보m)
+                        앞 = [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치)]
+                        뒤 = [(0, m), (0, K), (0, N), (0, Np), (0, 0), (0, 0), (0, N)]
+                        grid = ((N + W8 - 1) // W8, 1)
+                        if e == "_SwiGLU정수":
+                            gcol = np.concatenate([np.arange(64 * j, 64 * j + 32) for j in range(N // 64)])
+                            참자리8, 참정보8 = 자리바이트(C.swiglu(y8[:m][:, gcol], y8[:m][:, gcol + 32]))
+                            p다자, p다정 = dr.할당(2 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
+                            띄우기(kn8, grid, 32 * NW, 앞 + [(1, p다정), (1, p다자)] + 뒤)
+                            dr.맞추기()
+                            다8 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, m, N // 2), np.int8)), 참자리8),
+                                  "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :m].T, 참정보8)}
+                        else:
+                            p출 = dr.할당(m * N * 4)
+                            if e == "_잔차":
+                                dr.확인(dr.cu.cuMemcpyHtoD_v2(p출, np.ascontiguousarray(잔8[:m]).ctypes.data, m * N * 4))
+                                띄우기(kn8, grid, 32 * NW, 앞 + [(1, p출), (1, p출)] + 뒤)
+                                참8 = C.더(잔8[:m], y8[:m])
+                            else:
+                                띄우기(kn8, grid, 32 * NW, 앞 + [(1, p출)] + 뒤)
+                                참8 = y8[:m]
+                            dr.맞추기()
+                            다8 = {"출력": 다른칸(dr.내리기(p출, np.empty((m, N), f32)), 참8)}
+                        한 = {"파일": 이름파일, "가중치": 이름, "형식": 형식, "판": kn8, "행": m, "K": int(K), "N": int(N), "다른 칸": 다8}
+                        결과["경우"].append(한)
+                        if sum(다8.values()):
+                            print("다름!", 한, flush=True)
+                    print(f"{이름} ({형식}) {kn8} 행 1 … 8 끝", flush=True)
+                놓기()
+                continue
             if e == "_SwiGLU정수":
                 gcol = np.concatenate([np.arange(64 * j, 64 * j + 32) for j in range(N // 64)])
                 참자리, 참정보 = 자리바이트(C.swiglu(y[:, gcol], y[:, gcol + 32]))
@@ -235,6 +283,8 @@ def main():
                 결과["경우"].append(한)
                 print(("다름! " if sum(다2.values()) else "") + f"{이름} ({형식}) {kn2} 행 {M}: {다2}", flush=True)
             놓기()
+        if 줄타일만:
+            continue
         # 임베딩 — 낱말표(token_embd)
         t, dims, raw = g.원("token_embd.weight")
         D, V = dims
