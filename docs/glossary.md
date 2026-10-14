@@ -79,6 +79,12 @@ exactly these translations.
 | 끝손질 | epilogue | What a matmul kernel does after the sums: none (`""`), `_잔차` (add residual), `_SwiGLU정수` (SwiGLU then quantize for the next layer). |
 | 판 고르기 | kernel selection | The engine times the candidate kernels once per shape and keeps the fastest (all candidates give identical bits). |
 | 메가커널 | megakernel | One cooperative launch that generates a whole token (stage 15). |
+| 걸음띄우기 | step-by-step decode | Decoding without the megakernel: one prompt-path computation per token, waiting for each token (the Vulkan path — SPIR-V has no cooperative launch; identical bits, stage 31). |
+| 벌칸 · 벌칸 층 | Vulkan layer | `호스트/벌칸.gl`: the CUDA driver API's names and signatures implemented over vulkan-1.dll, so the same engine source runs on CUDA or Vulkan (stage 31). |
+| 머리 · 몸 (파일) | head · body (file) | A test split in two: the head includes a GPU layer (`쿠다.gl` or `벌칸.gl`), the body holds the program (e.g. `시험_엔진.gl` / `시험_엔진V.gl` + `시험_엔진몸.gl`). |
+| 묶음 (.spvs) | SPIR-V bundle | The SPIR-V backend's output: one SPIR-V module per kernel with its shared-memory size and parameter kinds ("GEULSPV1"). |
+| 장치 한도 | device limit | A kernel the device cannot run (its shared memory exceeds the limit — e.g. 32 KB on Intel UHD 770); tests log it instead of skipping it silently. |
+| 공유32 | 32 KB variant | `커널생성 qwen2Q8 … --공유32`: the 0.5B module for 32 KB devices — prompt attention with one buffer (36 → 20 KB, same arithmetic order), no branch kernels. |
 | 생성 그래프 | decode graph | A CUDA graph replayed per generated token. |
 | 묶음 | group | Attention: a group of 16 chunks = 1024 positions (two-level fold). Elsewhere: a batch of sentences. |
 | 조각 | chunk / part | Attention: 64 keys. Layer splitting (stage 25): a part = an engine owning a range of layers. |

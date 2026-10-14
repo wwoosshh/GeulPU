@@ -7,11 +7,12 @@
 
 - Windows 10/11 x64. (Everything is built by the geul compiler, which emits Windows PE executables directly.)
 - The geul repository's `research/gpu` branch next to this repository as `../geul-lang-v2`, at the commit in
-  [`시험/글저장소커밋.txt`](../시험/글저장소커밋.txt). Build its self-hosted compiler and the PTX backend:
+  [`시험/글저장소커밋.txt`](../시험/글저장소커밋.txt). Build its self-hosted compiler, the PTX backend and (from stage 31) the SPIR-V backend:
   ```
   cd ../geul-lang-v2
   python ref/geulc.py self/컴파일러.gl -o build/self_컴파일러.exe        # or: python build.py selfhost 컴파일러 (also checks the fixpoint)
   GEUL_ROOT=. build/self_컴파일러.exe research/gpu/자체PTX/PTX.gl -o build/자체PTX.exe
+  GEUL_ROOT=. build/self_컴파일러.exe research/gpu/자체SPIRV/SPIRV.gl -o build/자체SPIRV.exe
   ```
   At commit 906b8cc these are byte-identical everywhere we have built them (SHA-256 `bd8f3381…` and `7181aead…`).
 - Python 3.12 and `pip install -r requirements.txt` (numpy) for tests and benchmarks. Run Python with `-X utf8`.
@@ -33,8 +34,8 @@ package `nvidia-cuda-nvcc-cu12==12.9.86` and is used only as a checker). It veri
 | Syntax | every Python file compiles; every official-run shell script passes `bash -n` |
 | Contract self-test | [`시험/계약자체.py`](../시험/계약자체.py): `fma32` against exact rational rounding (4,000 cases incl. near-cancellation); slow vs fast vs BLAS references for Q8_0 · Q4_0; slow vs BLAS for Q4_K · Q5_K · Q6_K on synthetic GGUF blocks; the k-quant embedding against an independent per-value dequantizer written like llama.cpp's `dequantize_row_q*_K` |
 | Tile tables | the 11 tile shapes agree across the generator, the engine and the tests |
-| Build | the kernel generator and all 15 host programs build with the geul compiler |
-| Modules | six modules (0.5B · 7B Q8_0 · 7B Q4_0 · 14B Q4_0 · 7B and 14B k-quants) are regenerated from scratch; source and PTX must match [`시험/모듈해시.txt`](../시험/모듈해시.txt) byte for byte |
+| Build | the kernel generator and every host program builds with the geul compiler (a test split into a head and a body — `시험_엔진` / `시험_엔진V` + `시험_엔진몸` — is built through its heads, CUDA and Vulkan) |
+| Modules | seven modules (0.5B · its 32 KB-shared-memory variant `--공유32` · 7B Q8_0 · 7B Q4_0 · 14B Q4_0 · 7B and 14B k-quants) are regenerated from scratch; source, PTX and the SPIR-V bundle (`.spvs`) must match [`시험/모듈해시.txt`](../시험/모듈해시.txt) byte for byte |
 | SASS | `ptxas -arch=sm_89 -v` on every module; a kernel that newly spills registers, or spills more than [`시험/SASS넘침.txt`](../시험/SASS넘침.txt) allows, fails the check |
 | Imports | the runner imports only `kernel32`, `shell32` and `nvcuda` |
 
@@ -52,7 +53,7 @@ When a commit changes kernels on purpose, update the baselines in the same commi
 | `모델/qwen2.5-14b-instruct-gguf/qwen2.5-14b-instruct-q4_0-pure.gguf` | `Qwen/Qwen2.5-14B-Instruct-GGUF` q4_0, merged, then `--pure` Q4_0 |
 | `…/qwen2.5-14b-instruct-q4_k_m-req.gguf` | `llama-quantize --allow-requantize <14b-q4_0-pure> <out> Q4_K_M` (speed records only) |
 
-llama.cpp for comparisons: the official Windows CUDA release used by each stage, in `도구/llama-b<number>/` — b11496 through stage 29, b11567 from stage 30 (always the latest release at measurement time).
+llama.cpp for comparisons: the official Windows release used by each stage, in `도구/llama-b<number>/` — b11496 (CUDA) through stage 29, b11567 (CUDA) from stage 30, b11609 (Vulkan) for stage 31i (always the latest release at measurement time).
 
 ## 4. GPU bit tests
 
@@ -81,6 +82,23 @@ llama-bench -m <model.gguf> -p 0 -n 128 -d 0,2048,8192 -o md
 `재기_7B` reports, per cell, the median of three medians of seven runs (after one warm-up). Each stage's official script runs GeulPU and
 llama.cpp alternately three times; the collectors in `재기/모음2X.py` take the median of the three runs and compute the ratios. Never run
 two GPU timings at once.
+
+## 5a. Vulkan (stage 31)
+
+The kernels come from the SPIR-V backend; the hosts are the same bodies as the CUDA tests with the Vulkan layer (`호스트/벌칸.gl`) instead of
+`쿠다.gl`. The device is chosen by the environment variable `GEULPU_VULKAN` (part of its name — e.g. `NVIDIA`, `Intel`).
+
+```
+GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/자체SPIRV.exe <module.gl> -o <module.spvs>        # one SPIR-V module per kernel, bundled
+GEUL_ROOT=../geul-lang-v2 ../geul-lang-v2/build/self_컴파일러.exe 호스트/시험_엔진V.gl -o 시험_엔진V.exe   # likewise 시험_7BV · 재기_7BV · 시험_벌칸
+GEULPU_VULKAN=NVIDIA 시험_엔진V.exe <0.5b-q8_0.gguf> qwen2Q8.spvs 18d입력.bin out.txt            # 0.5B 18d — must equal 문서/결과/18단계/18d_엔진_글.txt
+GEULPU_VULKAN=Intel  시험_엔진V.exe <0.5b-q8_0.gguf> qwen2Q8_공유32.spvs 18d입력.bin out.txt     # Intel (32 KB shared memory): the --공유32 module
+GEULPU_VULKAN=NVIDIA 시험_7BV.exe <model.gguf> <module.spvs> 입력7B.bin <out folder>            # five paths — 요약.txt must equal the stage record
+GEULPU_VULKAN=NVIDIA python -I -X utf8 시험/판23.py <module.spvs> <gguf> out.json                # the Python kernel tests take .spvs under GEULPU_VULKAN
+```
+
+`공식실행/입력18d.py` writes `18d입력.bin`. On Intel the plate selection alone takes about half an hour (pipeline creation). Kernels whose
+shared memory exceeds the device's limit are reported as device limits by the Python tests and skipped by the engine's plate choice.
 
 ## 6. Official runs
 
