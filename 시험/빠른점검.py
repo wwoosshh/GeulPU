@@ -173,9 +173,17 @@ def 판표():
 
 # ---- 4 · 5 · 6. 빌드 · 모듈 · 가져오기 표 ----
 def 호스트프로그램들():
-    """호스트/ 에서 시작하기 가 있는 것(프로그램)."""
+    """호스트/ 에서 시작하기 가 있는 것(프로그램). 31단계 — 몸 파일(…몸.gl)은 GPU 층(쿠다.gl · 벌칸.gl)을 포함하지 않아 홀로 빌드되지
+    않는다. 몸은 빼고, 몸을 포함하는 머리 파일(시험_엔진.gl · 시험_엔진V.gl …)을 프로그램으로 빌드한다."""
     폴더 = os.path.join(ROOT, "호스트")
-    return sorted(이름[:-3] for 이름 in os.listdir(폴더) if 이름.endswith(".gl") and "시작하기]는" in open(os.path.join(폴더, 이름), encoding="utf-8").read())
+    out = []
+    for 이름 in os.listdir(폴더):
+        if not 이름.endswith(".gl") or 이름.endswith("몸.gl"):
+            continue
+        s = open(os.path.join(폴더, 이름), encoding="utf-8").read()
+        if "시작하기]는" in s or re.search(r'포함 "[^"]*몸\.gl"', s):
+            out.append(이름[:-3])
+    return sorted(out)
 
 
 def 빌드(글, 출력, 병렬):
