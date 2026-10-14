@@ -196,8 +196,18 @@ def main():
     if vulkan:
         names = dict(BUILD_NAMES_V)
         shape = env.get("coop_shape") or ""
-        if shape:
+        if env.get("module_variant") == "공유32":          # 34단계 — 공유 메모리 32 KB 장치의 판(커널생성 --공유32)
+            for a in ("7B 모듈 소스", "7B 모듈 SPIR-V", "7B 협력 모듈 소스"):
+                names.pop(a)
+            names["7B 모듈 소스 (공유32)"] = ("build_vulkan", "module_source_32")
+            names["7B 모듈 SPIR-V (공유32)"] = ("build_vulkan", "module_spvs_32")
+            names["7B 협력 모듈 소스 (공유32)"] = ("build_vulkan", "module_source_coop_32")
+            if shape:
+                names[f"7B 협력 모듈 SPIR-V (공유32 · {shape})"] = ("build_vulkan", "module_spvs_coop_32", shape)
+        elif shape:
             names[f"7B 협력 모듈 SPIR-V ({shape})"] = ("build_vulkan", "module_spvs_coop", shape)
+        if not shape:                                         # 협력 행렬이 없는 장치 — 협력 모듈을 만들지 않는다
+            names = {k: v for k, v in names.items() if "협력" not in k}
         for name, key in names.items():
             want = exp.get(key[0], {}).get(key[1])
             if len(key) > 2 and isinstance(want, dict):

@@ -357,6 +357,22 @@ if ($Modules -eq 'coop' -and $Shape -eq '') { Check '협력 행렬' '실패' '-M
 elseif ($Shape) { Check '협력 행렬' '통과' ('SPIR-V 뒷단 --협력 ' + $Shape + ' (부호 있는 8 비트 × 8 비트 → 32 비트)') }
 else { Check '협력 행렬' '정보' '없음 — 텐서곱을 흉내 내는 기본 모듈로만 돕니다' }
 $EnvInfo.coop_shape = $Shape
+# 34단계 — 모듈 판: 공유 메모리 48 KB · 푸시 상수 136 바이트 이상이면 보통, 아니면 공유32(커널생성 --공유32 — AMD · Intel 의 Vulkan 은
+# 공유 32 KB). 한 번 할당의 한도를 넘는 가중치는 엔진이 층마다 따로 잡는다
+$Variant = [string]$vk.'고른_모듈판'
+if ($Variant -ne '공유32') { $Variant = '보통' }
+$EnvInfo.module_variant = $Variant
+if ($Variant -eq '공유32') {
+    Check '모듈 판' '정보' ('공유32 — 공유 메모리 {0} KB · 푸시 상수 {1} 바이트 장치의 판(생성 줄 판 · 어텐션을 32 KB 안으로, 셈은 같다)' -f ([int]$sel.'공유메모리' / 1024), $sel.'푸시상수')
+}
+else { Check '모듈 판' '정보' '보통' }
+if ($sel.'할당나눔') { Check '한 번 할당 한도' '정보' ('{0:N2} GB — 7B 가중치(gate·up 4.04 GB)를 층마다 따로 잡습니다' -f ([double]$sel.'실할당한도' / 1e9)) }
+$emu = @()
+foreach ($k in @('GEULPU_VULKAN_SHARED', 'GEULPU_VULKAN_PUSH', 'GEULPU_VULKAN_ALLOC')) {
+    $v = [Environment]::GetEnvironmentVariable($k, 'Process')
+    if ($v) { $emu += ($k + '=' + $v) }
+}
+if ($emu.Count -gt 0) { $EnvInfo.vulkan_emulation = ($emu -join ' '); Check 'Vulkan 한도 흉내' '경고' (($emu -join ' ') + ' — 시험용(다른 장치의 한도를 흉내 냄)') }
 $vram = [int][Math]::Floor([double]$sel.'장치메모리' / 1MB)
 $slotsList = @(8, 2, 1)
 if ($vram -ge 11500) { Check 'VRAM' '통과' ('{0} MiB — 슬롯 8' -f $vram) }
@@ -407,26 +423,36 @@ $gen = Join-Path $Work 'kernel_gen.exe'
 $code = Tool $comp @('커널/커널생성.gl', '-o', $gen) $Root 'build-generator'
 if ($code -ne 0) { Fail '커널 생성기 빌드 실패.' }
 [void](BuildCheck '커널 생성기' $gen $want.generator)
-$modGl = Join-Path $Work 'qwen2Q8_7b.gl'
-$code = Tool $gen @('qwen2Q8_7b', $modGl) $Root 'generate-module'
+# 34단계 — 공유32 판(공유 메모리 32 KB · 푸시 상수 128 바이트 장치): 생성기 --공유32, 파일 이름 · 기준 해시 열쇠에 _32
+$vArg = @()
+$vSuf = ''
+$vName = ''
+if ($Variant -eq '공유32') { $vArg = @('--공유32'); $vSuf = '_32'; $vName = '공유32 · ' }
+$wantSrc = $want.module_source
+$wantSpv = $wantV.module_spvs
+$wantCoopSrc = $wantV.module_source_coop
+$wantCoopSpv = $wantV.module_spvs_coop
+if ($Variant -eq '공유32') { $wantSrc = $wantV.module_source_32; $wantSpv = $wantV.module_spvs_32; $wantCoopSrc = $wantV.module_source_coop_32; $wantCoopSpv = $wantV.module_spvs_coop_32 }
+$modGl = Join-Path $Work ('qwen2Q8_7b' + $vSuf + '.gl')
+$code = Tool $gen (@('qwen2Q8_7b', $modGl) + $vArg) $Root 'generate-module'
 if ($code -ne 0) { Fail '모듈 소스 생성 실패.' }
-[void](BuildCheck '7B 모듈 소스' $modGl $want.module_source)
-$baseSpvs = Join-Path $Work 'q8_7b.spvs'
+[void](BuildCheck ('7B 모듈 소스' + $(if ($vSuf) { ' (공유32)' } else { '' })) $modGl $wantSrc)
+$baseSpvs = Join-Path $Work ('q8_7b' + $vSuf + '.spvs')
 $code = Tool $spvBackend @($modGl, '-o', $baseSpvs) $Root 'build-module-spirv'
 if ($code -ne 0) { Fail '모듈 SPIR-V 빌드 실패.' }
-[void](BuildCheck '7B 모듈 SPIR-V' $baseSpvs $wantV.module_spvs)
+[void](BuildCheck ('7B 모듈 SPIR-V' + $(if ($vSuf) { ' (공유32)' } else { '' })) $baseSpvs $wantSpv)
 $coopSpvs = $null
 if ($useCoop) {
-    $coopGl = Join-Path $Work 'qwen2Q8_7b_coop.gl'
-    $code = Tool $gen @('qwen2Q8_7b', $coopGl, '--협력') $Root 'generate-module-coop'
+    $coopGl = Join-Path $Work ('qwen2Q8_7b_coop' + $vSuf + '.gl')
+    $code = Tool $gen (@('qwen2Q8_7b', $coopGl, '--협력') + $vArg) $Root 'generate-module-coop'
     if ($code -ne 0) { Fail '협력 모듈 소스 생성 실패.' }
-    [void](BuildCheck '7B 협력 모듈 소스' $coopGl $wantV.module_source_coop)
-    $coopSpvs = Join-Path $Work ('q8_7b_coop_' + $Shape + '.spvs')
+    [void](BuildCheck ('7B 협력 모듈 소스' + $(if ($vSuf) { ' (공유32)' } else { '' })) $coopGl $wantCoopSrc)
+    $coopSpvs = Join-Path $Work ('q8_7b_coop' + $vSuf + '_' + $Shape + '.spvs')
     $code = Tool $spvBackend @($coopGl, '-o', $coopSpvs, '--협력', $Shape) $Root 'build-module-coop-spirv'
     if ($code -ne 0) { Fail '협력 모듈 SPIR-V 빌드 실패.' }
     $wantCoop = $null
-    if ($wantV -and $wantV.module_spvs_coop) { $wantCoop = $wantV.module_spvs_coop.$Shape }
-    [void](BuildCheck ('7B 협력 모듈 SPIR-V (' + $Shape + ')') $coopSpvs $wantCoop)
+    if ($wantCoopSpv) { $wantCoop = $wantCoopSpv.$Shape }
+    [void](BuildCheck ('7B 협력 모듈 SPIR-V (' + $vName + $Shape + ')') $coopSpvs $wantCoop)
 }
 
 # h. 자기 진단 도구 — 진단 커널(SPIR-V: 협력 행렬이 있으면 커널/진단협력.gl, 없으면 커널/진단V.gl) · 진단 프로그램(호스트/진단V.gl)
