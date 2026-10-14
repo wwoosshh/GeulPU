@@ -69,8 +69,10 @@ same GGUF file: r < 1 means GeulPU is faster.
   64-step long-division loop in the SPIR-V backend — now a runtime check takes a 32-bit division when both values fit (RoPEKV went
   from 3× CUDA to equal); barriers between dispatches are compute-to-compute instead of all-commands (decode about 4% faster); "batch"
   tile kernels load S K-blocks at once and then multiply them (Vulkan has no async copy), used where every thread loads at least one
-  B column. Measured alternately in one session, 7B on Vulkan takes 1.20–1.28× the CUDA path's prompt time (stage 31: 4.3–5.5×) and
-  1.00–1.03× its decode time (stage 31: 1.09–1.27×) — a record, not yet the verdict. Re-running the stage-31 model tests exposed a
+  B column; the backend no longer re-flushes subnormals for max/compare/negate inputs that are already flushed (results of arithmetic,
+  max, int→float, flushed-only locals) — prompt attention −10%, checked bit-for-bit against the always-flush backend on NVIDIA and
+  Intel. Measured alternately in one session, 7B on Vulkan takes 1.19–1.27× the CUDA path's prompt time (stage 31: 4.3–5.5×) and
+  1.00–1.06× its decode time (stage 31: 1.09–1.27×; short-context decode varies about 3% between runs) — a record, not yet the verdict. Re-running the stage-31 model tests exposed a
   fixed 512-launch plan limit (14B with many split tiles) — now sized by layer count — and the cross-check's build hashes, stale since
   stage 33, were renewed after the R1 run matched all 82,673 logit hashes.
 - Stage 32 waits for the diagnosis and alternation runs on friends' PCs (32c, 32d).
