@@ -97,6 +97,7 @@ def main():
     빠르게 = "--빠르게" in sys.argv
     극단 = "--극단" in sys.argv
     줄타일만 = "--줄타일만" in sys.argv          # 32단계 — 줄 타일 판만(행 1 … 8)
+    자리수 = 1 if "--자리하나" in sys.argv else 2    # 33단계 — 같은 최적화의 대조 V1(커널생성 --자리하나 의 모듈)
     dr = 시험장치.드라이버()
     mod = dr.모듈(open(ptx, "rb").read())
     fn = {}
@@ -165,17 +166,17 @@ def main():
         p치 = up(np.ascontiguousarray(치, f32))
         끝들 = {"qkv": [""], "로짓": [""], "o": ["_잔차"], "down": ["_잔차"], "gu": ["_SwiGLU정수"]}[이름]
         X = 극단활성값(r, M, K) if 극단 else (r.standard_normal((M, K)) * 10.0 ** r.uniform(-1, 1, (M, 1))).astype(f32)
-        바이트, M0 = 자리바이트(X)
+        바이트, M0 = 자리바이트(X, 자리수)
         폭 = (M + 63) // 64 * 64
         정보 = np.zeros((K // 32, 폭), np.int32)
         정보[:, :M] = M0.T
         p자, p정 = up(바이트), up(정보)
         잔 = (r.standard_normal((M, N)) * 3.0).astype(f32)
         p잔 = up(잔)
-        y = C.행렬곱블라스(X, q, d, 치)
+        y = C.행렬곱블라스(X, q, d, 치, 자리수=자리수)
         if 끝들[0] == "_SwiGLU정수":
             gcol = np.concatenate([np.arange(64 * j, 64 * j + 32) for j in range(N // 64)])
-            참자리, 참정보 = 자리바이트(C.swiglu(y[:, gcol], y[:, gcol + 32]))
+            참자리, 참정보 = 자리바이트(C.swiglu(y[:, gcol], y[:, gcol + 32]), 자리수)
         참 = C.더(잔, y) if 끝들[0] == "_잔차" else y
         Np = (N + 63) // 64 * 64
         # 32단계 — 줄 타일 판(행 1 … 8): 블록 하나가 열 W 개, 스레드 32 · NW (Q8_0 · Q4_0 모듈)
@@ -188,7 +189,7 @@ def main():
                 if 넘는가(kn, {"가중치": 이름}):
                     continue
                 for m in range(1, 9):
-                    바이트m, M0m = 자리바이트(X[:m])
+                    바이트m, M0m = 자리바이트(X[:m], 자리수)
                     정보m = np.zeros((K // 32, 64), np.int32)
                     정보m[:, :m] = M0m.T
                     p자m, p정m = up(바이트m), up(정보m)
@@ -196,10 +197,10 @@ def main():
                     뒤 = [(0, m), (0, K), (0, N), (0, Np), (0, 0), (0, 0)]
                     grid = ((N + W - 1) // W, 1)
                     if e == "_SwiGLU정수":
-                        p다자, p다정 = dr.할당(2 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
+                        p다자, p다정 = dr.할당(자리수 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
                         띄우기(kn, grid, 32 * NW, 앞 + [(1, p다정), (1, p다자)] + 뒤)
                         dr.맞추기()
-                        다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, m, N // 2), np.int8)), 참자리[:, :m]),
+                        다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((자리수, m, N // 2), np.int8)), 참자리[:, :m]),
                              "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :m].T, 참정보[:m])}
                     else:
                         p출 = dr.할당(m * N * 4)
@@ -234,10 +235,10 @@ def main():
                     앞 = [(1, p자), (1, p정), (1, p값), (1, p척), (1, p치)]
                     뒤 = [(0, M), (0, K), (0, N), (0, Np), (0, 0), (0, 0)]
                     if e == "_SwiGLU정수":
-                        p다자, p다정 = dr.할당(2 * M * (N // 2)), dr.할당((N // 64) * 폭 * 4)
+                        p다자, p다정 = dr.할당(자리수 * M * (N // 2)), dr.할당((N // 64) * 폭 * 4)
                         띄우기(kn, grid, T, 앞 + [(1, p다정), (1, p다자)] + 뒤)
                         dr.맞추기()
-                        글자리 = dr.내리기(p다자, np.empty((2, M, N // 2), np.int8))
+                        글자리 = dr.내리기(p다자, np.empty((자리수, M, N // 2), np.int8))
                         글정보 = dr.내리기(p다정, np.empty((N // 64, 폭), np.int32))[:, :M].T
                         다 = {"자리": 다른칸(글자리, 참자리), "정보": 다른칸(글정보, 참정보)}
                     else:
@@ -258,17 +259,17 @@ def main():
         W = 64 if e == "_SwiGLU정수" else 32
         for m in (1, 2, 3, 4):
             Xm = X[:m]
-            바이트m, M0m = 자리바이트(Xm)
+            바이트m, M0m = 자리바이트(Xm, 자리수)
             정보m = np.zeros((K // 32, 64), np.int32)
             정보m[:, :m] = M0m.T
             p자m, p정m = up(바이트m), up(정보m)
             p잔m = up(잔[:m]) if e == "_잔차" else None
             if not 넘는가("정수줄자리" + e, {"가중치": 이름, "행": m}):
                 if e == "_SwiGLU정수":
-                    p다자, p다정 = dr.할당(2 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
+                    p다자, p다정 = dr.할당(자리수 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
                     띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p다정), (1, p다자), (0, m), (0, K), (0, N)])
                     dr.맞추기()
-                    다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, m, N // 2), np.int8)), 참자리[:, :m]),
+                    다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((자리수, m, N // 2), np.int8)), 참자리[:, :m]),
                          "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :m].T, 참정보[:m])}
                 else:
                     p출 = dr.할당(m * N * 4)
@@ -284,10 +285,10 @@ def main():
                     print("다름!", 한, flush=True)
             if m == 1 and not 넘는가("정수줄하나" + e, {"가중치": 이름, "행": 1}):    # 23단계 — 한 행 줄 판(생성 그래프): 스레드 128, 열 W 개
                 if e == "_SwiGLU정수":
-                    p다자, p다정 = dr.할당(2 * N // 2), dr.할당((N // 64) * 64 * 4)
+                    p다자, p다정 = dr.할당(자리수 * N // 2), dr.할당((N // 64) * 64 * 4)
                     띄우기("정수줄하나" + e, ((N + W - 1) // W, 1), 128, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p다정), (1, p다자), (0, 1), (0, K), (0, N)])
                     dr.맞추기()
-                    다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, 1, N // 2), np.int8)), 참자리[:, :1]),
+                    다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((자리수, 1, N // 2), np.int8)), 참자리[:, :1]),
                          "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :1].T, 참정보[:1])}
                 else:
                     p출 = dr.할당(N * 4)
@@ -314,15 +315,15 @@ def main():
     감마 = np.ascontiguousarray(g.풀기("blk.0.attn_norm.weight"), f32)
     Xr = (r.standard_normal((9, D7)) * 10.0 ** r.uniform(-3, 3, (9, 1))).astype(f32)
     eps = float(g.meta["qwen2.attention.layer_norm_rms_epsilon"])
-    참자리r, 참정보r = 자리바이트(C.rms정규화(Xr, 감마, eps))
+    참자리r, 참정보r = 자리바이트(C.rms정규화(Xr, 감마, eps), 자리수)
     pX, pG = up(Xr), up(감마)
     for kn in ("RMS정규화정수줄", "RMS정규화정수줄펼침"):
         if 넘는가(kn, {"가중치": "attn_norm"}):
             continue
-        p자r, p정r = dr.할당(2 * 9 * D7), dr.할당((D7 // 32) * 64 * 4)
+        p자r, p정r = dr.할당(자리수 * 9 * D7), dr.할당((D7 // 32) * 64 * 4)
         띄우기(kn, (9, 1), 256, [(1, pX), (1, pG), (1, p자r), (1, p정r), (0, 9)])
         dr.맞추기()
-        다 = {"자리": 다른칸(dr.내리기(p자r, np.empty((2, 9, D7), np.int8)), 참자리r),
+        다 = {"자리": 다른칸(dr.내리기(p자r, np.empty((자리수, 9, D7), np.int8)), 참자리r),
              "정보": 다른칸(dr.내리기(p정r, np.empty((D7 // 32, 64), np.int32))[:, :9].T, 참정보r)}
         결과["경우"].append({"가중치": "attn_norm", "판": kn, "행": 9, "다른 칸": 다})
         if sum(다.values()):

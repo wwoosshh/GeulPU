@@ -32,6 +32,7 @@ f32 = np.float32
 u64, i64 = G.c_u64, G.c_i64
 D, NH, NKV, HD = 3584, 28, 4, 128         # 7B — 24단계부터는 main 이 GGUF 의 설정으로 다시 둔다(모양두기)
 QKV = D + 2 * NKV * HD                     # 4608
+O자리수 = 2                                # 33단계 — 접기의 출력(o 의 입력) 자리 수: --자리하나 면 1 (어텐션 안의 q · k · v · e 는 늘 둘)
 KB = D // 32                               # 112
 SH = HD + 4                            # 묶음 상태 하나의 칸 (M, L, 빈 둘, O 128)
 
@@ -123,7 +124,7 @@ class 글커널:
         p코, p사 = dr.할당(최대길이 * 64 * 4), dr.할당(최대길이 * 64 * 4)
         dr.올리기(p코, np.ascontiguousarray(cos, f32))
         dr.올리기(p사, np.ascontiguousarray(sin, f32))
-        out = {"q자리": np.zeros((2, n, D), np.int8), "q정보": np.zeros((n, KB), np.int32), "o자리": np.zeros((2, n, D), np.int8),
+        out = {"q자리": np.zeros((2, n, D), np.int8), "q정보": np.zeros((n, KB), np.int32), "o자리": np.zeros((O자리수, n, D), np.int8),
                "o정보": np.zeros((n, KB), np.int32), "o짧은": np.zeros((n, D), f32)}
         KV = [(1, p키), (1, p값), (1, p키지), (1, p값지)]
         for s, m, 판 in 덩이들:
@@ -156,7 +157,7 @@ class 글커널:
             out["q정보"][s:s + m] = dr.내리기(p정q, np.empty((KB, 폭), np.int32))[:, :m].T
             if RoPE만:
                 continue
-            out["o자리"][:, s:s + m] = dr.내리기(p자, np.empty((2, m, D), np.int8))
+            out["o자리"][:, s:s + m] = dr.내리기(p자, np.empty((O자리수, m, D), np.int8))
             out["o정보"][s:s + m] = dr.내리기(p정, np.empty((KB, 폭), np.int32))[:, :m].T
             out["o짧은"][s:s + m] = dr.내리기(p출, np.empty((m, D), f32))
         out["키"] = dr.내리기(p키, np.empty((NKV, 2, 최대길이, HD), np.int8))
@@ -173,12 +174,13 @@ class 글커널:
         return out
 
 
-def 자리바이트(x):
-    """x [n][너비] → (자리 바이트 [2][n][너비] — 블록마다 낱말 차례, 정보 M_0 [n][블록]) — 정수로 · RoPEKV · 묶음 접기의 출력 배치."""
-    Dg, E = C.자리로(np.asarray(x, f32), 2)
+def 자리바이트(x, 자리수=2):
+    """x [n][너비] → (자리 바이트 [자리수][n][너비] — 블록마다 낱말 차례, 정보 M_0 [n][블록]) — 정수로 · RoPEKV · 묶음 접기의 출력 배치.
+    33단계 — 자리수 1 은 같은 최적화의 대조(V1): M_0 = 1.5 · 2²³ · 2^(E − P), P = 8 · 자리수 − 3."""
+    Dg, E = C.자리로(np.asarray(x, f32), 자리수)
     n, w = Dg.shape[1], Dg.shape[2]
-    바이트 = C.낱말차례(Dg.reshape(2, n, w // 32, 32)).reshape(2, n, w).astype(np.int8)
-    M0 = (((137 + E) << 23) + 4194304).astype(np.int64).astype(np.int32)
+    바이트 = C.낱말차례(Dg.reshape(자리수, n, w // 32, 32)).reshape(자리수, n, w).astype(np.int8)
+    M0 = (((153 - 8 * 자리수 + E) << 23) + 4194304).astype(np.int64).astype(np.int32)
     return 바이트, M0
 
 
@@ -200,7 +202,7 @@ def 참조(X, 최대길이, cos, sin):
     G_ = NH // NKV
     y = np.concatenate([C.어텐션(qr[:, HD * a:HD * a + HD], kr[a // G_], vv[a // G_]) for a in range(NH)], 1)
     out["o짧은"] = y
-    out["o자리"], out["o정보"] = 자리바이트(y)
+    out["o자리"], out["o정보"] = 자리바이트(y, O자리수)
     return out
 
 
@@ -264,6 +266,9 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ptx, gguf, 출력 = sys.argv[1:4]
     빠르게 = "--빠르게" in sys.argv
+    global O자리수
+    if "--자리하나" in sys.argv:                 # 33단계 — 같은 최적화의 대조 V1(커널생성 --자리하나 의 모듈)
+        O자리수 = 1
     모양두기(gguf)
     print(f"모양: 너비 {D} · 머리 {NH} · KV 머리 {NKV} (GQA {NH // NKV})", flush=True)
     k = 글커널(ptx)

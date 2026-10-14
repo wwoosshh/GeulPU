@@ -459,25 +459,30 @@ def 행렬곱빠른(x, q, d, 치우침):
     return 더(y, np.asarray(치우침, f32)[None, :])
 
 
-def 행렬곱블라스(x, qNK, dNK, 치우침, 일꾼=8, 칸한도=1 << 25):
+def 행렬곱블라스(x, qNK, dNK, 치우침, 일꾼=8, 칸한도=1 << 25, 자리수=2):
     """행렬곱(…, 자리수=2) 와 같은 값(22단계 — 7B 의 CPU 참조). 가중치는 GGUF 의 배치 그대로: qNK [N][K] int8, dNK [N][K/32] 짧은실수.
     블록 합 S_j 를 짧은실수 행렬곱(BLAS)으로 — |D_j| ≤ 128, |q| ≤ 128 이라 |S_j| ≤ 32 · 128 · 128 = 2¹⁹ 이고 부분합도 정수로 2²⁴ 아래라 어느
     순서로 더해도 정확하다. 블록들을 한 번의 묶음 행렬곱으로, 열을 덩이로 나눠 일꾼(스레드 — numpy 가 GIL 을 놓는다)에게. v_j = S_j · 2^(8j + E − 13)
-    (정확), u = v₁ + v₀ (반올림 하나), y ← 곱해더하기(u, d, y) 를 블록 차례로 — 행렬곱 과 같은 식."""
+    (정확), u = v₁ + v₀ (반올림 하나), y ← 곱해더하기(u, d, y) 를 블록 차례로 — 행렬곱 과 같은 식.
+    33단계 — 자리수 1(같은 최적화의 대조 V1): u = v₀ = S₀ · 2^(E − 5) (정확), 나머지는 같다."""
     from concurrent.futures import ThreadPoolExecutor
-    D, E = 자리로(np.asarray(x, f32), 2)
+    D, E = 자리로(np.asarray(x, f32), 자리수)
+    P = 8 * 자리수 - 3
     M, K = D.shape[1:]
     KB = K // 32
     N = qNK.shape[0]
-    Df = D.astype(f32).reshape(2, M, KB, 32).transpose(0, 2, 1, 3).copy()      # [2][KB][M][32]
-    배 = [np.ldexp(f32(1), (8 * j + E - 13)).astype(f32).T[:, :, None] for j in range(2)]   # [KB][M][1]
+    Df = D.astype(f32).reshape(자리수, M, KB, 32).transpose(0, 2, 1, 3).copy()      # [자리수][KB][M][32]
+    배 = [np.ldexp(f32(1), (8 * j + E - P)).astype(f32).T[:, :, None] for j in range(자리수)]   # [KB][M][1]
     덩이 = max(32, min(4096, 칸한도 // max(1, KB * M)) // 32 * 32)
     y = np.zeros((M, N), f32)
 
     def 열(n0):
         n1 = min(N, n0 + 덩이)
         qb = np.ascontiguousarray(np.asarray(qNK[n0:n1], f32).reshape(n1 - n0, KB, 32).transpose(1, 2, 0))   # [KB][32][n]
-        u = (np.matmul(Df[1], qb) * 배[1] + np.matmul(Df[0], qb) * 배[0]).astype(f32)                       # [KB][M][n]
+        if 자리수 == 1:
+            u = (np.matmul(Df[0], qb) * 배[0]).astype(f32)
+        else:
+            u = (np.matmul(Df[1], qb) * 배[1] + np.matmul(Df[0], qb) * 배[0]).astype(f32)                   # [KB][M][n]
         db = np.asarray(dNK[n0:n1], f32).T                                                                     # [KB][n]
         yy = np.zeros((M, n1 - n0), f32)
         for b in range(KB):
