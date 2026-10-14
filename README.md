@@ -17,7 +17,7 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
   흔한 엔진(llama.cpp · PyTorch)은 함께 계산하는 양에 따라 결과 비트가 바뀐다. 퍼플렉시티(wikitext-2)도 llama.cpp 는 배치 설정에 따라
   15.8171 ~ 15.8200 으로 바뀌고, 글은 어느 방식으로 넣어도 마지막 비트까지 같다([20단계](문서/20단계.md)). GPU 가 달라도 같다:
   RTX 3080 Ti(Ampere) · RTX 4070 Ti(Ada) · RTX 5070(Blackwell)이 DeepSeek-R1-Distill-Qwen-7B 로 푼 수학 문제 32 개에서 출력과 82,673 걸음의
-  로짓까지 비트가 같았다(같은 조건에서 llama.cpp 는 한 PC 안에서 함께 도는 요청 수만 바꿔도 32 문제의 출력이 모두 갈렸다 — [교차검증](교차검증/)).
+  로짓까지 비트가 같았고, 회사가 다른 AMD Radeon RX 9060 XT(RDNA4 · Vulkan)도 NVIDIA 의 CUDA 기준과 82,673 걸음 모두 같았다(같은 조건에서 llama.cpp 는 한 PC 안에서 함께 도는 요청 수만 바꿔도 32 문제의 출력이 모두 갈렸다 — [교차검증](교차검증/)).
 - **숨은 손실이 작다 — 0.5B 에서 잰 값.** Qwen2.5-0.5B-Instruct(Q8_0)의 숨은 손실(같은 가중치의 fp64 참값 대비 KL)이 llama.cpp 의
   1/615(평가글 461 토큰) · 1/385(wikitext-2 148,920 토큰)다. 퍼플렉시티로 보면 글은 참값과 구별되지 않고(상대 −6.6 × 10⁻⁶), llama.cpp 는
   0.34% 높다 — 가중치를 Q8_0 으로 줄인 손실(0.24%)과 같은 급이라 체감할 만큼은 아니다([20단계](문서/20단계.md)). 7B · 14B 는 실제 엔진의
@@ -45,7 +45,7 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 | 서버 | `빌드/글/서버.exe 모델.gguf` — 글(geul) 언어 프로그램(28단계). OpenAI 꼴 HTTP API(채팅 · completions · SSE 흘려보내기), 슬롯 · 연속 배치 · 프롬프트 캐시, 뽑기 계약(씨앗이 같으면 같은 토큰). 같은 요청은 함께 도는 요청과 상관없이 같은 비트다 — 네 모델 × 요청 열둘 × 차례 넷에서 다른 것 0 (llama-server 는 함께 돈 요청에 따라 12 경우 중 11 에서 탐욕 답이 바뀌었다). 머리 128 의 Qwen2(7B · 14B). 7B Q4_0 합 처리량은 넷 스트림 302 · 여덟 508 토큰/초(llama-server 360 · 632 — 행 여럿 줄 판이 다음 일), 한 스트림은 llama-server 보다 4 % 짧다([28단계](문서/28단계.md)). 캐시를 쓴 첫 토큰은 13.8 ms(llama-server 13.0 ms — 30단계부터 남은 행을 생성 걸음으로, [30단계](문서/30단계.md)) |
 | 실행 환경 | Windows 또는 Linux x86-64(glibc) + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 리눅스는 29단계에 WSL2 Ubuntu 24.04 에서 시험했다 — 같은 GPU 에서 윈도와 같은 비트, 속도는 0.5 % 안팎([29단계](문서/29단계.md)). 실행기는 글 실행 파일 하나 + nvcuda.dll(리눅스는 libc.so.6 · libcuda.so.1) — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy. **Vulkan(31단계)**: 글 호스트의 Vulkan 판(`시험_엔진V` · `시험_7BV` · `재기_7BV` — 가져오는 것은 kernel32 · shell32 · vulkan-1.dll, 커널은 글 컴파일러의 SPIR-V 뒷단)이 NVIDIA(0.5B · 7B 다섯 형식 · 14B)와 Intel 내장 그래픽(0.5B)에서 CUDA 의 기록과 바이트까지 같은 출력을 낸다. 속도는 아직 못 미친다 — 34단계에서 텐서곱의 흉내를 협력 행렬로 바꾸고(`--협력` 모듈) 뒷단 · Vulkan 층을 고쳐, 7B 가 llama.cpp Vulkan 대비 프롬프트 1.15 ~ 1.41배(31단계 4.4 ~ 6.1배), 생성 1.00 ~ 1.04배(31단계 1.09 ~ 1.24배)다 — 기록이고 아직 판정은 아니다. 실행기 · 서버의 Vulkan 판은 아직 |
 | 층 나누기 | 25단계 — 한 GPU 에 들지 않는 모델을 층으로 나눠 여러 GPU 에(`--나누기 P` · `--장치 a,b,…` · `--예산 GB`). 이 PC 에는 GPU 가 한 장이라 한 장 안의 여러 쿠다 문맥으로 흉내 냈다: 나눠 돌린 길 16 개가 한 조각과 바이트까지 같고, 7B 두 조각의 생성은 한 조각의 1.025 ~ 1.029 배(조각마다 문맥 — 그 차이의 대부분은 한 GPU 에서 문맥을 오가는 흉내의 값) · 1.002 ~ 1.003 배(문맥 하나). 14B 두 조각은 12 GB 한 장에 문맥 8192 로 들지 않아 그 칸을 재지 못했다 — 판정 25c 는 통과하지 못함([25단계](문서/25단계.md)) |
-| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 네이티브 리눅스(실제 리눅스 컴퓨터)에서의 GPU 실행(WSL2 에서만 시험), AMD · 애플 GPU 에서의 실행과 재현(NVIDIA 는 세 세대에서 비트까지 같다 — [교차검증](교차검증/), Intel 내장 그래픽은 Vulkan 으로 0.5B 가 같다 — [31단계](문서/31단계.md)), 서버의 logprobs · tools · 벌점 · 인증 |
+| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 네이티브 리눅스(실제 리눅스 컴퓨터)에서의 GPU 실행(WSL2 에서만 시험), 애플 GPU 에서의 실행과 재현(NVIDIA 세 세대와 AMD RX 9060 XT 가 비트까지 같다 — [교차검증](교차검증/), Intel 내장 그래픽은 Vulkan 으로 0.5B 가 같다 — [31단계](문서/31단계.md)), AMD 에서의 속도(RX 9060 XT 의 R1 생성이 RTX 4070 Ti 의 3 배 남짓 — 어텐션이 느리다), 서버의 logprobs · tools · 벌점 · 인증 |
 
 지금은 34단계 — Vulkan 의 속도다. 텐서곱의 흉내를 협력 행렬(텐서 코어)로 바꾸고(타일 판 · 어텐션 · 생성 줄 판), SPIR-V 뒷단의
 나눗셈 · 비정규수 버림(이미 버린 값은 다시 버리지 않음) · Vulkan 층의 장벽 · 타일 판의 올리기를 고쳤다. 값은 CPU 와 비트까지 · CUDA 의 기록과 바이트까지 같다. 같은 때 번갈아 재면
@@ -243,7 +243,7 @@ reads in decode but shows in compute-bound prompts (7B Q4_0 takes 1.06-1.29x the
 GPT-2 wins come from kernel engineering (fusion, a decode megakernel), not from the contract being free. Whether determinism itself costs
 work at equal optimization has not been measured separately (a one-digit contract and an on/off ablation are deferred); stage 31 takes GeulPU to AMD GPUs through Vulkan. Not yet: real multi-GPU runs, measuring
 the contract's loss with the real engine on 7B+ weights (done for 0.5B), Q2_K/Q3_K/IQ/Q5_0, MoE, sampling (greedy only), server features,
-a GPU run on native Linux (Linux is tested under WSL2: same bits as Windows, stage 29), and running on non-NVIDIA GPUs (three NVIDIA generations — RTX 3080 Ti, 4070 Ti, 5070 — match bit for bit, including every step's logits; 교차검증/).
+a GPU run on native Linux (Linux is tested under WSL2: same bits as Windows, stage 29), Apple GPUs and AMD speed (three NVIDIA generations — RTX 3080 Ti, 4070 Ti, 5070 — and an AMD Radeon RX 9060 XT through Vulkan match bit for bit, including every step's logits; 교차검증/).
 Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md; English: [docs/research-log.md](docs/research-log.md));
 run scripts are in 공식실행/. Full English README: [README.en.md](README.en.md); contract, reproduction guide, glossary and a brief for
 reviewers: [docs/](docs/).

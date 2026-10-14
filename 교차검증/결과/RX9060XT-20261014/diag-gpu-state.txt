@@ -1,0 +1,8 @@
+어댑터 00011196: 전용 0 MiB · 공유 0 MiB
+어댑터 0000E2B4: 전용 1,295 MiB · 공유 226 MiB
+프로그램 claude (pid 22008): 전용 110 MiB
+프로그램 Discord (pid 13528): 전용 186 MiB
+프로그램 wallpaper64 (pid 18480): 전용 605 MiB
+프로그램 Discord (pid 11360): 전용 267 MiB
+프로그램 explorer (pid 7308): 전용 118 MiB
+프로그램 dwm (pid 1776): 전용 1,458 MiB
