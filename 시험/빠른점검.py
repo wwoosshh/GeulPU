@@ -5,11 +5,12 @@
   2. 계약의 CPU 참조 자체 시험(시험/계약자체.py)
   3. 판(타일 모양) 표가 생성기 · 호스트 · 시험에서 같은가
   4. 글(geul) 언어 프로그램이 빌드되는가 — 커널 생성기와 호스트 프로그램 모두(글 컴파일러)
-  5. 모듈(커널 소스 · PTX)을 처음부터 만들어 시험/모듈해시.txt 와 바이트까지 견준다 — 바꾸려면 --해시갱신
+  5. 모듈(커널 소스 · PTX · SPIR-V 묶음)을 처음부터 만들어 시험/모듈해시.txt 와 바이트까지 견준다 — 바꾸려면 --해시갱신
+     (31단계 — SPIR-V 는 글 저장소의 자체SPIRV 뒷단으로. GPU 없이 만들 수 있어 PTX 와 같이 CI 에서 본다)
   6. 실행기가 가져오는 DLL 이 kernel32 · shell32 · nvcuda 뿐인가(18단계 · 22단계의 조건) — 리눅스에서는 libc.so.6 · libcuda.so.1 뿐인가(29단계)
 
   python -X utf8 시험/빠른점검.py [--글 <글 저장소 — 기본 ../geul-lang-v2>] [--병렬 N] [--출력 <폴더 — 기본 빌드/점검>] [--해시갱신] [--계약없이]
-글 저장소에는 build/self_컴파일러.exe 와 build/자체PTX.exe(리눅스에서는 확장자 없는 build/self_컴파일러 · build/자체PTX)가 있어야 한다
+글 저장소에는 build/self_컴파일러.exe · build/자체PTX.exe · build/자체SPIRV.exe(리눅스에서는 확장자 없이)가 있어야 한다
 (README 의 빠른 시작 2). 리눅스(29단계 — 글 D-50)에서는 같은 프로그램을 ELF 로 빌드하고, 모듈은 윈도와 같은 시험/모듈해시.txt 와 견준다.
 마지막 줄 "빠른 점검: 모두 통과"(종료 0) 또는 "못 미침 …"(종료 1).
 """
@@ -210,50 +211,60 @@ def 모듈표읽기():
     줄들 = []
     for 줄 in open(os.path.join(ROOT, "시험", "모듈해시.txt"), encoding="utf-8"):
         if 줄.strip() and not 줄.startswith("#"):
-            이름, 인자, gl, ptx = [x.strip() for x in 줄.split("|")]
-            줄들.append((이름, 인자.split(), gl, ptx))
+            칸 = [x.strip() for x in 줄.split("|")]
+            이름, 인자, gl, ptx = 칸[:4]
+            줄들.append((이름, 인자.split(), gl, ptx, 칸[4] if len(칸) > 4 else ""))
     return 줄들
 
 
 def 모듈(글, 출력, 병렬, 갱신):
     생성기 = os.path.join(출력, "커널생성" + EXE)
     뒷단 = os.path.join(글, "build", "자체PTX" + EXE)
+    뒷단V = os.path.join(글, "build", "자체SPIRV" + EXE)
     표 = 모듈표읽기()
 
     def 하나(항목):
-        이름, 인자, _, _ = 항목
+        이름, 인자 = 항목[0], 항목[1]
         gl = os.path.join(출력, 이름 + ".gl")
         ptx = os.path.join(출력, 이름 + ".ptx")
-        for x in (gl, ptx):
+        spvs = os.path.join(출력, 이름 + ".spvs")
+        for x in (gl, ptx, spvs):
             if os.path.exists(x):
                 os.remove(x)
         t0 = time.time()
-        rc, 꼬리 = 돌리기([생성기] + 인자 + [gl], os.path.join(출력, f"생성_{이름}.txt"))
+        # 깃발(--공유32 같은 것)은 출력 경로 뒤에 — 커널생성의 인자 차례
+        자리 = [x for x in 인자 if not x.startswith("--")]
+        깃발 = [x for x in 인자 if x.startswith("--")]
+        rc, 꼬리 = 돌리기([생성기] + 자리 + [gl] + 깃발, os.path.join(출력, f"생성_{이름}.txt"))
         if rc != 0 or not os.path.exists(gl):
-            return 이름, None, None, f"생성 실패: {꼬리}", 0.0
+            return 이름, None, None, None, f"생성 실패: {꼬리}", 0.0
         rc, 꼬리 = 돌리기([뒷단, gl, "-o", ptx], os.path.join(출력, f"PTX_{이름}.txt"))
         if rc != 0 or not os.path.exists(ptx):
-            return 이름, 해시(gl), None, f"PTX 실패(종료 {rc}): {꼬리[-300:]}", time.time() - t0
-        return 이름, 해시(gl), 해시(ptx), "", time.time() - t0
+            return 이름, 해시(gl), None, None, f"PTX 실패(종료 {rc}): {꼬리[-300:]}", time.time() - t0
+        rc, 꼬리 = 돌리기([뒷단V, gl, "-o", spvs], os.path.join(출력, f"SPIRV_{이름}.txt"))
+        if rc != 0 or not os.path.exists(spvs):
+            return 이름, 해시(gl), 해시(ptx), None, f"SPIR-V 실패(종료 {rc}): {꼬리[-300:]}", time.time() - t0
+        return 이름, 해시(gl), 해시(ptx), 해시(spvs), "", time.time() - t0
     with ThreadPoolExecutor(병렬) as ex:
         결과 = list(ex.map(하나, 표))
     새줄 = []
-    for (이름, 인자, 옛gl, 옛ptx), (_, gl, ptx, 오류, 초) in zip(표, 결과):
-        새줄.append(f"{이름} | {' '.join(인자)} | {gl or '?'} | {ptx or '?'}")
+    for (이름, 인자, 옛gl, 옛ptx, 옛spv), (_, gl, ptx, spv, 오류, 초) in zip(표, 결과):
+        새줄.append(f"{이름} | {' '.join(인자)} | {gl or '?'} | {ptx or '?'} | {spv or '?'}")
         if 오류:
             알림(f"모듈 {이름}", False, 오류)
         elif 갱신:
             알림(f"모듈 {이름}", True, f"해시를 새로 적음 ({초:.0f} 초)")
         else:
-            같음 = gl == 옛gl and ptx == 옛ptx
-            덧 = f"소스 {'같음' if gl == 옛gl else '다름'} · PTX {'같음' if ptx == 옛ptx else '다름'} ({초:.0f} 초)"
+            같음 = gl == 옛gl and ptx == 옛ptx and spv == 옛spv
+            덧 = (f"소스 {'같음' if gl == 옛gl else '다름'} · PTX {'같음' if ptx == 옛ptx else '다름'} · "
+                 f"SPIR-V {'같음' if spv == 옛spv else '다름'} ({초:.0f} 초)")
             if not 같음:
-                덧 += f" — 새 해시 {gl} | {ptx} (일부러 바꿨다면 --해시갱신)"
+                덧 += f" — 새 해시 {gl} | {ptx} | {spv} (일부러 바꿨다면 --해시갱신)"
             알림(f"모듈 {이름}", 같음, 덧)
     머리 = [줄 for 줄 in open(os.path.join(ROOT, "시험", "모듈해시.txt"), encoding="utf-8") if 줄.startswith("#")]
     내용 = "".join(머리) + "\n".join(새줄) + "\n"
     open(os.path.join(출력, "모듈해시.txt"), "w", encoding="utf-8", newline="\n").write(내용)
-    if 갱신 and all(not r[3] for r in 결과):
+    if 갱신 and all(not r[4] for r in 결과):
         open(os.path.join(ROOT, "시험", "모듈해시.txt"), "w", encoding="utf-8", newline="\n").write(내용)
         print("시험/모듈해시.txt 를 새 해시로 고쳤다", flush=True)
 
@@ -377,7 +388,7 @@ def main():
     else:
         계약자체(출력)
     판표()
-    도구 = [os.path.join(글, "build", x + EXE) for x in ("self_컴파일러", "자체PTX")]
+    도구 = [os.path.join(글, "build", x + EXE) for x in ("self_컴파일러", "자체PTX", "자체SPIRV")]
     없는것 = [x for x in 도구 if not os.path.exists(x)]
     if 없는것:
         알림("글 도구", False, f"없다: {없는것} — README 의 빠른 시작 2")

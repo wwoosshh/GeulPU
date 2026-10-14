@@ -74,7 +74,8 @@ cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` �
 ## 빠른 시작
 
 1. **준비물**: Windows 또는 Linux x86-64(glibc — 리눅스는 아래 7), NVIDIA 드라이버(Ampere 이상). 채팅만 하려면 이것과 글 컴파일러로 충분하다. 시험 · 재기 · GPT-2 는 Python 3.12 와
-   `pip install numpy` 가 더 든다(시험의 일부와 재기는 `torch`, 견주기는 llama.cpp 의 Windows CUDA 공식 배포본을 `도구/llama-b<번호>/` 에 —
+   `pip install numpy` 가 더 든다(`torch` 는 숨은 손실의 참값 — `시험/참값.py` · `퍼플렉시티20.py` — 과 GPT-2 시절의 견주기 — `재기/엔진들.py` ·
+   `토치gpt2.py` — 에만 든다. 지금의 시험 · 재기(글 프로그램)는 numpy 면 된다. 견주기는 llama.cpp 의 Windows 공식 배포본(CUDA · Vulkan)을 `도구/llama-b<번호>/` 에 —
    단계마다 쓴 번호는 그 단계의 문서와 공식 실행 스크립트에).
 2. **글 컴파일러와 PTX 뒷단**: 글 저장소의 `research/gpu` 가지를 이 저장소 옆 `../geul-lang-v2` 에 받는다(PTX 뒷단의 소스). 컴파일러는 둘 중
    하나를 쓴다.
