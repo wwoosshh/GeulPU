@@ -6,7 +6,9 @@
 #        → SPIR-V 묶음 — 단계마다 기준 PC 의 해시와 대조)  3. 모델 받기(8.1 GB)  4. 생성 — 협력 행렬 모듈(장치에 있으면)과 기본 모듈로
 #        한 번씩  5. 기준 PC 의 출력과 비교  6. 자기 진단  7. result-V-….zip
 #   진단만: diagV.bat (-DiagOnly) — 빌드 · 모델 확인 뒤 생성은 건너뛰고 자기 진단만.
-param([switch]$BuildOnly, [switch]$DiagOnly, [string]$GeulC = '', [string]$Device = '', [string]$Modules = 'both')
+#   속도만: speedV.bat (-SpeedOnly, 35단계) — 빌드 · 모델 확인 뒤 자기 진단을 지금 판 · 34단계(34m) 판으로 번갈아(협력 모듈 두 바퀴,
+#     기본 모듈 한 바퀴) 재어 판마다의 시간과 비를 적는다(공유32 장치 — 보통 장치는 지금 판만).
+param([switch]$BuildOnly, [switch]$DiagOnly, [switch]$SpeedOnly, [string]$GeulC = '', [string]$Device = '', [string]$Modules = 'both')
 # 시험용 인자: -BuildOnly(빌드까지만) · -GeulC <geulc.exe>(첫 컴파일러를 받지 않고 이것으로) · -Device <Vulkan 장치 이름의 일부>(기본은
 #   엔진처럼 첫 외장 GPU) · -Modules both | coop | base(협력 행렬 모듈 · 기본 모듈 가운데 무엇으로 생성하나 — 기본 both)
 
@@ -258,6 +260,85 @@ function RunDiag([string]$modSpvs, [string]$diagSpvs) {
     Check '자기 진단' '통과' $line
 }
 
+# 35단계 — 속도만(-SpeedOnly): 자기 진단을 판마다(지금 · 34m) 번갈아 돌려 칸마다의 시간을 모은다. 칸: 한 줄 생성(문맥 1024), 여덟 줄(문맥
+# 2048 — 합 · 어텐션), 프롬프트 512 · 2048(합 · 어텐션), 슬롯 여덟의 생성 걸음(서버의 표 판 그래프 — 모든 후보로 고른 판, 50 걸음씩 세 번의
+# 가운데). 같은 판을 여러 바퀴 돌았으면 바퀴마다의 가운데 값을 쓴다
+function Median([double[]]$xs) {
+    $s = @($xs | Sort-Object)
+    if ($s.Count -eq 0) { return [double]::NaN }
+    if ($s.Count % 2 -eq 1) { return $s[($s.Count - 1) / 2] }
+    return ($s[$s.Count / 2 - 1] + $s[$s.Count / 2]) / 2.0
+}
+function SpeedRow($d) {
+    $k = $d.'커널'
+    $row = [ordered]@{}
+    $row['생성 문맥 1024'] = [double]$k.'생성 문맥 1024'.'합_ms'
+    $row['여덟 줄 문맥 2048'] = [double]$k.'여덟 줄 문맥 2048'.'합_ms'
+    $row['여덟 줄 — 어텐션'] = [double]$k.'여덟 줄 문맥 2048'.'종류'.'어텐션'.'ms'
+    $row['프롬프트 512'] = [double]$k.'프롬프트 512'.'합_ms'
+    $row['프롬프트 512 — 어텐션'] = [double]$k.'프롬프트 512'.'종류'.'어텐션'.'ms'
+    $row['프롬프트 2048'] = [double]$k.'프롬프트 2048'.'합_ms'
+    $row['프롬프트 2048 — 어텐션'] = [double]$k.'프롬프트 2048'.'종류'.'어텐션'.'ms'
+    if ($d.'번갈아_여덟슬롯') { $row['슬롯 여덟 걸음(그래프)'] = Median @($d.'번갈아_여덟슬롯'.'걸음_ms_32' | ForEach-Object { [double]$_ }) }
+    return $row
+}
+function RunSpeed($plan) {
+    # $plan: [label, 모듈, 진단 커널] 의 차례(번갈아). 결과: speed/<label>-<n>.json 과 속도.txt · 속도.json
+    $sd = Join-Path $script:Out 'speed'
+    New-Item -ItemType Directory -Path $sd -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:Out 'diag-gpu-state.txt'), ((GpuState) + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    $rows = @{}
+    $n = 0
+    foreach ($p in $plan) {
+        $n++
+        $label = $p[0]
+        Say ('속도 {0}/{1}: {2} (자기 진단, GPU 에 따라 1~6 분)...' -f $n, $plan.Count, $label)
+        $j = Join-Path $sd ('{0}-{1}.json' -f $label, $n)
+        $code = Tool $diagExe @($p[2], $j, $ModelPath, $p[1]) $Work ('speed-{0}-{1}' -f $label, $n)
+        if ($code -ne 0 -or -not (Test-Path -LiteralPath $j)) { Check ('속도 — ' + $label) '경고' ('실패 — logs 의 speed-{0}-{1}.log 를 보내 주세요' -f $label, $n); continue }
+        try { $r = SpeedRow (ReadJson $j) } catch { Check ('속도 — ' + $label) '경고' '진단 결과를 읽지 못했습니다'; continue }
+        if (-not $rows.ContainsKey($label)) { $rows[$label] = @() }
+        $rows[$label] += , $r
+    }
+    # 판마다 칸의 가운데 값
+    $out = [ordered]@{}
+    $labels = @()
+    foreach ($p in $plan) { if ($labels -notcontains $p[0]) { $labels += $p[0] } }
+    foreach ($label in $labels) {
+        if (-not $rows.ContainsKey($label)) { continue }
+        $m = [ordered]@{}
+        foreach ($key in $rows[$label][0].Keys) { $m[$key] = [Math]::Round((Median @($rows[$label] | ForEach-Object { $_[$key] })), 3) }
+        $m['바퀴'] = $rows[$label].Count
+        $out[$label] = $m
+    }
+    $EnvInfo.speed = $out
+    $out | ConvertTo-Json -Depth 5 | Out-File -FilePath (Join-Path $script:Out '속도.json') -Encoding UTF8
+    # 글 — 판마다 칸, 그리고 지금 ÷ 34m
+    $lines = @('칸(ms)' + (($labels | ForEach-Object { ' | ' + $_ }) -join ''))
+    $keys = @()
+    foreach ($label in $labels) { if ($out.Contains($label)) { $keys = @($out[$label].Keys | Where-Object { $_ -ne '바퀴' }); break } }
+    foreach ($key in $keys) {
+        $cells = @()
+        foreach ($label in $labels) { if ($out.Contains($label)) { $cells += ('{0:N2}' -f $out[$label][$key]) } else { $cells += '-' } }
+        $lines += ($key + ' | ' + ($cells -join ' | '))
+    }
+    $pairs = @(@('새협력', '옛협력'), @('새기본', '옛기본'))
+    foreach ($pr in $pairs) {
+        if ($out.Contains($pr[0]) -and $out.Contains($pr[1])) {
+            $lines += ''
+            $lines += ('{0} ÷ {1}:' -f $pr[0], $pr[1])
+            foreach ($key in $keys) { $lines += ('  {0} {1:N3}' -f $key, ($out[$pr[0]][$key] / $out[$pr[1]][$key])) }
+        }
+    }
+    [IO.File]::WriteAllText((Join-Path $script:Out '속도.txt'), (($lines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    foreach ($l in $lines) { Write-Host $l }
+    if ($out.Contains('새협력') -and $out.Contains('옛협력')) {
+        $a = $out['새협력']; $b = $out['옛협력']
+        Check '속도 — 협력 모듈' '정보' ('슬롯 여덟 걸음 {0:N1} → {1:N1} ms · 여덟 줄 {2:N1} → {3:N1} ms · 프롬프트 2048 {4:N0} → {5:N0} ms (34m → 지금)' -f `
+            $b['슬롯 여덟 걸음(그래프)'], $a['슬롯 여덟 걸음(그래프)'], $b['여덟 줄 문맥 2048'], $a['여덟 줄 문맥 2048'], $b['프롬프트 2048'], $a['프롬프트 2048'])
+    }
+}
+
 $failed = @($Checks | Where-Object { $_.state -eq '실패' }).Count
 if ($failed -gt 0) {
     Finish ('환경 검사에서 실패 {0} 건 — 위 내용을 확인해 주세요.' -f $failed) 'Red'
@@ -485,6 +566,31 @@ if ($useCoop) {
     if ($wantCoopSpv) { $wantCoop = $wantCoopSpv.$Shape }
     [void](BuildCheck ('7B 협력 모듈 SPIR-V (' + $vName + $Shape + ')') $coopSpvs $wantCoop)
 }
+# 35단계 — 속도만(-SpeedOnly)이고 공유32 장치이면 34단계(34m)의 공유32 모듈도(생성기 --35없이 — 34m 과 바이트까지 같다) 만들어 번갈아 잰다
+$baseSpvsOld = $null
+$coopSpvsOld = $null
+if ($SpeedOnly -and $Variant -eq '공유32') {
+    $oldGl = Join-Path $Work 'qwen2Q8_7b_32_34m.gl'
+    $code = Tool $gen @('qwen2Q8_7b', $oldGl, '--공유32', '--35없이') $Root 'generate-module-34m'
+    if ($code -ne 0) { Fail '34m 모듈 소스 생성 실패.' }
+    [void](BuildCheck '7B 모듈 소스 (공유32 · 34m)' $oldGl $wantV.module_source_32_34m)
+    $baseSpvsOld = Join-Path $Work 'q8_7b_32_34m.spvs'
+    $code = Tool $spvBackend @($oldGl, '-o', $baseSpvsOld) $Root 'build-module-spirv-34m'
+    if ($code -ne 0) { Fail '34m 모듈 SPIR-V 빌드 실패.' }
+    [void](BuildCheck '7B 모듈 SPIR-V (공유32 · 34m)' $baseSpvsOld $wantV.module_spvs_32_34m)
+    if ($useCoop) {
+        $oldCoopGl = Join-Path $Work 'qwen2Q8_7b_coop_32_34m.gl'
+        $code = Tool $gen @('qwen2Q8_7b', $oldCoopGl, '--협력', '--공유32', '--35없이') $Root 'generate-module-coop-34m'
+        if ($code -ne 0) { Fail '34m 협력 모듈 소스 생성 실패.' }
+        [void](BuildCheck '7B 협력 모듈 소스 (공유32 · 34m)' $oldCoopGl $wantV.module_source_coop_32_34m)
+        $coopSpvsOld = Join-Path $Work ('q8_7b_coop_32_34m_' + $Shape + '.spvs')
+        $code = Tool $spvBackend @($oldCoopGl, '-o', $coopSpvsOld, '--협력', $Shape) $Root 'build-module-coop-spirv-34m'
+        if ($code -ne 0) { Fail '34m 협력 모듈 SPIR-V 빌드 실패.' }
+        $wantOld = $null
+        if ($wantV.module_spvs_coop_32_34m) { $wantOld = $wantV.module_spvs_coop_32_34m.$Shape }
+        [void](BuildCheck ('7B 협력 모듈 SPIR-V (공유32 · 34m · ' + $Shape + ')') $coopSpvsOld $wantOld)
+    }
+}
 
 # h. 자기 진단 도구 — 진단 커널(SPIR-V: 협력 행렬이 있으면 커널/진단협력.gl, 없으면 커널/진단V.gl) · 진단 프로그램(호스트/진단V.gl)
 Say '자기 진단 도구를 빌드합니다...'
@@ -517,6 +623,27 @@ if ($len -ne $ModelSize) { Fail ('모델 파일 크기가 다릅니다 ({0} 바�
 Say '모델 파일 확인 중 (SHA-256, 1~2 분)...'
 if ((FileSha $ModelPath) -ne $ModelSha) { Fail '모델 파일의 SHA-256 이 다릅니다. 파일을 지우고 다시 실행해 주세요.' }
 Say '모델 확인 완료.'
+
+if ($SpeedOnly) {
+    # 판마다 번갈아: 협력 모듈은 지금 · 34m · 34m · 지금(두 바퀴), 기본 모듈은 지금 · 34m(한 바퀴). 보통 장치는 지금 판만
+    $plan = @()
+    $ab = ($Variant -eq '공유32')
+    if ($useCoop) {
+        $plan += , @('새협력', $coopSpvs, $diagSpvsCoop)
+        if ($ab) {
+            $plan += , @('옛협력', $coopSpvsOld, $diagSpvsCoop)
+            $plan += , @('옛협력', $coopSpvsOld, $diagSpvsCoop)
+            $plan += , @('새협력', $coopSpvs, $diagSpvsCoop)
+        }
+    }
+    if ($useBase) {
+        $plan += , @('새기본', $baseSpvs, $diagSpvsBase)
+        if ($ab) { $plan += , @('옛기본', $baseSpvsOld, $diagSpvsBase) }
+    }
+    RunSpeed $plan
+    Finish '속도를 쟀습니다 (-SpeedOnly — 생성은 건너뜀). 속도.txt 에 판마다의 시간과 비가 있습니다.' 'Green'
+    exit 0
+}
 
 if ($DiagOnly) {
     if ($useCoop) { RunDiag $coopSpvs $diagSpvsCoop } else { RunDiag $baseSpvs $diagSpvsBase }
