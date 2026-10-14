@@ -191,6 +191,8 @@ def 빌드(글, 출력, 병렬):
     컴파일러 = os.path.join(글, "build", "self_컴파일러" + EXE)
     환경 = dict(os.environ, GEUL_ROOT=글)
     일들 = [("커널생성", os.path.join(ROOT, "커널", "커널생성.gl"))] + [(p, os.path.join(ROOT, "호스트", p + ".gl")) for p in 호스트프로그램들()]
+    if not 리눅스:
+        일들.append(("GeulPU", os.path.join(ROOT, "앱", "관리자.gl")))      # 36단계 — 앱의 관리자(윈도만: WinHTTP · CNG · 셸)
 
     def 하나(일):
         이름, 소스 = 일
@@ -363,6 +365,15 @@ def 가져오기검사(출력):
         return
     dll2 = sorted({d.lower() for d, _ in 가져오기표.가져오기(서버)})
     알림("서버의 가져오기 표", set(dll2) <= 허용서버, f"{dll2}")
+    if not 리눅스:
+        # 36단계 — 앱의 관리자는 윈도의 DLL 만(GPU DLL 은 관리자가 띄우는 서버 · 도구만)
+        허용앱 = {"kernel32.dll", "shell32.dll", "ws2_32.dll", "advapi32.dll", "bcrypt.dll", "winhttp.dll"}
+        앱 = os.path.join(출력, "GeulPU" + EXE)
+        if not os.path.exists(앱):
+            알림("앱 관리자의 가져오기 표", False, "GeulPU.exe 가 없다(빌드 실패)")
+            return
+        dll3 = sorted({d.lower() for d, _ in 가져오기표.가져오기(앱)})
+        알림("앱 관리자의 가져오기 표", set(dll3) <= 허용앱, f"{dll3}")
 
 
 def main():

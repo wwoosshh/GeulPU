@@ -54,8 +54,9 @@ def open_result(src):
     return dest
 
 
-def compare_dir(w, resp_dir, exp, reqs, lhref, script_same):
-    """응답 폴더 하나(NN.json 32 개)를 기준과 견주어 줄을 쓰고, 판정에 쓸 값을 돌려준다."""
+def compare_dir(w, resp_dir, exp, reqs, lhref, script_same, quick=False):
+    """응답 폴더 하나(NN.json 32 개)를 기준과 견주어 줄을 쓰고, 판정에 쓸 값을 돌려준다.
+    quick(36단계 — 앱의 줄인 판: 문제 둘 · 토큰 64) 이면 있는 응답만, 글 · 토큰 · 로짓 해시가 기준의 앞부분과 같은지 본다."""
     same_n = ans_same = acc_f = acc_r = steps_ok = lh_same = 0
     steps_total = 0
     lh_diffs = []
@@ -64,7 +65,8 @@ def compare_dir(w, resp_dir, exp, reqs, lhref, script_same):
         i = it["id"]
         f = os.path.join(resp_dir, "%02d.json" % i)
         if not os.path.exists(f):
-            missing.append(i)
+            if not quick:
+                missing.append(i)
             continue
         r = load(f)
         text = r["choices"][0]["text"]
@@ -75,6 +77,8 @@ def compare_dir(w, resp_dir, exp, reqs, lhref, script_same):
             steps_ok += 1
         if lhref and toks is not None and lh is not None:
             rt, rl = lhref[i]["tokens"], lhref[i]["logit_hashes"]
+            if quick:
+                rt, rl = rt[:len(toks)], rl[:len(lh)]
             if toks == rt and lh == rl:
                 lh_same += 1
                 steps_total += len(lh)
@@ -85,12 +89,15 @@ def compare_dir(w, resp_dir, exp, reqs, lhref, script_same):
         acc_f += xf == truth
         acc_r += xr == truth
         ans_same += xf == xr
-        if text == it["text"]:
+        if text == it["text"] or (quick and text and it["text"].startswith(text)):
             same_n += 1
         else:
             k = next((q for q in range(min(len(text), len(it["text"]))) if text[q] != it["text"][q]), min(len(text), len(it["text"])))
             diffs.append((i, k, n, it["n"], repr(it["text"][max(0, k - 40):k + 40]), repr(text[max(0, k - 40):k + 40])))
     total = len(exp["items"])
+    if quick:
+        total = sum(1 for it in exp["items"] if os.path.exists(os.path.join(resp_dir, "%02d.json" % it["id"])))
+        w(f"- 줄인 판: 응답 {total} 개 — 글 · 토큰 · 로짓 해시를 기준의 앞부분과 견줌")
     w(f"- 출력 글이 기준과 같은 문제: **{same_n} / {total}**" + (f" (응답 없음 {missing})" if missing else ""))
     w(f"- 최종 답이 같은 문제: {ans_same} / {total - len(missing)} · 정답 수 친구 {acc_f} · 기준 {acc_r}")
     w(f"- 걸음마다의 로짓 해시가 생성 토큰 수만큼 있는 문제: {steps_ok} / {total - len(missing)}")
@@ -112,8 +119,12 @@ def compare_dir(w, resp_dir, exp, reqs, lhref, script_same):
     return {"same": same_n, "total": total, "missing": missing, "lh_same": lh_same, "steps": steps_total}
 
 
-def verdict_of(c, lhref, build_ok, has_build):
+def verdict_of(c, lhref, build_ok, has_build, quick=False):
     total = c["total"]
+    if quick:
+        ok = c["same"] == total and total > 0 and (not lhref or c["lh_same"] == total)
+        return (f"줄인 판 통과 — 응답 {total} 개의 글 · 토큰 · 걸음마다 로짓 해시가 기준의 앞부분과 같다 ({c['steps']:,} 걸음)" if ok
+                else f"줄인 판 못 미침 — {total - c['same']} 문제의 글이 다르다") + ("" if build_ok else " (빌드 해시 중 다른 것이 있다)")
     if c["missing"] or not has_build:
         return "판정 못 함 — 결과가 다 오지 않았다"
     if c["same"] == total:
@@ -147,6 +158,25 @@ def env_vulkan(w, env):
             w(f"  - 장치 경고: {x}")
 
 
+def app_build_names(env):
+    """36단계 — 앱(GeulPU.exe)의 결과: 빌드 열쇠가 expected.json 의 열쇠 그대로, 모듈은 <dir>_module_source · <dir>_module."""
+    cuda = env.get("gpu_layer") == "cuda"
+    v32 = "_32" if env.get("module_variant") == "공유32" and not cuda else ""
+    shape = env.get("coop_shape") or ""
+    names = {"generator": ("build", "generator"), "ptx_backend": ("build", "ptx_backend"), "server_r1": ("build", "server_r1"),
+             "spirv_backend": ("build_vulkan", "spirv_backend"), "server_r1_vulkan": ("build_vulkan", "server_r1_vulkan")}
+    if cuda:
+        names["base_module_source"] = ("build", "module_source")
+        names["base_module"] = ("build", "module_ptx")
+    else:
+        names["base_module_source"] = ("build_vulkan", "module_source_32") if v32 else ("build", "module_source")
+        names["base_module"] = ("build_vulkan", "module_spvs" + v32)
+        if shape:
+            names["coop_module_source"] = ("build_vulkan", "module_source_coop" + v32)
+            names["coop_module"] = ("build_vulkan", "module_spvs_coop" + v32, shape)
+    return names
+
+
 def main():
     d = open_result(sys.argv[1])
     ref = sys.argv[2] if len(sys.argv) > 2 else REF
@@ -154,6 +184,12 @@ def main():
     reqs = {r["id"]: r for r in load(os.path.join(ref, "requests.json"))}
     env = load(os.path.join(d, "environment.json")) if os.path.exists(os.path.join(d, "environment.json")) else {}
     summ = load(os.path.join(d, "summary.json")) if os.path.exists(os.path.join(d, "summary.json")) else {}
+    app = (summ.get("environment") or {}).get("script", "").startswith("geulpu-app")
+    if app:
+        env = dict(summ.get("environment") or {}, **{k: v for k, v in env.items() if k not in ("os",)})
+        vk = os.path.join(d, "vulkan-devices.json")
+        if os.path.exists(vk):
+            env["vulkan"] = load(vk)
     vulkan = env.get("gpu_layer") == "vulkan" or "runs" in summ
     out = []
 
@@ -161,10 +197,18 @@ def main():
         print(s)
         out.append(s)
 
-    w("# 교차 검증 대조" + (" (Vulkan)" if vulkan else ""))
+    w("# 교차 검증 대조" + (" (Vulkan)" if env.get("gpu_layer") == "vulkan" else "") + (" — 앱(GeulPU.exe)의 결과" if app else ""))
     w()
     w("## 친구 PC 의 환경")
-    if vulkan:
+    if app:
+        a = env.get("app") or {}
+        w(f"- GeulPU 앱 {a.get('version')} (커밋 {(a.get('commit') or '개발 빌드')[:12]}) · GPU 층 {env.get('gpu_layer')} · "
+          f"{'줄인 판(문제 둘 · 토큰 64)' if env.get('quick') else '전체'}")
+        w(f"- GPU {env.get('gpu')} · {env.get('gpu_vendor')} · 드라이버 {env.get('driver')} · 메모리 {env.get('gpu_memory')} · "
+          f"모듈 판 {env.get('module_variant')} · 협력 {env.get('coop_shape') or '없음'}")
+        if env.get("vulkan"):
+            env_vulkan(w, env)
+    elif vulkan:
         env_vulkan(w, env)
     else:
         for g in env.get("gpus") or []:
@@ -173,11 +217,14 @@ def main():
               f"{g.get('pcie.link.gen.max')}x{g.get('pcie.link.width.max')}")
     o = env.get("os") or {}
     cpu = env.get("cpu") or {}
+    if isinstance(cpu, str):                                  # 앱의 결과 — CPU 이름 글
+        cpu = {"name": cpu}
     if not vulkan:
         w(f"- CUDA {env.get('cuda_driver_version')} · nvcuda.dll {env.get('nvcuda_dll')}")
     w(f"- {o.get('caption')} {o.get('display_version')} (빌드 {o.get('build')}) · {cpu.get('name')} · RAM {env.get('ram_gb')} GB")
-    w(f"- 하드웨어 가속 GPU 일정 {env.get('hardware_gpu_scheduling')} · 전원 계획 {env.get('power_plan')} · GeulPU 커밋 "
-      f"{(env.get('geulpu_commit') or '')[:12]} · 글 커밋 {(env.get('geul_commit') or '')[:12]}")
+    if not app:
+        w(f"- 하드웨어 가속 GPU 일정 {env.get('hardware_gpu_scheduling')} · 전원 계획 {env.get('power_plan')} · GeulPU 커밋 "
+          f"{(env.get('geulpu_commit') or '')[:12]} · 글 커밋 {(env.get('geul_commit') or '')[:12]}")
     ref_env = exp.get("reference", {})
     w(f"- 기준 PC: {ref_env.get('gpu')} · 드라이버 {ref_env.get('driver')}")
     bad = [c for c in env.get("checks") or [] if c.get("state") in ("경고", "실패")]
@@ -193,7 +240,23 @@ def main():
     if not build:
         w("- 빌드 기록 없음")
         build_ok = False
-    if vulkan:
+    if app:
+        for name, key in app_build_names(env).items():
+            want = exp.get(key[0], {}).get(key[1])
+            if len(key) > 2 and isinstance(want, dict):
+                want = want.get(key[2])
+            if name in build:
+                same = build[name] == want
+                build_ok &= same
+                w(f"- {name}: {'같음' if same else '다름'} ({build[name][:12]})")
+            elif name in ("ptx_backend", "server_r1") and env.get("gpu_layer") != "cuda":
+                continue
+            elif name in ("spirv_backend", "server_r1_vulkan") and env.get("gpu_layer") == "cuda":
+                continue
+            elif build:
+                w(f"- {name}: 기록 없음")
+                build_ok = False
+    elif vulkan:
         names = dict(BUILD_NAMES_V)
         shape = env.get("coop_shape") or ""
         if env.get("module_variant") == "공유32":          # 34단계 — 공유 메모리 32 KB 장치의 판(커널생성 --공유32)
@@ -246,8 +309,8 @@ def main():
             w(f"## 출력 — {run.get('label')} (응답 파일에서 다시 잼)")
             w(f"- 모듈 {run.get('spvs')} ({(run.get('spvs_sha256') or '')[:12]}) · 슬롯 {run.get('slots')} · 준비 {run.get('ready_seconds')} 초 · "
               f"생성 {run.get('generate_minutes')} 분" + (f" · 오류: {run.get('error')}" if run.get("error") else ""))
-            c = compare_dir(w, os.path.join(d, run.get("dir") or "", "responses"), exp, reqs, lhref, run.get("same"))
-            verdicts.append((run.get("label"), verdict_of(c, lhref, build_ok, bool(build))))
+            c = compare_dir(w, os.path.join(d, run.get("dir") or "", "responses"), exp, reqs, lhref, run.get("same"), bool(env.get("quick")))
+            verdicts.append((run.get("label"), verdict_of(c, lhref, build_ok, bool(build), bool(env.get("quick")))))
         w("## 판정")
         if not verdicts:
             w("- 판정 못 함 — 생성 기록이 없다")
