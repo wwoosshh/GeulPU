@@ -61,8 +61,13 @@ same GGUF file: r < 1 means GeulPU is faster.
 - Now **stage 34 — Vulkan speed**: the integer tensor op is emulated with subgroup shuffles and integer dot products; per-kernel timing
   showed the matrix products 4.6–10.9× and attention 7.2× slower than CUDA, everything else close. The SPIR-V backend gained
   cooperative-matrix instructions (16×16×32 integer products on tiles in shared memory, split per device shape — AMD's 16×16×16 too), and
-  `커널생성 --협력` emits tile kernels with the same names, parameters and epilogues that use them. Bit-exact (plate tests 0 differences,
-  five paths byte-identical to the CUDA records); the prompt's matrix products are 3.2× faster (still 2.6× CUDA). Attention is next.
+  `커널생성 --협력` emits tile kernels with the same names, parameters and epilogues that use them. Attention's three products and the
+  decode line kernels followed. On NVIDIA the "lane" kernels (`--레인 16x16`) read results straight from the cooperative-matrix
+  components instead of a shared-memory round trip; the component order is implementation-defined, so such modules carry a check
+  kernel that the engine runs at load and refuses on mismatch. Bit-exact throughout (plate tests 0 differences, head-128 attention 0,
+  five paths byte-identical to the CUDA records). 7B on Vulkan: prompts 1.30–1.34× the CUDA path (stage 31: 4.3–5.5×), decode
+  1.04–1.11× (stage 31: 1.09–1.27×) — a record, not yet the verdict. Tile kernels, attention, small kernels and the Vulkan layer's
+  per-step cost remain.
 - Stage 32 waits for the diagnosis and alternation runs on friends' PCs (32c, 32d).
 
 ## What remains (after stage 30)
