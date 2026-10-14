@@ -180,21 +180,36 @@ Check '그래픽 일정 · 전원' '정보' ('하드웨어 가속 GPU 일정 {0}
 $gitv = (Native @('git', '--version')) -join ' '
 $EnvInfo.git = $gitv
 if ($gitv) { Check 'git' '통과' $gitv } else { Check 'git' '실패' 'git 이 필요합니다 (https://git-scm.com)' }
-$EnvInfo.geulpu_commit = ((Native @('git', '-C', $Root, 'rev-parse', 'HEAD')) -join '')
-$dirty = @(Native @('git', '-C', $Root, 'status', '--porcelain', '--', '호스트', '커널', '교차검증/runV.ps1', '교차검증/expected.json', '교차검증/requests.json')).Count
+# git 의 폴더 소유권 검사(safe.directory)는 외장 · 네트워크 · 다른 사용자가 만든 폴더에서 git 을 막는다 — 이 스크립트가 받은 저장소와
+# 사용자가 받은 GeulPU 에만, 명령 하나마다 끈다
+$EnvInfo.geulpu_commit = ((Native @('git', '-c', 'safe.directory=*', '-C', $Root, 'rev-parse', 'HEAD')) -join '')
+$dirty = @(Native @('git', '-c', 'safe.directory=*', '-C', $Root, 'status', '--porcelain', '--', '호스트', '커널', '교차검증/runV.ps1', '교차검증/expected.json', '교차검증/requests.json')).Count
 $EnvInfo.geulpu_modified = ($dirty -gt 0)
-if ($dirty -gt 0) { Check 'GeulPU 저장소' '경고' ('커밋 {0} · 고친 파일이 있습니다 (빌드 해시가 다를 수 있음)' -f $EnvInfo.geulpu_commit) }
+if (-not $EnvInfo.geulpu_commit) { Check 'GeulPU 저장소' '경고' 'git 저장소가 아닙니다(zip 으로 받았나요?) — git clone 으로 받으면 커밋이 기록됩니다' }
+elseif ($dirty -gt 0) { Check 'GeulPU 저장소' '경고' ('커밋 {0} · 고친 파일이 있습니다 (빌드 해시가 다를 수 있음)' -f $EnvInfo.geulpu_commit) }
 else { Check 'GeulPU 저장소' '통과' ('커밋 {0}' -f $EnvInfo.geulpu_commit) }
 
-# 디스크 · 모델
+# 디스크 · 모델 — 폴더가 있는 드라이브의 종류(로컬 · 이동식 · 네트워크)와 파일 시스템도 적는다. 클라우드 · 가상 드라이브는 여유를 엉뚱하게 알린다
 $ModelPath = $null
 foreach ($c in @((Join-Path $Here $ModelName), (Join-Path $Work $ModelName))) { if (Test-Path -LiteralPath $c) { $ModelPath = $c; break } }
-$freeGB = [Math]::Round((Get-Item -LiteralPath $Here).PSDrive.Free / 1GB, 1)
+$freeGB = -1.0
+$EnvInfo.drive = $null
+try {
+    $di = New-Object System.IO.DriveInfo ([IO.Path]::GetPathRoot($Here))
+    $EnvInfo.drive = [ordered]@{ type = [string]$di.DriveType; format = [string]$di.DriveFormat }
+    $freeGB = [Math]::Round([double]$di.AvailableFreeSpace / 1GB, 1)
+} catch { }
+if ($freeGB -lt 0 -or $freeGB -gt 1000000) { $freeGB = -1.0 }
 $EnvInfo.disk_free_gb = $freeGB
 $EnvInfo.model_present = [bool]$ModelPath
-if ($ModelPath) { Check '디스크 · 모델' '통과' ('여유 {0} GB · 모델 파일 있음' -f $freeGB) }
-elseif ($BuildOnly -or $freeGB -ge 10) { Check '디스크 · 모델' '통과' ('여유 {0} GB · 모델을 받습니다 (8.1 GB)' -f $freeGB) }
-else { Check '디스크 · 모델' '실패' ('여유 {0} GB — 10 GB 이상이 필요합니다' -f $freeGB) }
+$freeText = '알 수 없음'
+if ($freeGB -ge 0) { $freeText = ('{0} GB' -f $freeGB) }
+if ($ModelPath) { Check '디스크 · 모델' '통과' ('여유 {0} · 모델 파일 있음' -f $freeText) }
+elseif ($BuildOnly -or $freeGB -ge 10 -or $freeGB -lt 0) { Check '디스크 · 모델' '통과' ('여유 {0} · 모델을 받습니다 (8.1 GB)' -f $freeText) }
+else { Check '디스크 · 모델' '실패' ('여유 {0} — 10 GB 이상이 필요합니다' -f $freeText) }
+if ($EnvInfo.drive -and ($EnvInfo.drive.type -ne 'Fixed' -or $freeGB -lt 0)) {
+    Check '폴더의 드라이브' '경고' ('{0} · {1} — 네트워크 · 클라우드 · 이동식 드라이브에서는 빌드 · git 이 실패할 수 있습니다. 로컬 디스크(예: C:\GeulPU)에서 실행해 주세요' -f $EnvInfo.drive.type, $EnvInfo.drive.format)
+}
 
 # ---- 결과 폴더(Vulkan 장치를 고른 뒤 그 이름을 붙인다) ----
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -204,8 +219,10 @@ New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 New-Item -ItemType Directory -Path $Work -Force | Out-Null
 
 function Finish([string]$headline, [string]$color) {
-    # 기록을 남기고(사용자 이름 · 폴더 경로는 지운다) zip 으로 묶는다
+    # 기록을 남기고(사용자 이름 · 폴더 경로는 지운다) zip 으로 묶는다. 끝맺는 글(성공 · 중단의 까닭)도 결과.txt 로
     $EnvInfo.checks = $Checks
+    $EnvInfo.result = $headline.Replace($Root, '<GeulPU>').Replace($env:USERPROFILE, '<home>')
+    [IO.File]::WriteAllText((Join-Path $script:Out '결과.txt'), ($EnvInfo.result + "`n"), (New-Object System.Text.UTF8Encoding($false)))
     $EnvInfo | ConvertTo-Json -Depth 8 | Out-File -FilePath (Join-Path $script:Out 'environment.json') -Encoding UTF8
     Get-ChildItem -LiteralPath $script:Out -Recurse -Filter *.log | ForEach-Object {
         $t = [IO.File]::ReadAllText($_.FullName)
@@ -286,15 +303,29 @@ else {
 # b. 글 저장소의 고정 커밋(GeulPU 의 시험/글저장소커밋.txt — CI 와 같다)
 $pin = ([IO.File]::ReadAllText((Join-Path $Root '시험\글저장소커밋.txt'))).Trim()
 $GeulDir = Join-Path $Work 'geul-lang'
-if (-not (Test-Path -LiteralPath (Join-Path $GeulDir '.git'))) {
-    Say '글 저장소를 받습니다 (약 35 MB)...'
-    & git clone --quiet $GeulRepo $GeulDir
-    if ($LASTEXITCODE -ne 0) { Fail '글 저장소를 받지 못했습니다 (git clone).' }
+# git 의 출력은 logs 의 git-*.log 로. 받다 만 저장소(끊긴 clone)는 지우고 한 번 더 받는다
+$gitExe = (Get-Command git -ErrorAction SilentlyContinue).Source
+function GitRun([string[]]$argv, [string]$name) { return (Tool $gitExe (@('-c', 'safe.directory=*') + $argv) $Work ('git-' + $name)) }
+function GeulRepoReady([string]$tag) {
+    if (-not (Test-Path -LiteralPath (Join-Path $GeulDir '.git'))) {
+        if (Test-Path -LiteralPath $GeulDir) { Remove-Item -LiteralPath $GeulDir -Recurse -Force -ErrorAction SilentlyContinue }
+        Say '글 저장소를 받습니다 (약 35 MB)...'
+        $c = GitRun @('clone', '--quiet', $GeulRepo, $GeulDir) ('clone' + $tag)
+        if ($c -ne 0) { return $false }
+    }
+    $c = GitRun @('-C', $GeulDir, '-c', 'advice.detachedHead=false', 'checkout', '--quiet', $pin) ('checkout' + $tag)
+    if ($c -ne 0) {
+        $null = GitRun @('-C', $GeulDir, 'fetch', '--quiet', 'origin') ('fetch' + $tag)
+        $null = GitRun @('-C', $GeulDir, '-c', 'advice.detachedHead=false', 'checkout', '--quiet', $pin) ('checkout-after-fetch' + $tag)
+    }
+    $h = ((Native @('git', '-c', 'safe.directory=*', '-C', $GeulDir, 'rev-parse', 'HEAD')) -join '')
+    return ($h -eq $pin)
 }
-& git -C $GeulDir -c advice.detachedHead=false checkout --quiet $pin
-if ($LASTEXITCODE -ne 0) { & git -C $GeulDir fetch --quiet origin; & git -C $GeulDir -c advice.detachedHead=false checkout --quiet $pin }
-$head2 = ((Native @('git', '-C', $GeulDir, 'rev-parse', 'HEAD')) -join '')
-if ($head2 -ne $pin) { Fail ('글 저장소를 고정 커밋 ' + $pin + ' 으로 맞추지 못했습니다.') }
+if (-not (GeulRepoReady '')) {
+    Say '글 저장소를 지우고 다시 받습니다...'
+    Remove-Item -LiteralPath $GeulDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not (GeulRepoReady '-2')) { Fail ('글 저장소(github.com/wwoosshh/geul-lang)를 고정 커밋 ' + $pin + ' 으로 받지 못했습니다 — logs 의 git-*.log 를 보내 주세요.') }
+}
 Check '글 저장소' '통과' ('고정 커밋 ' + $pin)
 $EnvInfo.geul_commit = $pin
 [Environment]::SetEnvironmentVariable('GEUL_ROOT', $GeulDir, 'Process')
