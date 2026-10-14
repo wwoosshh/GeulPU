@@ -100,7 +100,7 @@ def 서브그룹쓰는가(words):
     i = 5
     while i < len(words):
         n, op = words[i] >> 16, words[i] & 0xFFFF
-        if op == 17 and words[i + 1] in (61, 65):
+        if op == 17 and words[i + 1] in (61, 65, 6022):      # 셔플 · 협력 행렬(34단계)은 서브그룹 32 를 요구한다
             return True
         i += n
     return False
@@ -153,6 +153,13 @@ class 장치:
         struct.pack_into("<I", f2, 16 + 4 * 41, 1)       # shaderInt16
         self._keep = [fw, f13, f12, f11, f2]
         exts = [b"VK_KHR_workgroup_memory_explicit_layout"]
+        self.협력 = "VK_KHR_cooperative_matrix" in self.v.extensions(pd)     # 34단계 — 협력 행렬(있으면 켠다)
+        if self.협력:
+            cm = (C.c_ubyte * 24)()
+            struct.pack_into("<IxxxxQII", cm, 0, 1000506000, C.addressof(f13), 1, 0)   # COOPERATIVE_MATRIX_FEATURES: cooperativeMatrix
+            struct.pack_into("<Q", f12, 8, C.addressof(cm))
+            self._keep.append(cm)
+            exts.append(b"VK_KHR_cooperative_matrix")
         ea = (CP * len(exts))(*exts)
         dci = V.DeviceCI(3, C.addressof(f2), 0, 1, C.pointer(qci), 0, None, len(exts), C.cast(ea, VP), None)
         self.dev = VP()

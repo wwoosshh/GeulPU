@@ -36,9 +36,14 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
     with length because of the attention.
   - The 0.5B results (prompts of 128–8192 tokens at 0.55–0.82× llama.cpp's time, decoding at 0.63–0.65× with a generation megakernel)
     and GPT-2 XL (prompts at 0.78–0.87×) come from kernel engineering — fusion and a megakernel — not from the contract being free.
-  - The old motto's "it is not slower" was withdrawn in stage 30. Whether determinism itself, and bit-equality with the CPU reference, cost
-    work at equal optimization has not been measured separately yet (a one-digit activation contract and the same kernels with each
-    constraint switched on and off); that is stage 33, next. Stage 31 (Vulkan) is closed except the AMD check: the geul host runs on
+  - The old motto's "it is not slower" was withdrawn in stage 30. The price at equal optimization was measured on 2026-10-13 by switching
+    constraints off in the same engine (in a scratch folder; the raw data is not in this repository). Two activation digits → one in the
+    tile kernels: 7B Q4_0 prompts of 512 / 2048 / 8192 tokens took 1.38 / 1.35 / 1.26× (a lower bound: epilogues and the attention's q
+    keep two digits). Written exponent → approximate exponent: almost free. Decode: about 1.0× (weight reads dominate). Determinism alone
+    could not be isolated. Stage 33 (a formal re-measurement) was stopped for that reason.
+  - Now: stage 34, Vulkan speed — the emulated integer tensor op becomes cooperative-matrix tensor-core work. The first step (tile kernels)
+    is bit-exact (CPU reference, CUDA records byte for byte) and cut the prompt's matrix products 3.2×; attention is next
+    ([stage 34](문서/34단계.md), Korean). Stage 31 (Vulkan) is closed except the AMD check: the geul host runs on
     vulkan-1.dll alone and reproduces the CUDA records byte for byte on NVIDIA and on Intel integrated graphics, but its speed is not there
     yet (prompts 4.4–6.1×, decode 1.09–1.24× of llama.cpp's Vulkan backend). Stage 32 (self-tuning to the device's floor) waits for runs on
     friends' PCs. See the [research log](docs/research-log.md).

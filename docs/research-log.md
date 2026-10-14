@@ -55,10 +55,14 @@ same GGUF file: r < 1 means GeulPU is faster.
 - Vulkan speed (31i missed): prompts need the integer MMA mapped to cooperative matrices; decode first needs a lighter Vulkan layer (no
   barrier after every dispatch, fewer submissions, no re-recording of the decode graph). The measurement method changes too: one prompt per
   context, then many timed decode steps (the current method subtracts two runs that both contain the 8192-token prompt, which failed on Vulkan).
-- Next is **stage 33 — the price of the contract at equal optimization** (planned as stage 31 at the end of stage 30, then displaced by the
-  Vulkan work): a one-digit activation contract and the same kernels with each constraint (bit-equality with the CPU reference,
-  determinism) switched on and off. The user's survival criterion depends on this number (a price around 1.01 is fine, 1.2–1.3× is not
-  worth it), so it comes before further speed work on Vulkan or stage 32 (order agreed with the user on 2026-10-14).
+- Stage 33 (the price of the contract at equal optimization) was pre-registered and its one-digit variant built and verified, then stopped
+  before timing: the same price had already been measured on 2026-10-13 in the same engine (two digits → one: prompts 1.26–1.38×, a lower
+  bound; decode about 1.0×), and a price measured on an engine that has not reached its hardware floor says little.
+- Now **stage 34 — Vulkan speed**: the integer tensor op is emulated with subgroup shuffles and integer dot products; per-kernel timing
+  showed the matrix products 4.6–10.9× and attention 7.2× slower than CUDA, everything else close. The SPIR-V backend gained
+  cooperative-matrix instructions (16×16×32 integer products on tiles in shared memory, split per device shape — AMD's 16×16×16 too), and
+  `커널생성 --협력` emits tile kernels with the same names, parameters and epilogues that use them. Bit-exact (plate tests 0 differences,
+  five paths byte-identical to the CUDA records); the prompt's matrix products are 3.2× faster (still 2.6× CUDA). Attention is next.
 - Stage 32 waits for the diagnosis and alternation runs on friends' PCs (32c, 32d).
 
 ## What remains (after stage 30)
