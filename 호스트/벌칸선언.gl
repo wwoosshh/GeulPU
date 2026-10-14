@@ -9,6 +9,8 @@
 외부 "vulkan-1.dll" "vkGetPhysicalDeviceProperties2" [공허 참조 물리를 공허 참조 속성을 vkGetPhysicalDeviceProperties2]는 -> 중간정수.
 외부 "vulkan-1.dll" "vkGetPhysicalDeviceQueueFamilyProperties" [공허 참조 물리를 공허 참조 개수를 공허 참조 속성을 vkGetPhysicalDeviceQueueFamilyProperties]는 -> 중간정수.
 외부 "vulkan-1.dll" "vkGetPhysicalDeviceMemoryProperties" [공허 참조 물리를 공허 참조 속성을 vkGetPhysicalDeviceMemoryProperties]는 -> 중간정수.
+외부 "vulkan-1.dll" "vkGetPhysicalDeviceFeatures2" [공허 참조 물리를 공허 참조 기능을 vkGetPhysicalDeviceFeatures2]는 -> 중간정수.
+외부 "vulkan-1.dll" "vkGetInstanceProcAddr" [공허 참조 인스턴스를 문자열 이름을 vkGetInstanceProcAddr]는 -> 공허 참조.
 외부 "vulkan-1.dll" "vkCreateDevice" [공허 참조 물리를 공허 참조 만듦을 공허 참조 할당기를 공허 참조 장치를 vkCreateDevice]는 -> 중간정수.
 외부 "vulkan-1.dll" "vkEnumerateDeviceExtensionProperties" [공허 참조 물리를 공허 참조 층이름을 공허 참조 개수를 공허 참조 속성을 vkEnumerateDeviceExtensionProperties]는 -> 중간정수.
 외부 "vulkan-1.dll" "vkDestroyDevice" [공허 참조 장치를 공허 참조 할당기를 vkDestroyDevice]는 -> 중간정수.

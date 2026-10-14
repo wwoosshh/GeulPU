@@ -27,6 +27,18 @@
   "module_source": "f40b0b6fbdcc24acae53abbbe2b69505cf9072ae27eb3f25c35a1aadbe9faf3e",
   "module_ptx": "a5bb07bead6fe7dbae709ba6d535c50b178d125a31f7928a31d014dfb397fd53"
  },
+ "build_vulkan": {
+  "spirv_backend": "4e2dfc489cdb1b90c153c6d67c2cf96f4338230817d9c55168d9f16de6c291bb",
+  "server_r1_vulkan": "e1baec91995a454314e0292496265e5d597803f8897efadbb679edb21b86c340",
+  "module_spvs": "1a03032a9ece836bb2b11ee9169a24791bdf3aa360e9cad0373c3e036bf98c47",
+  "module_source_coop": "53f0ff2ce965073308890b59b35bf6c3061692dbaa71fa22ea46d76f0fd1a8a9",
+  "module_spvs_coop": {
+   "16x16x32": "ff32f2048964f4e444ccd30f4723955cc4a678fc16b14b16c8e4826f908cf8d8",
+   "16x8x32": "25f55ae772b3f9a5ef5ce2b7b5986dd6b00e60f9f7832d4225a03e953b4f20cc",
+   "16x16x16": "400056019e43f89f9ccc4575455dfc7e3d214e9cca7ce531a89d40b35fe6b360"
+  },
+  "note": "34단계(2026-10-14 밤) — Vulkan 판(runV.ps1)의 빌드 해시. 글 컴파일러 · 커널 생성기 · 7B 모듈 소스는 build 의 값과 같다. SPIR-V 뒷단은 글 저장소 고정 커밋(시험/글저장소커밋.txt)의 research/gpu/자체SPIRV/SPIRV.gl, 서버는 호스트/서버V.gl(서버.gl 과 같은 몸 서버몸.gl, GPU 층만 벌칸.gl) + 토크나이저_R1.diff, 기본 모듈의 묶음은 시험/모듈해시.txt 의 qwen2Q8_7b SPIR-V 와 같다. 협력 모듈(생성기 --협력)의 묶음은 장치가 받는 협력 행렬 모양마다(SPIR-V 뒷단 --협력 MxNxK). 출력 기준(items)은 CUDA 와 같은 것을 쓴다."
+ },
  "items": [
   {
    "id": 0,
