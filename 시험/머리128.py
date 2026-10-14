@@ -22,7 +22,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 for _d in ("엔진", "계약"):
     sys.path.insert(0, os.path.join(ROOT, _d))
+sys.path.insert(0, HERE)
 import 글gpt2 as G          # noqa: E402
+import 시험장치               # noqa: E402
 import gguf읽기 as GR       # noqa: E402
 import 정수계약 as C        # noqa: E402
 
@@ -62,13 +64,14 @@ def 모양두기(경로):
 
 class 글커널:
     def __init__(self, ptx):
-        self.dr = G.드라이버()
+        self.dr = 시험장치.드라이버()
         mod = self.dr.모듈(open(ptx, "rb").read())
         이름들 = ["RoPEKV정수로", "정수어텐션묶음", "정수묶음접기", "정수묶음접기짧은", "정수조각어텐션", "정수조각접기", "정수조각접기짧은"]
         self.넷 = b"_G" + "정수조각어텐션넷".encode().hex().encode() in open(ptx, "rb").read()
         if self.넷:                                   # 23단계 — 생성 판 넷(조각 셈을 워프 넷으로) · 접기 넓(묶음끼리 나란히)
             이름들 += ["정수조각어텐션넷", "정수조각접기넓"]
         self.f = {n: self.dr.함수(mod, n) for n in 이름들}
+        self.한도 = {n: 시험장치.한도넘음(self.dr, n) for n in 이름들}     # 31단계 — Vulkan 장치가 못 돌리는 커널의 까닭(아니면 None)
         self.dr.cu.cuFuncGetAttribute.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_void_p]
 
     def 속성(self):
@@ -89,9 +92,19 @@ class 글커널:
         r = self.dr.cu.cuLaunchKernel(self.f[이름], grid[0], grid[1], 1, block, 1, 1, 0, None, args, None)
         assert r == 0, (이름, r)
 
-    def 돌리기(self, X, 덩이들, 최대길이, cos, sin):
+    판커널 = {"묶음": ("RoPEKV정수로", "정수어텐션묶음", "정수묶음접기", "정수묶음접기짧은"),
+              "조각": ("RoPEKV정수로", "정수조각어텐션", "정수조각접기", "정수조각접기짧은"),
+              "넷": ("RoPEKV정수로", "정수조각어텐션넷", "정수조각접기넓", "정수조각접기짧은")}
+
+    def 못돌림(self, 덩이들):
+        """31단계 — 덩이들이 쓰는 커널 가운데 장치 한도를 넘는 것 {이름: 까닭} (CUDA 는 늘 빈 것)"""
+        쓰는 = {n for d in 덩이들 for n in self.판커널[d[2] if len(d) > 2 else "묶음"]}
+        return {n: self.한도[n] for n in sorted(쓰는) if self.한도.get(n)}
+
+    def 돌리기(self, X, 덩이들, 최대길이, cos, sin, RoPE만=False):
         """X [n][QKV] 짧은실수를 덩이들 [(위치시작, 행[, 판])] 차례로 — 행마다의 출력과 끝의 캐시. 판: "묶음"(기본) · "조각"(생성 길, 행 넷까지) ·
-        "넷"(23단계 생성 그래프의 판 — 정수조각어텐션넷 → 정수조각접기넓, 행 하나)."""
+        "넷"(23단계 생성 그래프의 판 — 정수조각어텐션넷 → 정수조각접기넓, 행 하나). RoPE만: RoPEKV정수로만 띄우고 q · KV 캐시만 낸다
+        (31단계 — 어텐션 커널이 장치 한도를 넘는 Vulkan 장치에서도 RoPE 는 본다)."""
         dr = self.dr
         n = X.shape[0]
         덩이들 = [(d[0], d[1], d[2] if len(d) > 2 else "묶음") for d in 덩이들]
@@ -118,7 +131,9 @@ class 글커널:
             dr.올리기(p입력, np.ascontiguousarray(X[s:s + m], f32))
             self.띄우기("RoPEKV정수로", ((QKV // 32 + 31) // 32, m), 256,
                      [(1, p입력), (1, p자q), (1, p정q)] + KV + [(1, p코), (1, p사), (0, m), (0, m), (0, s), (0, 최대길이)])
-            if 판 == "넷":
+            if RoPE만:
+                pass
+            elif 판 == "넷":
                 assert m == 1
                 self.띄우기("정수조각어텐션넷", (조각칸폭, NKV), 128,
                          [(1, p자q), (1, p정q)] + KV + [(1, p조), (0, m), (0, m), (0, s), (0, 최대길이)])
@@ -139,6 +154,8 @@ class 글커널:
             dr.맞추기()
             out["q자리"][:, s:s + m] = dr.내리기(p자q, np.empty((2, m, D), np.int8))
             out["q정보"][s:s + m] = dr.내리기(p정q, np.empty((KB, 폭), np.int32))[:, :m].T
+            if RoPE만:
+                continue
             out["o자리"][:, s:s + m] = dr.내리기(p자, np.empty((2, m, D), np.int8))
             out["o정보"][s:s + m] = dr.내리기(p정, np.empty((KB, 폭), np.int32))[:, :m].T
             out["o짧은"][s:s + m] = dr.내리기(p출, np.empty((m, D), f32))
@@ -146,6 +163,9 @@ class 글커널:
         out["값"] = dr.내리기(p값, np.empty((NKV, 최대길이 // 32, 2, HD, 32), np.int8))
         out["키지수"] = dr.내리기(p키지, np.empty((NKV, 최대길이, 4), np.uint8))
         out["값지수"] = dr.내리기(p값지, np.empty((NKV, 최대길이, 4), np.uint8))
+        if RoPE만:
+            for 키 in ("o자리", "o정보", "o짧은"):
+                out.pop(키)
         dr.맞추기()
         for p in dr.할당들:                          # 메모리만 돌려준다(모듈은 둔다 — 다음 경우가 쓴다)
             dr.확인(dr.cu.cuMemFree_v2(u64(p)))
@@ -187,6 +207,8 @@ def 참조(X, 최대길이, cos, sin):
 def 견주기(글, 참):
     결과 = {}
     for 이름 in ("q자리", "q정보", "키", "키지수", "값", "값지수", "o자리", "o정보", "o짧은"):
+        if 이름 not in 글:                           # RoPE만 — 어텐션 · 접기의 출력이 없다
+            continue
         a, b = np.asarray(글[이름]), np.asarray(참[이름])
         if a.dtype == f32:
             a, b = a.view(np.int32), b.astype(f32).view(np.int32)
@@ -281,7 +303,16 @@ def main():
         t1 = time.time()
         한 = {"경우": 이름, "행": int(X.shape[0]), "최대길이": 최대길이, "참조 초": round(t1 - t0, 1), "길": {}}
         for 길, 덩이들 in 길들.items():
-            글 = k.돌리기(X, 덩이들, 최대길이, cos, sin)
+            못 = k.못돌림(덩이들)
+            if 못:                                  # 31단계 — 장치 한도: 그 길은 적고, RoPE 는 같은 덩이로 따로 본다
+                한["길"][길] = {"덩이 수": len(덩이들), "장치 한도": 못}
+                print(이름, 길, 한["길"][길], flush=True)
+                if k.한도.get("RoPEKV정수로"):
+                    continue
+                글 = k.돌리기(X, 덩이들, 최대길이, cos, sin, RoPE만=True)
+                길 = 길 + " (RoPE만)"
+            else:
+                글 = k.돌리기(X, 덩이들, 최대길이, cos, sin)
             한["길"][길] = {"덩이 수": len(덩이들), "다른 칸": 견주기(글, 참)}
             print(이름, 길, 한["길"][길], flush=True)
         결과["경우"].append(한)
@@ -292,14 +323,19 @@ def main():
         X2 = 무작위(n2, 23)
         cos, sin = C.rope표(8448, 1e6, hd=HD)
         앞 = [(a, min(1024, 8296 - a)) for a in range(0, 8296, 1024)]
-        옛 = k.돌리기(X2, 앞 + [(s, 1, "조각") for s in range(8296, n2)], 8448, cos, sin)
-        새 = k.돌리기(X2, 앞 + [(s, 1, "넷") for s in range(8296, n2)], 8448, cos, sin)
-        다 = {키: int(np.count_nonzero(np.asarray(옛[키]).view(np.uint8) != np.asarray(새[키]).view(np.uint8))) for 키 in 옛}
-        한 = {"경우": f"무작위 {n2} (긴 문맥 — 생성 판 넷 대 생성 판)", "행": n2, "최대길이": 8448, "길": {"생성 판 넷 == 생성 판": {"다른 칸": 다}}}
-        print(한["경우"], 다, flush=True)
+        못 = k.못돌림(앞 + [(8296, 1, "조각"), (8296, 1, "넷")])
+        if 못:                                      # 31단계 — 장치 한도
+            길 = {"장치 한도": 못}
+        else:
+            옛 = k.돌리기(X2, 앞 + [(s, 1, "조각") for s in range(8296, n2)], 8448, cos, sin)
+            새 = k.돌리기(X2, 앞 + [(s, 1, "넷") for s in range(8296, n2)], 8448, cos, sin)
+            길 = {"다른 칸": {키: int(np.count_nonzero(np.asarray(옛[키]).view(np.uint8) != np.asarray(새[키]).view(np.uint8))) for 키 in 옛}}
+        한 = {"경우": f"무작위 {n2} (긴 문맥 — 생성 판 넷 대 생성 판)", "행": n2, "최대길이": 8448, "길": {"생성 판 넷 == 생성 판": 길}}
+        print(한["경우"], 길, flush=True)
         결과["경우"].append(한)
-    결과["모두 0"] = all(v == 0 for c in 결과["경우"] for g in c["길"].values() for v in g["다른 칸"].values())
-    print("모두 0:", 결과["모두 0"], flush=True)
+    결과["모두 0"] = all(v == 0 for c in 결과["경우"] for g in c["길"].values() for v in g.get("다른 칸", {}).values())
+    결과["장치 한도"] = sum(1 for c in 결과["경우"] for g in c["길"].values() if "장치 한도" in g)
+    print("모두 0:", 결과["모두 0"], "· 장치 한도 길:", 결과["장치 한도"], flush=True)
     json.dump(결과, open(출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
 

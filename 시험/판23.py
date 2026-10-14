@@ -22,6 +22,7 @@ for _d in ("엔진", "계약"):
     sys.path.insert(0, os.path.join(ROOT, _d))
 sys.path.insert(0, HERE)
 import 글gpt2 as G          # noqa: E402
+import 시험장치               # noqa: E402
 import gguf읽기 as GR       # noqa: E402
 import 정수계약 as C        # noqa: E402
 from 머리128 import 자리바이트    # noqa: E402
@@ -96,7 +97,7 @@ def main():
     빠르게 = "--빠르게" in sys.argv
     극단 = "--극단" in sys.argv
     줄타일만 = "--줄타일만" in sys.argv          # 32단계 — 줄 타일 판만(행 1 … 8)
-    dr = G.드라이버()
+    dr = 시험장치.드라이버()
     mod = dr.모듈(open(ptx, "rb").read())
     fn = {}
 
@@ -116,6 +117,15 @@ def main():
         p = dr.할당(len(b))
         dr.확인(dr.cu.cuMemcpyHtoD_v2(p, b, len(b)))
         return p
+
+    def 넘는가(kn, 한):
+        """31단계 — Vulkan 장치가 돌릴 수 없는 커널(공유 메모리 한도 · 뒷단이 뺀 것)이면 결과에 '장치 한도' 로 적고 참. CUDA 는 늘 거짓"""
+        까닭 = 시험장치.한도넘음(dr, kn)
+        if 까닭 is None:
+            return False
+        결과["경우"].append(dict(한, 판=kn, **{"장치 한도": 까닭}))
+        print("장치 한도:", kn, 까닭, flush=True)
+        return True
 
     def 놓기():
         dr.맞추기()
@@ -175,6 +185,8 @@ def main():
                 if e == "_SwiGLU정수" and W != 64:
                     continue
                 kn = ("로짓" if 이름 == "로짓" else "") + 판 + e
+                if 넘는가(kn, {"가중치": 이름}):
+                    continue
                 for m in range(1, 9):
                     바이트m, M0m = 자리바이트(X[:m])
                     정보m = np.zeros((K // 32, 64), np.int32)
@@ -216,6 +228,8 @@ def main():
                     if 열먼저 and e == "":
                         continue
                     kn = ("로짓" if 이름 == "로짓" else "") + 판 + ("열먼저" if 열먼저 else "") + e
+                    if 넘는가(kn, {"가중치": 이름}):
+                        continue
                     grid = ((N + BN - 1) // BN, (M + BM - 1) // BM) if 열먼저 else ((M + BM - 1) // BM, (N + BN - 1) // BN)
                     앞 = [(1, p자), (1, p정), (1, p값), (1, p척), (1, p치)]
                     뒤 = [(0, M), (0, K), (0, N), (0, Np), (0, 0), (0, 0)]
@@ -248,26 +262,27 @@ def main():
             정보m = np.zeros((K // 32, 64), np.int32)
             정보m[:, :m] = M0m.T
             p자m, p정m = up(바이트m), up(정보m)
-            if e == "_SwiGLU정수":
-                p다자, p다정 = dr.할당(2 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
-                띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p다정), (1, p다자), (0, m), (0, K), (0, N)])
-                dr.맞추기()
-                다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, m, N // 2), np.int8)), 참자리[:, :m]),
-                     "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :m].T, 참정보[:m])}
-            else:
-                p출 = dr.할당(m * N * 4)
-                if e == "_잔차":
-                    p잔m = up(잔[:m])
-                    띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p잔m), (1, p출), (0, m), (0, K), (0, N)])
+            p잔m = up(잔[:m]) if e == "_잔차" else None
+            if not 넘는가("정수줄자리" + e, {"가중치": 이름, "행": m}):
+                if e == "_SwiGLU정수":
+                    p다자, p다정 = dr.할당(2 * m * (N // 2)), dr.할당((N // 64) * 64 * 4)
+                    띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p다정), (1, p다자), (0, m), (0, K), (0, N)])
+                    dr.맞추기()
+                    다 = {"자리": 다른칸(dr.내리기(p다자, np.empty((2, m, N // 2), np.int8)), 참자리[:, :m]),
+                         "정보": 다른칸(dr.내리기(p다정, np.empty((N // 64, 64), np.int32))[:, :m].T, 참정보[:m])}
                 else:
-                    띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p출), (0, m), (0, K), (0, N)])
-                dr.맞추기()
-                다 = {"출력": 다른칸(dr.내리기(p출, np.empty((m, N), f32)), 참[:m])}
-            한 = {"가중치": 이름, "판": "정수줄자리" + e, "행": m, "K": K, "N": N, "다른 칸": 다}
-            결과["경우"].append(한)
-            if sum(다.values()):
-                print("다름!", 한, flush=True)
-            if m == 1:                                       # 23단계 — 한 행 줄 판(생성 그래프): 스레드 128, 열 W 개
+                    p출 = dr.할당(m * N * 4)
+                    if e == "_잔차":
+                        띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p잔m), (1, p출), (0, m), (0, K), (0, N)])
+                    else:
+                        띄우기("정수줄자리" + e, ((N + W - 1) // W, 1), 256, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p출), (0, m), (0, K), (0, N)])
+                    dr.맞추기()
+                    다 = {"출력": 다른칸(dr.내리기(p출, np.empty((m, N), f32)), 참[:m])}
+                한 = {"가중치": 이름, "판": "정수줄자리" + e, "행": m, "K": K, "N": N, "다른 칸": 다}
+                결과["경우"].append(한)
+                if sum(다.values()):
+                    print("다름!", 한, flush=True)
+            if m == 1 and not 넘는가("정수줄하나" + e, {"가중치": 이름, "행": 1}):    # 23단계 — 한 행 줄 판(생성 그래프): 스레드 128, 열 W 개
                 if e == "_SwiGLU정수":
                     p다자, p다정 = dr.할당(2 * N // 2), dr.할당((N // 64) * 64 * 4)
                     띄우기("정수줄하나" + e, ((N + W - 1) // W, 1), 128, [(1, p자m), (1, p정m), (1, p값), (1, p척), (1, p치), (1, p다정), (1, p다자), (0, 1), (0, K), (0, N)])
@@ -289,7 +304,8 @@ def main():
         print(이름, "끝 — 경우", sum(1 for c in 결과["경우"] if c["가중치"] == 이름), flush=True)
         놓기()
     if 줄타일만:
-        결과["모두 0"] = all(v == 0 for c in 결과["경우"] for v in c["다른 칸"].values())
+        결과["모두 0"] = all(v == 0 for c in 결과["경우"] for v in c.get("다른 칸", {}).values())
+        결과["장치 한도"] = sum(1 for c in 결과["경우"] if "장치 한도" in c)
         print("경우", len(결과["경우"]), "· 모두 0:", 결과["모두 0"], flush=True)
         json.dump(결과, open(출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
         return
@@ -301,6 +317,8 @@ def main():
     참자리r, 참정보r = 자리바이트(C.rms정규화(Xr, 감마, eps))
     pX, pG = up(Xr), up(감마)
     for kn in ("RMS정규화정수줄", "RMS정규화정수줄펼침"):
+        if 넘는가(kn, {"가중치": "attn_norm"}):
+            continue
         p자r, p정r = dr.할당(2 * 9 * D7), dr.할당((D7 // 32) * 64 * 4)
         띄우기(kn, (9, 1), 256, [(1, pX), (1, pG), (1, p자r), (1, p정r), (0, 9)])
         dr.맞추기()
@@ -323,8 +341,9 @@ def main():
     다 = {"출력": 다른칸(dr.내리기(p출, np.empty((37, D), f32)), 참)}
     결과["경우"].append({"가중치": "낱말표", "판": "임베딩", "행": 37, "다른 칸": 다})
     놓기()
-    결과["모두 0"] = all(v == 0 for c in 결과["경우"] for v in c["다른 칸"].values())
-    print("경우", len(결과["경우"]), "· 모두 0:", 결과["모두 0"], flush=True)
+    결과["모두 0"] = all(v == 0 for c in 결과["경우"] for v in c.get("다른 칸", {}).values())
+    결과["장치 한도"] = sum(1 for c in 결과["경우"] if "장치 한도" in c)
+    print("경우", len(결과["경우"]), "· 모두 0:", 결과["모두 0"], "· 장치 한도:", 결과["장치 한도"], flush=True)
     json.dump(결과, open(출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
 

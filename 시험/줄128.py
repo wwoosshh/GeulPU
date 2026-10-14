@@ -20,6 +20,7 @@ for _d in ("엔진", "계약"):
     sys.path.insert(0, os.path.join(ROOT, _d))
 sys.path.insert(0, HERE)
 import 글gpt2 as G          # noqa: E402
+import 시험장치               # noqa: E402
 import gguf읽기 as GR       # noqa: E402
 import 정수계약 as C        # noqa: E402
 from 참조7B import q8       # noqa: E402
@@ -51,7 +52,7 @@ def 다른칸(a, b):
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ptx, gguf, 출력 = sys.argv[1:4]
-    dr = G.드라이버()
+    dr = 시험장치.드라이버()
     mod = dr.모듈(open(ptx, "rb").read())
     fn = {e: dr.함수(mod, f"정수줄자리{e}") for e in ("", "_잔차", "_SwiGLU정수")}
     dr.cu.cuFuncGetAttribute.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_void_p]
