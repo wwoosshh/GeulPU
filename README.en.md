@@ -16,7 +16,7 @@ with one token changed, compare against another model or prompt, and check someo
 
 > It loses only what is written down — and it shows what losing less costs.
 
-**[⬇ Download the latest version — Windows 64-bit, zip of about 1.3 MB](https://github.com/wwoosshh/GeulPU/releases/latest)**
+**[⬇ Download the latest version — Windows 64-bit, zip of about 1.4 MB](https://github.com/wwoosshh/GeulPU/releases/latest)**
 
 [Install](#install) · [First steps](#first-steps) · [Supported models](#supported-models) · [How it runs](#how-it-runs) ·
 [Troubleshooting](#troubleshooting) · [Update and uninstall](#update-and-uninstall) · [What is different](#what-is-different) ·
@@ -46,7 +46,7 @@ because it contains no model — you download models inside the app.
 To check that the file arrived intact (optional), compare it with `SHA256SUMS.txt` on the same page. In PowerShell:
 
 ```powershell
-Get-FileHash .\GeulPU-0.4.0-windows-x64.zip
+Get-FileHash .\GeulPU-0.5.0-windows-x64.zip
 ```
 
 ### 2. Unzip
@@ -396,7 +396,7 @@ The rest is for building the engine from source or reading the research record. 
 | | |
 |---|---|
 | Models | **Qwen3-1.7B / 8B / 14B** (stage 37 — per-head Q/K RMSNorm as contract §4.6 and one appended kernel, bit-identical to the CPU reference; the 14B shape tested on synthetic models) · **Qwen2.5-0.5B / 7B / 14B-Instruct** · DeepSeek-R1-Distill-Qwen (chat; Llama-family blocks — RMSNorm · RoPE · SwiGLU · GQA; head sizes 64 and 128). Head-128 Qwen2 shapes are read from the GGUF config; 32B and 72B shapes were bit-tested on 4-layer synthetic models. GPT-2 small and XL (research engine). |
-| App | Stages 36–38 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's template); self-diagnosis, speed and cross-check runs; result zips; a new-version notice; a **research panel** (stage 38 — per-token probabilities, branching, comparison, scoring and reproduction capsules; log-probabilities as contract §5.2) and an English UI. The release zip (1.3 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
+| App | Stages 36–38 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's template); self-diagnosis, speed and cross-check runs; result zips; a new-version notice; a **research panel** (stage 38 — per-token probabilities, branching, comparison, scoring and reproduction capsules; log-probabilities as contract §5.2) and an English UI. The release zip (1.4 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
 | Weight formats | GGUF **Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K**, including per-tensor mixes as in Q4_K_M · Q5_K_M (stage 26 — tested with files re-quantized on this PC from Q8_0; official Qwen files are not yet tested). |
 | Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: ChatML chat, streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
 | Server | `빌드/글/서버.exe model.gguf` (`서버` = server) — a geul program (stage 28): an OpenAI-compatible HTTP API (chat · completions · SSE streaming) with slots, continuous batching, prompt caching and a sampling contract (the same seed gives the same tokens). A request returns the same bits whatever else runs with it — zero differences over four models × twelve requests × four schedules, while llama-server's greedy answer changed in 11 of 12 cases depending on the concurrent requests. Head-128 Qwen2 (7B · 14B). 7B Q4_0 aggregate throughput: 302 tokens/s with four streams and 508 with eight (llama-server 360 · 632 — a multi-row decode kernel is next); one stream is 4% faster than llama-server. A cached prompt's first token takes 13.8 ms (llama-server 13.0 ms; stage 30 feeds the last rows through the decode step). See [`문서/28단계.md`](문서/28단계.md) · [`문서/30단계.md`](문서/30단계.md) |
