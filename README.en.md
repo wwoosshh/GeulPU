@@ -62,87 +62,69 @@ Double-click `GeulPU.exe`.
 
 ## First steps
 
-**The app's interface is in Korean.** The icons in the left bar are, from the top, **Chat · Models · Benchmark · Hardware**, with
-**Settings** at the bottom. The labels you will meet:
+The app speaks English unless your browser prefers Korean — switch any time in **Settings → Language** (Auto · 한국어 · English).
+The icons in the left bar are, from the top, **Chat · Models · Benchmark · Hardware**, with **Settings** at the bottom.
 
-| Korean | English |
-|---|---|
-| 채팅 · 모델 · 벤치마크 · 하드웨어 · 설정 | Chat · Models · Benchmark · Hardware · Settings |
-| 내 모델 · 모델 찾기 | My models · Find models (the two tabs of Models) |
-| 요즘 뜨는 · 인기 · 좋아요 · 최근 업데이트 | Trending · Popular (30-day downloads) · Likes · Recently updated |
-| 실행 안 되는 모델도 보기 | Also show models that don't run |
-| GeulPU 확인됨 · 이 PC에 맞는 크기 | Verified by GeulPU · Fits this PC |
-| 다운로드 · 이어서 다운로드 · 일시정지 | Download · Resume download · Pause |
-| 이 PC에 추천 · 실행 확인됨 · 빠듯함 · 그래픽 메모리 부족 | Recommended for this PC · Verified to run · Tight (context is reduced) · Not enough graphics memory |
-| GGUF 파일 추가 | Add a GGUF file |
-| 생성 설정 · 생각 과정 쓰기 · 온도 · 최대 답변 길이 | Generation settings · Write the thinking process · Temperature · Max answer length |
-| 생각 과정 · N초 동안 생각함 | Thinking · Thought for N seconds |
-| 하드웨어 진단 · 속도 측정 · 재현성 검증 · 빠른 확인 | Hardware diagnosis · Speed test · Reproducibility check · Quick check |
-| 실행 · 결과 보기 · zip 내보내기 | Run · View result · Export zip |
-| GPU 백엔드 · 자동 · 동시 처리 수 · 채팅마다 문맥 길이 · 모델 폴더 · 새 버전 알림 | GPU backend · Auto · Concurrent chats · Context length per chat · Model folder · New-version notice |
-| 먼저 모델이 필요합니다 · 추천 모델 다운로드 · 모델 둘러보기 | A model is needed first · Download the recommended model · Browse models |
+With no model installed, the app first shows this screen. **Download the recommended model** fetches a model chosen for your graphics
+memory right away; **Browse models** opens Find models, described below.
 
-With no model installed, the app first shows this screen. **Download the recommended model** (추천 모델 다운로드) fetches a model
-chosen for your graphics memory right away; **Browse models** (모델 둘러보기) opens Find models, described below.
+![First screen — first, you need a model](docs/img/first-run-en.png)
 
-![First screen — a model is needed first](docs/img/first-run.png)
+### 1. Get a model — Models → Find models
 
-### 1. Get a model — Models → Find models (모델 → 모델 찾기)
+- Hugging Face's GGUF models are listed by **Trending**. Switch to Popular, Likes or Recently updated, or type part of a name (for
+  example `qwen3`, `coder`, `14b`) into the box at the top to narrow the list.
+- By default only **models GeulPU can run** are shown. **Also show models that don't run** shows everything, with the ones that don't
+  run dimmed and the reason given. **Fits this PC** keeps only models that fit your graphics memory.
+- New to this? Switch on **Verified by GeulPU**: only repositories with files GeulPU has run itself remain (picture below); see
+  [which model fits your PC](#which-model-fits-your-pc).
 
-- Hugging Face's GGUF models are listed by **trending** (요즘 뜨는). Switch to popular, likes or recently updated, or type part of a
-  name (for example `qwen3`, `coder`, `14b`) into the box at the top to narrow the list.
-- By default only **models GeulPU can run** are shown. **Also show models that don't run** (실행 안 되는 모델도 보기) shows everything,
-  with the ones that don't run dimmed and the reason given. **Fits this PC** (이 PC에 맞는 크기) keeps only models that fit your
-  graphics memory.
-- New to this? Switch on **Verified by GeulPU** (GeulPU 확인됨): only repositories with files GeulPU has run itself remain (picture
-  below); see [which model fits your PC](#which-model-fits-your-pc).
-
-![Find models — the list on the left, details of the selected model on the right](docs/img/find-models.png)
+![Find models — the list on the left, details of the selected model on the right](docs/img/find-models-en.png)
 
 - Click a model to see its description, downloads, license and **file list** on the right. The file that suits this PC best is marked
-  **Recommended for this PC** (이 PC에 추천), files GeulPU has run are marked **Verified to run** (실행 확인됨), and files that are tight
-  or too large for your graphics memory say so. Click **Download** (다운로드) on the file you want.
+  **Recommended for this PC**, files GeulPU has run are marked **Verified to run**, and files that are tight or too large for your
+  graphics memory say so. Click **Download** on the file you want.
 
-![File list — "recommended for this PC" and "verified to run" marks with download buttons](docs/img/model-files.png)
+![File list — "Recommended for this PC" and "Verified to run" marks with download buttons](docs/img/model-files-en.png)
 
 - Before downloading, the app reads only the beginning of the file to check that it will run; interrupted downloads resume; finished
-  files are verified with SHA-256. Downloads in progress appear under **My models** (내 모델) and in the status bar at the bottom,
-  where you can pause or resume them.
-- GGUF files you already have can be added with **Add a GGUF file** (GGUF 파일 추가) at the top; they stay where they are.
+  files are verified with SHA-256. Downloads in progress appear under **My models** and in the status bar at the bottom, where you can
+  pause or resume them.
+- GGUF files you already have can be added with **Add a GGUF file** at the top; they stay where they are.
 
-### 2. Chat (채팅)
+### 2. Chat
 
 - Pick a model with the model button at the top and send a message (**Enter** sends, **Shift+Enter** adds a line).
 - **The first time**, GeulPU builds the kernels for your GPU and model (about 10 seconds on a fast CPU, 1–3 minutes on a slow one) and
   loads the model into graphics memory (about 20 seconds for 7B). Later only the loading happens.
-- **Reasoning models** (Qwen3, DeepSeek-R1) think before answering. The thinking is folded as "N초 동안 생각함" (thought for N seconds);
-  click it to expand. Token count and speed (tokens/s) appear under the answer.
+- **Reasoning models** (Qwen3, DeepSeek-R1) think before answering. The thinking is folded as "Thought for N s"; click it to expand.
+  Token count and speed (tokens/s) appear under the answer.
 
 ![Chat — Qwen3-8B Q4_K_M with its thinking folded and the speed under the answer](docs/img/chat-en.png)
 
-- **To turn Qwen3's thinking off**: **Generation settings** (생성 설정 — the slider icon at the top right) → switch off **Write the
-  thinking process** (생각 과정 쓰기). It then answers directly.
+- **To turn Qwen3's thinking off**: **Generation settings** (the slider icon at the top right) → switch off **Thinking**. It then
+  answers directly.
 - Generation settings also hold the temperature (0 gives the same answer to the same question every time), the maximum answer length
-  and a system prompt (시스템 프롬프트), saved in this browser.
+  and a system prompt, saved in this browser.
 
-![Generation settings — temperature, max answer length, thinking switch, system prompt](docs/img/generation-settings.png)
+![Generation settings — temperature, max answer length, thinking switch, system prompt](docs/img/generation-settings-en.png)
 - You can regenerate an answer or edit and resend your message; earlier answers stay as versions you can flip through (‹ 1 / 2 ›).
   Code, tables and math (LaTeX) are rendered.
 - Conversations are stored only in this browser.
 
-### 3. Benchmark (벤치마크, optional)
+### 3. Benchmark (optional)
 
-- **Hardware diagnosis** (하드웨어 진단): measures memory bandwidth and tensor-core throughput and shows how close each kernel comes to
-  the hardware's limit.
-- **Speed test** (속도 측정): prompt processing (512 and 2048 tokens) and generation speed in tokens per second.
-- **Reproducibility check** (재현성 검증): solves 32 math problems with DeepSeek-R1-Distill-Qwen-7B Q8_0 and compares the output with
-  the reference PC bit for bit (the quick check uses 2 problems and 64 tokens).
-- Results can be exported as a zip (user paths are removed).
+- **Hardware diagnosis**: measures memory bandwidth and tensor-core throughput and shows how close each kernel comes to the hardware's
+  limit.
+- **Speed test**: prompt processing (512 and 2048 tokens) and generation speed in tokens per second.
+- **Reproducibility check**: solves 32 math problems with DeepSeek-R1-Distill-Qwen-7B Q8_0 and compares the output with the reference
+  PC bit for bit (the quick check uses 2 problems and 64 tokens).
+- Results can be exported as a zip (user paths are removed). The raw tool output and the result files themselves stay in Korean.
 
-### 4. Settings (설정)
+### 4. Settings
 
-GPU backend (auto · CUDA · Vulkan), Vulkan device, concurrent chats (how many chats can answer at once, 1–8) and context length per
-chat, model folder, new-version notice. Changes are saved immediately.
+GPU backend (Auto · CUDA · Vulkan), Vulkan device, concurrent chats (how many chats can answer at once, 1–8) and context length per
+chat, model folder, language, new-version notice. Changes are saved immediately.
 
 ### Use it from other programs (OpenAI-compatible API)
 
@@ -258,7 +240,7 @@ To move the data folder, set the environment variable `GEULPU_HOME` or run `Geul
 
 - The manager and the inference server listen only on `127.0.0.1` — other devices cannot connect.
 - The internet is used for three things only: Find models (the page reads the Hugging Face API directly), downloading models
-  (huggingface.co) and the new-version check (GitHub — switch off "새 버전 알림" in Settings).
+  (huggingface.co) and the new-version check (GitHub — switch off **New-version notice** in Settings).
 - No usage statistics are sent. Conversations stay in your browser's storage.
 - There is no installer, and nothing is written to the registry.
 
@@ -275,10 +257,11 @@ backends are packaged only after their bytes are checked against the build hashe
 | "Windows protected your PC" | **More info → Run anyway** (the executable is not code-signed). |
 | Antivirus blocks it | Add an exception for the extracted GeulPU folder. The source and the build process are public in this repository. |
 | Port 44544 is taken by another program | Start it on another port, e.g. `GeulPU.exe --포트 44600`. |
-| "쓸 수 있는 GPU 없음" (no usable GPU) | Update the graphics driver, then **Hardware → 다시 확인** (check again). |
-| "이 GPU 미지원" (not supported on this GPU) · "그래픽 메모리 부족" (not enough graphics memory) | Choose a smaller file (Q4_K_M) or a smaller model. A shorter context per chat or fewer concurrent chats in Settings also use less memory. |
+| "No usable GPU" | Update the graphics driver, then **Hardware → Check again**. |
+| "Not supported on this GPU" · "Not enough VRAM" | Choose a smaller file (Q4_K_M) or a smaller model. A shorter context per chat or fewer concurrent chats in Settings also use less memory. |
 | The first message takes long | The first time builds kernels (1–3 minutes). After that, only loading the model (tens of seconds). |
-| A download stopped | **Resume download** (이어서 다운로드) under My models or in the status bar — it continues where it stopped. |
+| A download stopped | **Resume download** under My models or in the status bar — it continues where it stopped. |
+| Part of the screen is in Korean | Messages from the engine are translated when they are shown; raw logs, tool output and result files stay in Korean. Paths such as `%USERPROFILE%\GeulPU\모델\` are real folder names. |
 | Anything else | Open an [issue](https://github.com/wwoosshh/GeulPU/issues) and attach the logs from `%USERPROFILE%\GeulPU\기록\`. |
 
 ## Update and uninstall

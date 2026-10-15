@@ -2,6 +2,878 @@
 // 디자인: x.ai 디자인 시스템(앱/DESIGN.md) — 어둠 한 가지, 알약 버튼, 8px 카드 · 머리카락 선, 강조색 선셋 오렌지 하나.
 'use strict';
 
+// ---------- 말(한국어 · 영어) ----------
+// 화면 문구는 한국어로 쓰고 T('…') · T`…${x}…` 로 감싼다 — 영어 화면이면 아래 사전에서 바꾼다(열쇠 = 한국어 원문, ${} 자리는 {}).
+// 같은 낱말이 자리에 따라 달라야 하면 T('파일', 'k') 처럼 문맥을 붙인다(사전 열쇠 '파일|k').
+// 관리자(GeulPU.exe) · 추론 서버가 보낸 문구는 원문 그대로 두고(화면 코드가 그것을 읽어 판단한다) 보여 줄 때만 TM 으로 바꾼다.
+// 말은 설정에서 고른다(자동 = 브라우저 언어 — 한국어가 아니면 영어). 이 브라우저에만 저장한다.
+const LANGS = ['auto', 'ko', 'en'];
+const LANGPREF = (() => { try { const v = JSON.parse(localStorage.getItem('geulpu.lang') || '"auto"'); return LANGS.includes(v) ? v : 'auto'; } catch (_) { return 'auto'; } })();
+const LANG = LANGPREF !== 'auto' ? LANGPREF
+  : ((navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']).some(l => /^ko\b/i.test(l)) ? 'ko' : 'en');
+const EN = LANG === 'en';
+document.documentElement.lang = LANG;
+const HANGUL = /[가-힣]/;
+const MISSING = new Set();   // 영어 화면에서 사전에 없던 문구(개발 때 보려고)
+const DICT = {
+  "남은 시간 계산 중": "Estimating time left",
+  "1분 안에 끝남": "Less than a minute left",
+  "약 {}분 남음": "About {} min left",
+  "약 {}시간 {}분 남음": "About {} h {} min left",
+  "알림 닫기": "Dismiss",
+  "브라우저 저장 공간이 부족해 채팅을 저장하지 못했습니다 — 오래된 채팅을 삭제하세요": "Browser storage is full, so the chat could not be saved — delete some old chats",
+  "복사하지 못했습니다": "Could not copy",
+  "닫기": "Close",
+  "취소": "Cancel",
+  "확인": "OK",
+  "GeulPU.exe와 연결이 끊겼습니다. 다시 연결하는 중… GeulPU.exe가 실행 중인지 확인하세요.": "Lost the connection to GeulPU.exe. Reconnecting… Make sure GeulPU.exe is running.",
+  "추론 모델": "Reasoning model",
+  "코드 모델": "Code model",
+  "일반 모델": "Chat model",
+  "하드웨어 진단": "Hardware diagnosis",
+  "속도 측정": "Speed test",
+  "재현성 검증": "Reproducibility check",
+  "모델 불러오기": "Loading a model",
+  "하드웨어 확인": "Hardware check",
+  "재현성 검증 · 빠른 확인(문제 2개)": "Reproducibility check · quick (2 problems)",
+  "재현성 검증 · 문제 32개": "Reproducibility check · 32 problems",
+  "텐서 코어 경로": "Tensor-core path",
+  "기본 경로": "Basic path",
+  "CUDA 경로": "CUDA path",
+  "쓸 수 있는 GPU 없음": "No usable GPU",
+  "이 GPU 미지원": "Not supported on this GPU",
+  "이 PC에 맞음": "Fits this PC",
+  "빠듯함 · 문맥이 줄어듦": "Tight · shorter context",
+  "그래픽 메모리 부족": "Not enough VRAM",
+  "실행되지만 그래픽 메모리에 맞추느라 문맥 길이가 줄어듭니다": "Runs, but the context length is reduced to fit the graphics memory",
+  "GeulPU.exe와 연결 끊김": "Disconnected from GeulPU.exe",
+  "하드웨어 확인 중": "Checking hardware",
+  "하드웨어 보기": "View hardware",
+  "{} · 동시 {}개 · 문맥 {}": "{} · {} at once · context {}",
+  "모델 불러오는 중 · {}": "Loading model · {}",
+  "모델 불러오기 실패": "Model failed to load",
+  "불러온 모델 없음": "No model loaded",
+  "벤치마크 보기": "View benchmark",
+  "다운로드 목록": "Downloads",
+  "다운로드 {}개 · {}% · {}/s{}{}": "{} downloading · {}% · {}/s{}{}",
+  " · 멈춤 {}개": " · {} paused",
+  " · 실패 {}개": " · {} failed",
+  "멈춤 {}개": "{} paused",
+  "실패 {}개": "{} failed",
+  "새 버전이 나왔습니다: {}(지금 v{}). 새 폴더에 압축을 풀고 실행하면 모델과 결과는 그대로 이어집니다.": "A new version is available: {} (you have v{}). Unzip it into a new folder and run it — your models and results carry over.",
+  "다운로드 페이지": "Download page",
+  "새 채팅": "New chat",
+  "오늘": "Today",
+  "어제": "Yesterday",
+  "지난 7일": "Previous 7 days",
+  "이전": "Older",
+  " — 답을 쓰는 중": " — answering",
+  "'{}' 메뉴": "'{}' menu",
+  "채팅 메뉴": "Chat menu",
+  "이름 바꾸기": "Rename",
+  "삭제": "Delete",
+  "답이 끝난 뒤 삭제할 수 있습니다": "You can delete it after the answer finishes",
+  "아직 채팅이 없습니다": "No chats yet",
+  "채팅 이름": "Chat name",
+  "채팅 이름 바꾸기": "Rename chat",
+  "저장": "Save",
+  "채팅 삭제": "Delete chat",
+  "'{}' 채팅을 삭제할까요? 채팅은 이 브라우저에만 저장되어 있어 되돌릴 수 없습니다.": "Delete the chat '{}'? Chats are stored only in this browser, so this cannot be undone.",
+  "GeulPU.exe와 연결이 끊겼습니다": "Lost the connection to GeulPU.exe",
+  "하드웨어 확인이 끝나면 입력할 수 있습니다": "You can type once the hardware check finishes",
+  "쓸 수 있는 GPU가 없어 채팅할 수 없습니다": "No usable GPU, so chat is not available",
+  "모델을 다운로드하면 채팅을 시작할 수 있습니다": "Download a model to start chatting",
+  "메시지 입력": "Message",
+  "Enter 보내기 · Shift+Enter 줄바꿈": "Enter to send · Shift+Enter for a new line",
+  "중지": "Stop",
+  "보내기": "Send",
+  "중지(Esc)": "Stop (Esc)",
+  "다른 채팅의 답이 끝나면 보낼 수 있습니다": "You can send once the answer in the other chat finishes",
+  "벤치마크가 끝나면 보낼 수 있습니다": "You can send once the benchmark finishes",
+  "보내기(Enter)": "Send (Enter)",
+  "답이 끝나면 보낼 수 있습니다 · Esc 중지": "You can send when the answer finishes · Esc to stop",
+  "모델 선택": "Choose a model",
+  "모델 없음": "No model",
+  "연결 끊김": "Disconnected",
+  "벤치마크 실행 중 · 끝나면 보낼 수 있습니다": "Benchmark running · you can send when it finishes",
+  "준비됨 · {}": "Ready · {}",
+  "불러오는 중": "Loading",
+  "이 PC에서 실행할 수 없음": "Can't run on this PC",
+  "불러오기 실패 · 보내면 다시 시도합니다": "Failed to load · sending will try again",
+  "보내면 이 모델로 바뀝니다": "Sending switches to this model",
+  "지금 불러온 모델: {}": "Loaded now: {}",
+  "보내면 불러옵니다": "Loads when you send",
+  "답이 끝나면 모델을 바꿀 수 있습니다.": "You can switch models when the answer finishes.",
+  ", 불러옴": ", loaded",
+  ", 이 PC에서 실행할 수 없음: ": ", can't run on this PC: ",
+  "지원하지 않는 파일": "Unsupported file",
+  "불러옴": "Loaded",
+  "아직 모델이 없습니다.": "No models yet.",
+  "모델 다운로드 · 추가": "Download or add a model",
+  "불러온 모델 내리기": "Unload the model",
+  "GPU 메모리를 비웁니다": "Frees GPU memory",
+  "온도": "Temperature",
+  "최대 답변 길이(토큰)": "Max answer length (tokens)",
+  "비워 두면 모델 기본값": "Leave empty for the model's default",
+  "시스템 프롬프트": "System prompt",
+  "생각 과정 쓰기(Qwen3)": "Thinking (Qwen3)",
+  "생성 설정": "Generation settings",
+  "생성 설정 · 이 브라우저에 저장": "Generation settings · saved in this browser",
+  "0이면 같은 질문에 늘 같은 답": "0 gives the same answer to the same question",
+  "최대 답변 길이": "Max answer length",
+  "토큰 · 추론 모델은 생각 과정도 포함": "Tokens · includes the thinking of reasoning models",
+  "생각 과정 쓰기": "Thinking",
+  "Qwen3 · 끄면 생각 없이 바로 답합니다": "Qwen3 · off: answers directly without thinking",
+  "<div class=\"codeblk\"><div class=\"ch\"><span>{}</span><button class=\"cp\" type=\"button\">{}<span>복사</span></button></div><pre><code>{}</code></pre></div>": "<div class=\"codeblk\"><div class=\"ch\"><span>{}</span><button class=\"cp\" type=\"button\">{}<span>Copy</span></button></div><pre><code>{}</code></pre></div>",
+  "코드": "Code",
+  "복사함": "Copied",
+  "복사": "Copy",
+  "같은 모델의 더 작은 파일({} · {})로 바꾸면 실행될 수 있습니다.": "A smaller file of the same model ({} · {}) may run.",
+  "{} 파일로 다시 시도": "Try again with {}",
+  "설정에서 동시 처리 수나 채팅마다 문맥 길이를 줄이거나, 더 작은 모델을 쓰세요.": "Lower the concurrent chats or the context length per chat in Settings, or use a smaller model.",
+  "설정 열기": "Open settings",
+  "모델 바꾸기": "Change model",
+  "다시 시도": "Try again",
+  "GeulPU.exe가 실행 중인지 확인한 뒤 다시 시도하세요.": "Make sure GeulPU.exe is running, then try again.",
+  "벤치마크가 끝나거나 중지된 뒤 다시 시도하세요.": "Try again after the benchmark finishes or is stopped.",
+  "자세히를 열어 원인을 확인하세요. 다른 모델로 바꾸거나 다시 시도할 수 있습니다.": "Open Details to see the cause. You can switch to another model or try again.",
+  "잠시 뒤 다시 시도하세요.": "Try again in a moment.",
+  "다시 시도하거나 다른 모델로 바꿔 보세요.": "Try again or switch to another model.",
+  "더 작은 모델로 측정하거나 다른 프로그램의 GPU 사용을 줄여 보세요.": "Measure with a smaller model or reduce GPU use by other programs.",
+  "그래픽 드라이버를 최신으로 업데이트한 뒤 다시 실행해 보세요.": "Update the graphics driver, then run it again.",
+  "자세히를 열어 원인을 확인하세요.": "Open Details to see the cause.",
+  "자세히": "Details",
+  "처음 한 번은 이 GPU에 맞는 커널을 만들고 가장 빠른 실행 방식을 측정합니다(보통 수십 초~2분). 다음부터는 더 빨리 준비됩니다.": "The first time, GeulPU builds kernels for this GPU and measures the fastest way to run them (usually tens of seconds to 2 minutes). Later it is ready faster.",
+  "수정": "Edit",
+  "이 메시지 수정": "Edit this message",
+  "모델을 GPU에 올리는 중입니다.": "Loading the model onto the GPU.",
+  "생각하는 중": "Thinking",
+  "생각 과정 · 중지됨": "Thinking · stopped",
+  "생각 과정 · 끊김": "Thinking · cut off",
+  "{}초 동안 생각함": "Thought for {} s",
+  "생각 과정": "Thinking",
+  "답을 쓰기 전에 최대 답변 길이({}토큰)에 닿았습니다.": "Reached the max answer length ({} tokens) before answering.",
+  "최대 답변 길이({}토큰)에서 답이 끊겼습니다.": "The answer was cut off at the max answer length ({} tokens).",
+  "이어서 생성": "Continue",
+  "{}토큰으로 다시 생성": "Regenerate with {} tokens",
+  "답 복사": "Copy answer",
+  "복사했습니다": "Copied",
+  "다시 생성 — 지금 답은 버전으로 남습니다": "Regenerate — the current answer stays as a version",
+  "다시 생성": "Regenerate",
+  "버전 {} / {}": "Version {} / {}",
+  "이전 버전": "Previous version",
+  "다음 버전": "Next version",
+  "다음 문장을 자연스러운 영어로 바꿔 줘: 내일 회의는 3시로 미뤄졌습니다": "Translate into natural Korean: \"Tomorrow's meeting has been moved to 3 o'clock.\"",
+  "파이썬으로 피보나치 함수를 작성해 줘": "Write a Fibonacci function in Python",
+  "봄을 주제로 짧은 시를 써 줘": "Write a short poem about spring",
+  "아래 글을 세 줄로 요약해 줘": "Summarize the text below in three lines",
+  "아래 글을 세 줄로 요약해 줘.\n\n": "Summarize the text below in three lines.\n\n",
+  "일시정지": "Pause",
+  "확인 ": "Verifying ",
+  "무결성 확인 중{}{}%": "Verifying integrity{}{}%",
+  "{}%에서 멈춤": "Paused at {}%",
+  "글(geul) 언어로 만든 로컬 LLM": "A local LLM built with the geul (글) language",
+  "무엇을 도와드릴까요?": "How can I help?",
+  "하드웨어를 확인하는 중입니다": "Checking your hardware",
+  "처음 실행할 때 GPU와 드라이버를 확인합니다. 잠시만 기다려 주세요.": "On the first run GeulPU checks the GPU and driver. Please wait a moment.",
+  "쓸 수 있는 GPU를 찾지 못했습니다": "No usable GPU found",
+  "NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU와 최신 그래픽 드라이버가 필요합니다.": "GeulPU needs an NVIDIA RTX 30 series or newer (CUDA) or a GPU with Vulkan 1.3, and an up-to-date graphics driver.",
+  "확인한 내용": "What was checked",
+  "이 PC에서 실행할 수 있는 모델이 없습니다": "No installed model runs on this PC",
+  "설치된 모델을 이 GPU나 GeulPU가 지원하지 않습니다. 모델 화면에서 이유를 확인하고 다른 모델을 다운로드하세요.": "The installed models aren't supported by this GPU or by GeulPU. See the reason on the Models screen and download another model.",
+  "모델 보기": "View models",
+  "먼저 모델이 필요합니다": "First, you need a model",
+  "이 PC에는 {} {}({}) 모델을 추천합니다.": "For this PC we recommend {} {} ({}).",
+  "이 GPU(공유 메모리 32 KB)는 가중치가 모두 Q8_0이거나 모두 Q4_0인 파일만 실행합니다. 목록의 Q8_0 7B는 그래픽 메모리가 10 GB 이상 필요하고(이 PC {}), 흔한 Q4_0 파일은 출력 가중치가 Q6_K라 아직 받지 않습니다. 지금은 이 PC에서 실행할 수 있는 파일이 없습니다.": "This GPU (32 KB of shared memory) only runs files whose weights are all Q8_0 or all Q4_0. The Q8_0 7B files in the list need 10 GB of graphics memory or more (this PC: {}), and common Q4_0 files keep the output weights in Q6_K, which is not supported yet. No file in the list runs on this PC right now.",
+  "목록의 모델 가운데 이 PC의 그래픽 메모리({})에 맞는 것이 없습니다. Hugging Face에서 더 작은 파일을 찾아볼 수 있습니다 — 받기 전에 실행되는지 확인합니다.": "None of the listed models fit this PC's graphics memory ({}). You can look for smaller files on Hugging Face — GeulPU checks that a file runs before downloading it.",
+  "추천 모델 다운로드": "Download the recommended model",
+  "모델 찾기": "Find models",
+  "GGUF 파일 추가": "Add a GGUF file",
+  "다운로드 진행 보기": "View download progress",
+  "모델 둘러보기": "Browse models",
+  "모델을 불러오지 못했습니다 — ": "Could not load the model — ",
+  "중지했습니다": "Stopped",
+  "모델을 불러오지 못했습니다": "Could not load the model",
+  "{} 불러오는 중 · {}{}": "Loading {} · {}{}",
+  " · 커널 준비 중": " · preparing kernels",
+  "GeulPU.exe와 연결이 끊겨 보낼 수 없습니다": "Can't send — disconnected from GeulPU.exe",
+  "위의 모델 선택에서 모델을 고르세요": "Choose a model with the model button above",
+  "먼저 모델 화면에서 모델을 다운로드하거나 추가하세요": "First download or add a model on the Models screen",
+  "이 모델은 이 PC에서 실행할 수 없습니다 — ": "This model can't run on this PC — ",
+  "메시지 수정": "Edit message",
+  "보내면 지금 대화는 이전 버전으로 남습니다 · Esc 취소": "Sending keeps the current conversation as an earlier version · Esc to cancel",
+  "보내면 지금 답은 이전 버전으로 남습니다 · Esc 취소": "Sending keeps the current answer as an earlier version · Esc to cancel",
+  "{} 불러오는 중": "Loading {}",
+  "답변이 끝났습니다": "The answer is finished",
+  "중지됨": "Stopped",
+  "오류": "Error",
+  "불러오기를 중지했습니다": "Loading stopped",
+  "생각을 먼저 쓰고 답하는 추론 모델{}수학{}논리": "Reasoning model that thinks before answering{}math{}logic",
+  "코드 작성{}설명": "Writing code{}explaining",
+  "생각 켬{}끔을 고르는 대화 모델{}한국어{}영어": "Chat model with thinking on{}off{}Korean{}English",
+  "한국어{}영어 일반 대화": "Everyday chat in Korean{}English",
+  "모델 화면": "Models screen",
+  "내 모델": "My models",
+  "모델": "Models",
+  "모델 폴더 열기": "Open the model folder",
+  "받는 중": "Downloading",
+  "설치된 모델": "Installed models",
+  "일부 모델은 이 GPU에서 실행할 수 없습니다. 꼬리표에 마우스를 올리면 까닭이 보입니다.": "Some models can't run on this GPU. Hover over a tag to see why.",
+  "아직 설치된 모델이 없습니다": "No models installed yet",
+  "Hugging Face의 모델을 둘러보고 받거나, 이미 있는 GGUF 파일을 추가하세요.": "Browse and download models from Hugging Face, or add a GGUF file you already have.",
+  "이어서 다운로드": "Resume download",
+  "다시 다운로드": "Download again",
+  "받은 것 지우기": "Delete the partial file",
+  "받은 것 지우기: {} {}": "Delete the partial file: {} {}",
+  "{}{}{}문맥 {}{}": "{}{}{}context {}{}",
+  " (최대 {})": " (max {})",
+  "무결성 확인 중": "Verifying integrity",
+  "무결성 확인 안 됨": "Integrity not verified",
+  "이 모델로 채팅: {} {}": "Chat with this model: {} {}",
+  "채팅": "Chat",
+  "메뉴: {} {}": "Menu: {} {}",
+  "모델 메뉴": "Model menu",
+  "모델 내리기": "Unload model",
+  "파일 무결성 다시 확인": "Verify file integrity again",
+  "받은 그대로임을 확인했습니다(SHA-256) · 몇 초": "Verified as downloaded (SHA-256) · a few seconds",
+  "받은 그대로인지 SHA-256으로 확인 · 몇 초": "Check with SHA-256 that it is unchanged · a few seconds",
+  "내리고 목록에서 제거": "Unload and remove from the list",
+  "목록에서 제거": "Remove from the list",
+  "모델을 내렸습니다": "Model unloaded",
+  "파일 무결성(SHA-256)을 확인합니다 — 8 GB 파일에 몇 초 걸립니다": "Checking file integrity (SHA-256) — a few seconds for an 8 GB file",
+  "{} {} — {}목록에서 제거합니다.": "{} {} — {}removes it from the list.",
+  "불러온 모델을 내리고 ": "unloads it and ",
+  "파일도 삭제 ({})": "Also delete the file ({})",
+  "GeulPU 모델 폴더 밖의 파일은 삭제하지 않고 목록에서만 제거합니다.": "Files outside GeulPU's model folder are not deleted, only removed from the list.",
+  "모델 제거": "Remove model",
+  "제거": "Remove",
+  "서버가 응답하지 않음(시간 초과)": "the server did not respond (timeout)",
+  "서버 주소를 찾지 못함": "server address not found",
+  "서버에 연결하지 못함": "could not connect to the server",
+  "연결이 끊김": "the connection was lost",
+  "서버가 연결을 끊음": "the server closed the connection",
+  "서버의 응답이 올바르지 않음": "invalid response from the server",
+  "보안 연결(HTTPS)을 맺지 못함": "could not establish a secure (HTTPS) connection",
+  "WinHTTP 오류 {}{}": "WinHTTP error {}{}",
+  "'이어서 다운로드'": "'Resume download'",
+  "'다시 다운로드'": "'Download again'",
+  "연결이 끊겨 {}%에서 멈췄습니다. 인터넷 연결을 확인한 뒤 {}를 누르세요.": "The connection dropped at {}%. Check your internet connection, then click {}.",
+  "다운로드 서버에 연결하지 못했습니다. 인터넷 · 방화벽 · 프록시를 확인한 뒤 {}를 누르세요.": "Couldn't connect to the download server. Check your internet, firewall and proxy, then click {}.",
+  "다운로드 서버가 오류(HTTP {})를 보냈습니다. 잠시 뒤 {}를 누르세요.": "The download server returned an error (HTTP {}). Wait a moment, then click {}.",
+  "{}. 여유 공간과 폴더 권한을 확인한 뒤 {}를 누르세요.": "{}. Check the free space and folder permissions, then click {}.",
+  "받은 파일이 원본과 다릅니다(SHA-256 불일치). 받은 것을 지웠으니 {}를 누르세요.": "The downloaded file differs from the original (SHA-256 mismatch). It was deleted — click {}.",
+  "다운로드하지 못했습니다": "Download failed",
+  "Hugging Face에서 파일 앞부분을 받지 못했습니다. 인터넷 연결을 확인한 뒤 다시 확인하세요.": "Couldn't fetch the start of the file from Hugging Face. Check your internet connection and check again.",
+  "Hugging Face가 오류(HTTP {})를 보냈습니다. 잠시 뒤 다시 확인하세요.": "Hugging Face returned an error (HTTP {}). Check again in a moment.",
+  "확인하지 못했습니다": "Check failed",
+  "지우기": "Delete",
+  "다운로드": "Download",
+  "진행 중인 다운로드가 없습니다.": "No downloads in progress.",
+  "모델 화면에서 보기": "View on the Models screen",
+  "이 PC에서는 쓸 수 있는 GPU를 찾지 못해 이 모델을 실행할 수 없습니다. 다른 PC로 옮겨 쓸 파일이면 그대로 다운로드할 수 있습니다.": "No usable GPU was found on this PC, so this model can't run here. You can still download it to use on another PC.",
+  "이 PC의 그래픽 메모리({})로는 실행되지 않을 수 있습니다. 그래픽 메모리 {} GB 이상을 권장합니다.": "This PC's graphics memory ({}) may not be enough. {} GB or more is recommended.",
+  "이 PC의 그래픽 메모리({})에서는 문맥 길이가 줄어듭니다.": "On this PC's graphics memory ({}) the context length is reduced.",
+  "파일": "Files",
+  "크기": "Size",
+  "{} ({} 바이트)": "{} ({} bytes)",
+  "저장 위치": "Storage",
+  "{}{}여유 {}": "{}{}{} free",
+  "알 수 없음": "unknown",
+  "출처": "Source",
+  "라이선스": "License",
+  "기술 정보": "Technical details",
+  "이 파일로는 아직 GeulPU에서 실행해 보지 않았습니다. 다운로드가 끝나면 지원 여부를 바로 알려 드립니다.": "GeulPU hasn't run this file yet. Support is checked as soon as the download finishes.",
+  "중간에 끊겨도 다시 누르면 이어서 받고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.": "If it stops, clicking again resumes; when it finishes, the file is verified with SHA-256.",
+  "모델 다운로드": "Download model",
+  "상위 폴더": "Parent folder",
+  "추가했습니다: {}": "Added: {}",
+  "하위 폴더가 없습니다": "No subfolders",
+  "이 폴더에는 .gguf 파일이나 하위 폴더가 없습니다": "No .gguf files or subfolders here",
+  "폴더 경로(예: D:\\models)": "Folder path (e.g. D:\\models)",
+  "폴더 경로": "Folder path",
+  "모델 폴더 고르기": "Choose the model folder",
+  "받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.": "Choose where downloaded models go. Applies from the next start.",
+  "GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.": "GeulPU runs GGUF files of the qwen2 architecture (Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B and up) and the qwen3 architecture (Qwen3 1.7B · 8B · 14B). Support is checked as soon as you add a file.",
+  "이동": "Go",
+  "이 폴더 선택": "Choose this folder",
+  "구조 정보 없음": "No architecture info",
+  "{} · 미지원 구조": "{} · unsupported architecture",
+  "대화용 모델 아님": "Not a chat model",
+  "이미지 생성용 텍스트 인코더 · 임베딩 · 음성처럼 채팅에 쓰는 모델이 아닙니다.": "Not a model for chat — e.g. a text encoder for image generation, an embedding or a speech model.",
+  "GeulPU에서 실행됨": "Runs in GeulPU",
+  "이 크기는 아직 미지원": "Size not supported yet",
+  "Qwen3의 0.6B · 4B · 32B는 질의 폭이 너비와 달라 GeulPU가 아직 실행하지 않습니다.": "Qwen3 0.6B · 4B · 32B have a query width different from the hidden size, which GeulPU doesn't run yet.",
+  "크기 확인 필요": "Size needs a check",
+  "흔한 Qwen3 크기(1.7B · 8B · 14B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.": "Not a common Qwen3 size (1.7B · 8B · 14B). GeulPU fetches the start of the file to check that it runs before downloading.",
+  "헤드 크기가 64인 작은 Qwen2(0.5B 등)는 GeulPU가 아직 실행하지 않습니다.": "GeulPU doesn't run small Qwen2 models with head size 64 (such as 0.5B) yet.",
+  "{}일 전": "{0} {0|day|days} ago",
+  "{}주 전": "{0} {0|week|weeks} ago",
+  "{}개월 전": "{0} {0|month|months} ago",
+  "{}년 전": "{0} {0|year|years} ago",
+  "요즘 뜨는": "Trending",
+  "Hugging Face의 트렌드 점수 순": "By Hugging Face's trending score",
+  "인기": "Popular",
+  "최근 30일 다운로드가 많은 순": "Most downloads in the last 30 days",
+  "좋아요": "Likes",
+  "좋아요가 많은 순": "Most likes",
+  "최근 업데이트": "Recently updated",
+  "최근에 고친 저장소 순": "Most recently updated repositories",
+  "모든 크기": "All sizes",
+  "모델 목록": "Model list",
+  "모델 자세히": "Model details",
+  "이름으로 좁히기 — 예: qwen3, coder, r1, 14b": "Filter by name — e.g. qwen3, coder, r1, 14b",
+  "모델 이름으로 좁히기": "Filter by model name",
+  "검색어 지우기": "Clear the search",
+  "실행 안 되는 모델도 보기": "Also show models that don't run",
+  "끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다": "When off, only architectures (qwen2 · qwen3) and sizes that GeulPU runs are shown",
+  "정렬": "Sort",
+  "GeulPU 확인됨": "Verified by GeulPU",
+  "GeulPU에서 실제로 돌려 본 파일이 있는 저장소만": "Only repositories with a file GeulPU has actually run",
+  "이 PC에 맞는 크기": "Fits this PC",
+  "매개변수 수로 어림한 Q4_K_M 파일이 이 PC의 그래픽 메모리에 들어가는 것만": "Only models whose Q4_K_M file (estimated from the parameter count) fits this PC's graphics memory",
+  "Hugging Face에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.": "Couldn't reach Hugging Face. Check your internet connection and try again.",
+  "GeulPU에서 실행되는 것": "runs in GeulPU",
+  "실행 안 되는 것 포함": "including those that don't run",
+  "{}개{}": "{0}{1} {0|repository|repositories}",
+  " 이상": "+",
+  "0개": "0 repositories",
+  "{}{}순{}{}": "{0}sorted by {1}{2}{3}",
+  "Hugging Face의 GGUF 저장소": "GGUF repositories on Hugging Face",
+  "불러오는 중…": "Loading…",
+  "조건에 맞는 모델이 없습니다": "No models match",
+  "거르기를 줄이거나, '실행 안 되는 모델도 보기'를 켜면 Hugging Face의 모든 GGUF 모델이 보입니다(실행되지 않는 것은 흐리게).": "Loosen the filters, or switch on \"Also show models that don't run\" to see every GGUF model on Hugging Face (those that don't run are dimmed).",
+  "검색어나 거르기를 바꿔 보세요.": "Try another search or other filters.",
+  "더 보기": "Load more",
+  "{} 기반": "based on {}",
+  "GeulPU에서 실제로 돌려 본 파일이 있습니다": "Has a file GeulPU has actually run",
+  "실행됨": "Runs",
+  "구조 알 수 없음": "Unknown architecture",
+  "최근 30일 다운로드": "Downloads in the last 30 days",
+  "업데이트": "Updated",
+  "이 PC 추천": "Recommended",
+  "모델을 고르면 자세한 정보가 여기에 보입니다": "Choose a model to see its details here",
+  "크기{}구조{}다운로드 수{}라이선스{}파일마다 이 PC에 맞는지{}모델 설명": "Size{}architecture{}downloads{}license{}whether each file fits this PC{}model card",
+  "{} 구조": "{} architecture",
+  "매개변수 {}": "{} parameters",
+  "문맥 최대 {}": "context up to {}",
+  "GeulPU에서 실행되는 구조": "Architecture GeulPU runs",
+  "최근 30일": "last 30 days",
+  "누적 다운로드": "All-time downloads",
+  "이 저장소의 구조({})는 아직 GeulPU 엔진에 없습니다. 정보는 볼 수 있지만 받을 수 없습니다.": "This repository's architecture ({}) isn't in the GeulPU engine yet. You can read the details but not download it.",
+  "Hugging Face가 이 저장소의 GGUF 구조를 알려 주지 않았습니다. 파일을 받기 전에 앞부분을 받아 확인합니다.": "Hugging Face didn't report this repository's GGUF architecture. GeulPU fetches the start of a file to check it before downloading.",
+  "파일 목록을 받지 못했습니다. 인터넷 연결을 확인한 뒤 모델을 다시 고르세요.": "Couldn't get the file list. Check your internet connection and choose the model again.",
+  "파일 목록을 불러오는 중…": "Loading the file list…",
+  "저장소": "Repository",
+  "저장소에 적혀 있지 않음": "not stated in the repository",
+  "바탕 모델": "Base model",
+  " 외 {}개": " and {} more",
+  "언어": "Languages",
+  "용도": "Task",
+  "만든 날": "Created",
+  "모델 설명": "Model card",
+  "Hugging Face의 README": "README on Hugging Face",
+  "접기": "Collapse",
+  "모두 보기": "Show all",
+  "모델 설명을 불러오는 중…": "Loading the model card…",
+  "양자화마다 하나 — 고르면 받기 전에 실행되는지 확인": "One per quantization — checked to run before downloading",
+  "정보": "Details",
+  "이 저장소에는 GGUF 파일이 없습니다.": "This repository has no GGUF files.",
+  "지원하지 않는 구조": "Unsupported architecture",
+  "아직 미지원 크기": "Size not supported yet",
+  "대화용 모델이 아님": "Not a chat model",
+  "여러 조각으로 나뉜 파일 — 합친 파일만 받습니다": "Split into parts — only single-file models are supported",
+  "{} 형식은 아직 미지원": "{} not supported yet",
+  "양자화 형식을 알 수 없는 파일": "Unknown quantization format",
+  "SHA-256 정보가 없는 파일": "No SHA-256 information",
+  "설치됨": "Installed",
+  "실행되는지 확인하는 중": "Checking that it runs",
+  "이 PC에 추천": "Recommended for this PC",
+  "GeulPU에서 이 파일로 실제로 돌려 보았습니다": "GeulPU has actually run this file",
+  "실행 확인됨": "Verified to run",
+  "이 엔진이 받지 않는 파일입니다": "The engine doesn't accept this file",
+  "확인이 너무 오래 걸립니다. 잠시 뒤 다시 누르세요.": "The check is taking too long. Click again in a moment.",
+  "{} {}{}{}B{}문맥 최대 {}": "{} {}{}{}B{}context up to {}",
+  "저장소에 적혀 있지 않음 — 저장소에서 확인하세요": "not stated in the repository — check the repository",
+  "이 파일의 답 품질은 GeulPU에서 확인하지 않았습니다. 구조와 형식은 받기 전에 확인했고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.": "GeulPU hasn't checked the answer quality of this file. The architecture and format were checked before downloading, and the file is verified with SHA-256 once downloaded.",
+  "다운로드를 시작했습니다 — 진행은 상태 막대와 '내 모델'에서 볼 수 있습니다": "Download started — follow it in the status bar and under My models",
+  "받다 만 파일 지우기": "Delete the partial download",
+  "{} {} — 지금까지 받은 {}를 지웁니다.{}": "{} {} — deletes the {} downloaded so far.{}",
+  " Hugging Face에서 더한 항목이라 목록에서도 뺍니다.": " It was added from Hugging Face, so it is also removed from the list.",
+  "1~6분": "1–6 min",
+  "이 PC의 메모리 대역폭과 정수 연산 성능을 측정하고, 엔진의 각 연산이 하드웨어 한계에 얼마나 가까운지 보여 줍니다.": "Measures this PC's memory bandwidth and integer throughput, and shows how close each engine operation comes to the hardware limit.",
+  "1~3분": "1–3 min",
+  "프롬프트 처리(512 · 2048토큰)와 답 생성 속도를 토큰/초로 세 번씩 측정합니다.": "Measures prompt processing (512 · 2048 tokens) and generation speed in tokens/s, three times each.",
+  "경로마다 5~20분": "5–20 min per path",
+  "DeepSeek-R1-Distill-Qwen-7B Q8_0으로 수학 문제 32개를 풀어 기준 PC의 출력과 비트 단위로 비교합니다. 빌드와 커널의 해시도 함께 확인합니다.": "Solves 32 math problems with DeepSeek-R1-Distill-Qwen-7B Q8_0 and compares the output with the reference PC bit for bit. The build and kernel hashes are checked too.",
+  "생성 토큰/초": "Generation tokens/s",
+  "프롬프트 토큰/초": "Prompt tokens/s",
+  "프롬프트 2048토큰": "Prompt 2048 tokens",
+  "메모리 대역폭": "Memory bandwidth",
+  "정수 텐서": "Integer tensor",
+  "생성 · 하드웨어 한계 대비": "Generation · of the hardware limit",
+  "한계 대비 생성": "Generation vs limit",
+  "프롬프트 · 하드웨어 한계 대비": "Prompt · of the hardware limit",
+  "한계 대비 프롬프트": "Prompt vs limit",
+  "결과 {}개": "{0} {0|result|results}",
+  "벤치마크": "Benchmark",
+  "한 번에 하나씩 실행됩니다. 실행하는 동안 불러온 채팅 모델은 GPU에서 내립니다. 결과는 zip으로 내보낼 수 있습니다.": "Runs one at a time. While it runs, the loaded chat model is unloaded from the GPU. Results can be exported as a zip.",
+  "측정할 모델": "Model to measure",
+  "하드웨어 진단 · 속도 측정에 씁니다": "Used by the hardware diagnosis and the speed test",
+  "하드웨어 진단 · 속도 측정에 쓸 모델": "Model for the hardware diagnosis and the speed test",
+  "실행할 수 있는 모델이 없습니다": "No model that can run",
+  "최근 결과": "Recent results",
+  "결과 폴더 열기": "Open the results folder",
+  "끝났습니다": "Finished",
+  "실패했습니다": "Failed",
+  "실행 중": "Running",
+  "완료": "Done",
+  "실패": "Failed",
+  "같은 설정으로 다시 실행": "Run again with the same settings",
+  "카드 닫기": "Close card",
+  "끝난 작업 카드 닫기": "Close the finished job card",
+  "빠른 확인 — ": "Quick check — ",
+  "결과 보기": "View result",
+  "zip 내보내기": "Export zip",
+  "실행 기록": "Run log",
+  "도구 출력": "Tool output (raw)",
+  "빠른 확인 — 문제 2개 · 64토큰(전체 검증 아님)": "Quick check — 2 problems · 64 tokens (not the full check)",
+  "검증할 경로": "Paths to check",
+  "모든 경로(권장)": "All paths (recommended)",
+  "텐서 코어 경로만": "Tensor-core path only",
+  "기본 경로만": "Basic path only",
+  "DeepSeek-R1-Distill-Qwen-7B Q8_0 모델이 필요합니다.": "Needs the DeepSeek-R1-Distill-Qwen-7B Q8_0 model.",
+  "다운로드({})": "Download ({})",
+  "먼저 모델을 설치하세요.": "Install a model first.",
+  "채팅의 답이 끝난 뒤 실행할 수 있습니다": "Available after the chat answer finishes",
+  "채팅 모델을 내립니다": "Unload the chat model",
+  "측정하는 동안 GPU를 혼자 쓰도록 불러온 채팅 모델을 내립니다. 계속할까요?": "To have the GPU to itself while measuring, the loaded chat model is unloaded. Continue?",
+  "계속": "Continue",
+  "다른 작업 실행 중": "Another job is running",
+  "실행": "Run",
+  "불일치": "Mismatch",
+  "앞부분 일치": "Start matches",
+  "일치": "Match",
+  "빠른 확인": "Quick check",
+  "아직 결과가 없습니다": "No results yet",
+  "위에서 측정을 하나 실행하면 여기에 쌓입니다.": "Run a measurement above and it will appear here.",
+  "종류": "Type",
+  "일시": "Date",
+  "결과": "Result",
+  "동작": "Actions",
+  "동시 {}개 생성 · 문맥 {}": "{} concurrent generations · context {}",
+  "{}행 일괄 처리 · 문맥 {}": "{}-row batch · context {}",
+  "생성 · 문맥 {}": "Generation · context {}",
+  "프롬프트 {}토큰": "Prompt {} tokens",
+  " · 대체 커널": " · alternative kernel",
+  " · 동시 {}개 · 문맥 {}": " · {} at once · context {}",
+  " · 빠른 확인(문제 2개 · 64토큰)": " · quick check (2 problems · 64 tokens)",
+  "하드웨어 진단 결과": "Hardware diagnosis result",
+  "속도 측정 결과": "Speed test result",
+  "앞 64토큰이 기준 PC와 같습니다 — 전체 검증은 아닙니다": "The first 64 tokens match the reference PC — not the full check",
+  "앞부분부터 기준 PC와 다릅니다": "Differs from the reference PC from the start",
+  "문제 {}개 모두 기준 PC와 출력이 같습니다": "All {} problems give the same output as the reference PC",
+  "기준 PC와 출력이 다른 문제가 있습니다": "Some problems give a different output from the reference PC",
+  "문제의 앞 64토큰이 같음": "problems match in the first 64 tokens",
+  "문제 · 경로 {}개 모두 같음": "all {} problem · path pairs match",
+  "문제가 같은 출력": "problems give the same output",
+  "{}회 중 {}회 일치(문제 {} × 경로 {})": "{1} of {0} runs match ({2} problems × {3} paths)",
+  "동시 {}개 · {}": "{} at once · {}",
+  "1분 미만": "under a minute",
+  "분": " min",
+  "문제": "Problem",
+  "판정": "Verdict",
+  "토큰": "Tokens",
+  "기준": "Reference",
+  "토큰마다 로짓(점수)의 SHA-256": "SHA-256 of the logits (scores) at every token",
+  "단계별 해시": "Per-step hash",
+  "파일 {}.json": "File {}.json",
+  "같음": "Same",
+  "다름 · {}번째 글자부터": "Differs · from character {}",
+  "모든 문제 {}개 보기": "Show all {} problems",
+  "문제 {}개 보기": "Show {} problems",
+  "빌드 · 커널 해시": "Build · kernel hashes",
+  "프롬프트 토큰/초(512토큰)": "Prompt tokens/s (512 tokens)",
+  "프롬프트 토큰/초(2048토큰)": "Prompt tokens/s (2048 tokens)",
+  "측정값": "Measurements",
+  "세 번 측정한 가운데 값": "Median of three runs",
+  "항목": "Item",
+  "프롬프트 처리": "Prompt processing",
+  "토큰당 생성": "Per-token generation",
+  "토큰/초": "Tokens/s",
+  "연산별 시간": "Time per operation",
+  "100% = 하드웨어 한계 · 높을수록 좋습니다": "100% = hardware limit · higher is better",
+  "연산": "Operation",
+  "합계": "Total",
+  "한계 대비": "Of limit",
+  "같은 계산을 다른 방식으로 하는 후보 커널 — 비교하려고 함께 잽니다": "A candidate kernel doing the same computation another way — measured for comparison",
+  "진단 도구의 이름: ": "Name in the diagnosis tool: ",
+  "결과.txt 원문": "Raw 결과.txt (result file)",
+  "폴더 열기": "Open folder",
+  "하드웨어": "Hardware",
+  "다시 확인": "Check again",
+  "확인하는 중…": "Checking…",
+  "NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU가 필요합니다.": "GeulPU needs an NVIDIA RTX 30 series or newer (CUDA) or a GPU with Vulkan 1.3.",
+  "백엔드": "Backend",
+  "NVIDIA 드라이버(nvcuda.dll)": "NVIDIA driver (nvcuda.dll)",
+  "Vulkan 드라이버(vulkan-1.dll)": "Vulkan driver (vulkan-1.dll)",
+  "그래픽 메모리": "Graphics memory",
+  "드라이버": "Driver",
+  "커널": "Kernels",
+  "공유 메모리 32 KB용": "For 32 KB shared memory",
+  "표준": "Standard",
+  "CUDA용": "For CUDA",
+  "처음 한 번 이 GPU에 맞춰 만듭니다": "Built once for this GPU",
+  "행렬 가속": "Matrix acceleration",
+  "텐서 코어({})": "Tensor cores ({})",
+  "없음 — 일반 연산": "None — regular arithmetic",
+  "텐서 코어(정수)": "Tensor cores (integer)",
+  "텐서 코어를 쓸 수 없어 일반 연산으로 대신합니다": "Tensor cores are not available, so regular arithmetic is used",
+  "Vulkan 장치": "Vulkan devices",
+  "CUDA 장치": "CUDA devices",
+  "내장": "Integrated",
+  "없음": "none",
+  "사용 중": "In use",
+  "지원": "Supported",
+  "지원 안 함": "Not supported",
+  "내장 GPU는 시스템 메모리를 나눠 씁니다": "An integrated GPU shares the system memory",
+  "Vulkan이 알려 준 장치 메모리 — 드라이버가 예약한 만큼 작게 보일 수 있습니다": "Device memory reported by Vulkan — may look smaller by what the driver reserves",
+  "공유 ": "Shared ",
+  "Compute Capability {}.{}{}SM {}개{}CUDA {}.{}": "Compute Capability {}.{}{}{} SMs{}CUDA {}.{}",
+  "8.0 미만 · 지원 안 함": "Below 8.0 · not supported",
+  "CUDA 없음 — NVIDIA 드라이버(nvcuda.dll)가 필요합니다": "No CUDA — needs the NVIDIA driver (nvcuda.dll)",
+  "저장했습니다 · 다음에 모델을 불러올 때 적용됩니다": "Saved · applies the next time a model is loaded",
+  "GPU 백엔드": "GPU backend",
+  "자동": "Auto",
+  "저장했습니다 · 하드웨어를 다시 확인합니다": "Saved · checking the hardware again",
+  "자동 — 첫 번째 외장 GPU": "Auto — the first discrete GPU",
+  "동시 처리 수": "Concurrent chats",
+  "채팅마다 문맥 길이": "Context length per chat",
+  "기본 폴더 사용": "Use the default folder",
+  "모델 폴더": "Model folder",
+  "저장했습니다 · 다음 실행부터 적용됩니다": "Saved · applies from the next start",
+  "모델 폴더 찾아보기": "Browse for the model folder",
+  "찾아보기": "Browse",
+  "새 버전 알림": "New-version notice",
+  "저장했습니다": "Saved",
+  "저장됨": "Saved",
+  " · 새 버전 {} 있음": " · new version {} available",
+  " · 최신 버전": " · up to date",
+  "설정": "Settings",
+  "바꾼 값은 바로 저장됩니다(숫자 · 글 칸은 다 쓰고 칸을 떠날 때).": "Changes are saved right away (number and text fields when you leave the field).",
+  "자동은 NVIDIA GPU면 CUDA, 그 밖에는 Vulkan을 씁니다.": "Auto uses CUDA on an NVIDIA GPU and Vulkan otherwise.",
+  "GPU가 여러 개일 때 Vulkan으로 쓸 장치": "Which device Vulkan uses when there are several GPUs",
+  "동시에 답할 수 있는 채팅 수(1~8) · 다음에 모델을 불러올 때 적용": "How many chats can answer at once (1–8) · applies the next time a model is loaded",
+  "토큰 · 그래픽 메모리에 맞지 않으면 엔진이 자동으로 줄입니다. 다음에 모델을 불러올 때 적용": "Tokens · the engine reduces it if it doesn't fit the graphics memory. Applies the next time a model is loaded",
+  "다음 실행부터 적용됩니다. 기본: {}": "Applies from the next start. Default: {}",
+  "데이터 폴더": "Data folder",
+  "열기": "Open",
+  "앱을 열 때 GitHub에서 최신 버전 번호만 확인합니다.": "When the app opens, it checks only the latest version number on GitHub.",
+  "커밋 ": "commit ",
+  "개발 빌드": "development build",
+  "릴리스": "Releases",
+  "소스": "Source",
+  "API 주소": "API address",
+  "다른 프로그램은 OpenAI 호환 API로 쓸 수 있습니다(이 PC 안에서만).": "Other programs can use the OpenAI-compatible API (from this PC only).",
+  "주소 복사": "Copy address",
+  "API 주소 복사": "Copy the API address",
+  "모델|th": "Model",
+  "파일|k": "File",
+  "정보|about": "About",
+  "실행|sec": "Engine",
+  "다운로드|list": "Downloads",
+  "없음|empty": "None",
+  "Vulkan 장치|one": "Vulkan device",
+  "글": "글",
+  "맨 아래로": "Scroll to the bottom",
+  "메뉴": "Menu",
+  "메시지": "Message",
+  "목록 닫기": "Close the list",
+  "상태": "Status",
+  "채팅 목록": "Chats",
+  "채팅 목록 닫기": "Close the chat list",
+  "채팅 목록 열기": "Open the chat list",
+  "채팅은 이 브라우저에만 저장됩니다": "Chats are stored only in this browser",
+  "Vulkan {}{}드라이버 {}{}공유 메모리 {} KB{}텐서 코어 {}": "Vulkan {}{}driver {}{}shared memory {} KB{}tensor cores {}",
+  "그래픽 메모리가 부족합니다": "Not enough graphics memory",
+  "다른 작업이 실행 중입니다": "Another job is running",
+  "모델이 아직 준비되지 않았습니다": "The model is not ready yet",
+  "답을 받지 못했습니다": "No answer was received",
+  "GPU 드라이버가 작업을 멈췄습니다": "The GPU driver stopped the work",
+  "측정을 끝내지 못했습니다": "The measurement did not finish",
+  "설치 {}개": "{} installed",
+  "받는 중 {}개": "{} downloading",
+  "여유 {}": "{} free",
+  "화면에 쓰는 말입니다. 바꾸면 화면을 다시 불러옵니다.": "The language of the screens. Changing it reloads the page.",
+  "자동 — 브라우저 언어": "Auto — browser language",
+  "재현성 검증의 기준 모델입니다. 수학 문제 32개의 출력이 기준 PC(NVIDIA · CUDA)와 비트 단위로 같은지 확인할 수 있습니다. 답하기 전에 생각 과정(<think>)을 길게 쓰는 추론 모델입니다.": "The reference model of the reproducibility check. You can check that its outputs on 32 math problems are bit-identical to the reference PC (NVIDIA · CUDA). A reasoning model that writes a long thought process (<think>) before answering.",
+  "한국어 · 영어 일반 대화 모델입니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU(AMD 등)에서도 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A general chat model for Korean and English. As a Q8_0 file it also runs on GPUs with 32 KB of shared memory (AMD etc.). This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "4비트 k-양자화 파일이라 VRAM 8 GB급 GPU에서도 실행됩니다. k-양자화 모델은 CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다(AMD는 아직 지원하지 않음). 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A 4-bit k-quant file, so it also runs on GPUs with about 8 GB of VRAM. k-quant models run on CUDA or on Vulkan GPUs with 48 KB or more of shared memory (AMD is not supported yet). This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "추론 모델의 4비트 k-양자화 파일입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A 4-bit k-quant file of the reasoning model. Runs on CUDA or on Vulkan GPUs with 48 KB or more of shared memory. This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "코드 작성 · 설명에 맞춘 모델입니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU에서도 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A model tuned for writing and explaining code. As a Q8_0 file it also runs on GPUs with 32 KB of shared memory. This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "14B 모델입니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A 14B model. The engine reduces the context length automatically to fit the graphics memory. Runs on CUDA or on Vulkan GPUs with 48 KB or more of shared memory. This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "14B 추론 모델입니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15).": "A 14B reasoning model. The engine reduces the context length automatically to fit the graphics memory. Runs on CUDA or on Vulkan GPUs with 48 KB or more of shared memory. This file was run and checked on CUDA (RTX 4070 Ti) (2026-10-15).",
+  "Qwen3 대화 모델입니다. 답하기 전에 생각 과정을 쓰며, 생성 설정의 '생각 과정 쓰기'를 끄면 바로 답합니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU(AMD 등)에서도 실행되지만 그래픽 메모리가 16 GB 이상이어야 합니다. 이 파일은 CUDA(RTX 4070 Ti)와 Vulkan에서 실행을 확인했습니다(2026-10-15).": "A Qwen3 chat model. It writes a thought process before answering; turn off 'Thinking' in the generation settings to get the answer directly. As a Q8_0 file it also runs on GPUs with 32 KB of shared memory (AMD etc.), but it needs 16 GB or more of graphics memory. This file was run and checked on CUDA (RTX 4070 Ti) and Vulkan (2026-10-15).",
+  "Qwen3-8B의 작은 파일입니다. 답하기 전에 생각 과정을 쓰며, 생성 설정에서 끌 수 있습니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)와 Vulkan에서 실행을 확인했습니다(2026-10-15).": "A smaller file of Qwen3-8B. It writes a thought process before answering, which you can turn off in the generation settings. Runs on CUDA or on Vulkan GPUs with 48 KB or more of shared memory. This file was run and checked on CUDA (RTX 4070 Ti) and Vulkan (2026-10-15).",
+  "작은 Qwen3 모델입니다(1.8 GB). 그래픽 메모리가 적은 PC에서도 실행됩니다. 생각 과정을 쓰며, 생성 설정에서 끌 수 있습니다. 이 파일은 CUDA(RTX 4070 Ti) · Vulkan · 공유 메모리 32 KB 장치의 한도를 흉내 낸 Vulkan에서 실행을 확인했습니다(2026-10-15).": "A small Qwen3 model (1.8 GB). It runs even on PCs with little graphics memory. It writes a thought process, which you can turn off in the generation settings. This file was run and checked on CUDA (RTX 4070 Ti), Vulkan, and Vulkan emulating the limits of a 32 KB shared-memory device (2026-10-15).",
+  "14B Qwen3 모델입니다. 이 모양(너비 5120 · 헤드 40/8 · FFN 17408)은 같은 모양의 합성 모델로 출력이 비트 단위로 맞는지 확인했지만, 이 파일로는 아직 실행해 보지 않았습니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다.": "A 14B Qwen3 model. This shape (hidden 5120 · heads 40/8 · FFN 17408) was checked for bit-exact output with a synthetic model of the same shape, but this file has not been run yet. The engine reduces the context length automatically to fit the graphics memory.",
+  "Hugging Face에서 고른 파일 — 받기 전에 GGUF 머리로 GeulPU가 받는 모양인지 확인했습니다.": "A file picked from Hugging Face — its GGUF header was checked before downloading to confirm GeulPU accepts its shape.",
+};
+function T(s, ...v) {
+  if (typeof s === 'string') {
+    if (!EN) return s;
+    if (v.length && typeof v[0] === 'string') { const c = DICT[s + '|' + v[0]]; if (c !== undefined) return c; }
+    const e = DICT[s];
+    if (e === undefined) { MISSING.add(s); return s; }
+    return e;
+  }
+  const ko = () => { let o = s[0]; for (let i = 0; i < v.length; i++) o += v[i] + s[i + 1]; return o; };
+  if (!EN) return ko();
+  const key = s.join('{}');
+  const e = DICT[key];
+  if (e === undefined) { MISSING.add(key); return ko(); }
+  // {} 는 차례대로, {0} 은 자리 번호로. {0|one|many} 는 0번 값이 1이면 one, 아니면 many(영어의 단수 · 복수)
+  let k = 0;
+  return e.replace(/\{(\d*)(?:\|([^|}]*)\|([^}]*))?\}/g, (_, d, one, many) => {
+    const x = String(v[d === '' ? k++ : +d]);
+    return one === undefined ? x : x === '1' ? one : many;
+  });
+}
+// 관리자 · 서버 문구 → 영어(사전에 통째로 있으면 그것, 아니면 아래 바꾸기를 차례로). 영어 화면이 아니면 그대로
+const TMX = [
+  // 작업 제목
+  [/모델 불러오기 — /g, 'Loading a model — '],
+  [/하드웨어 진단 — /g, 'Hardware diagnosis — '],
+  [/속도 측정 — /g, 'Speed test — '],
+  [/재현성 검증\(빠른 확인\) — 문제 2개 · 64토큰/g, 'Reproducibility check (quick) — 2 problems · 64 tokens'],
+  [/재현성 검증 — 문제 32개/g, 'Reproducibility check — 32 problems'],
+  // 결과 요약(교차검증)
+  [/결과: 기준 PC와 다른 출력이 있거나 끝나지 못한 실행이 있습니다 — /g, 'Result: some outputs differ from the reference PC, or some runs did not finish — '],
+  [/결과: 모든 문제가 기준 PC\(NVIDIA · CUDA\)와 똑같은 출력입니다 — /g, 'Result: every problem gives exactly the same output as the reference PC (NVIDIA · CUDA) — '],
+  [/결과\(빠른 확인 — 문제 2개 · 64토큰\): 기준 PC의 출력과 앞부분이 같습니다 — /g, 'Result (quick check — 2 problems · 64 tokens): the start matches the reference PC — '],
+  [/(\S+) 추론 서버가 시작되지 않음/g, '$1: the inference server did not start'],
+  [/\[([^\]]+)\] (\d+)\/(\d+) 문제가 기준 PC와 같은 출력 · 슬롯 (\d+) · 생성 ([\d.]+)분/g, '[$1] $2/$3 problems match the reference PC · $4 slots · generation $5 min'],
+  [/협력 행렬 모듈 (\S+)/g, 'cooperative-matrix module $1'],
+  [/기본 모듈/g, 'basic module'],
+  [/CUDA 모듈/g, 'CUDA module'],
+  // 작업 단계 · 기록(일 · 벤치)
+  [/커널 모듈 준비 중\(처음 한 번만 — 이 GPU에 맞춰 만듭니다\)/g, 'Preparing kernel modules (first time only — built for this GPU)'],
+  [/커널 모듈 준비 중\(협력 행렬\)/g, 'Preparing kernel modules (cooperative matrix)'],
+  [/커널 모듈 준비 중\(기본\)/g, 'Preparing kernel modules (basic)'],
+  [/커널 소스를 만듭니다: (\S+) \(생성기 — 모양 ([^,]+), ([^)]+)\)/g, 'Generating kernel source: $1 (generator — shape $2, $3)'],
+  [/커널을 컴파일합니다: (\S+) → (\S+)\(글\(geul\) 컴파일러의 (\S+) 백엔드, 1~3분\)/g, "Compiling kernels: $1 → $2 (the geul compiler's $3 backend, 1–3 min)"],
+  [/생성기 실패\(종료 코드 (-?\d+)\): /g, 'Generator failed (exit code $1): '],
+  [/백엔드 실패\(종료 코드 (-?\d+)\): /g, 'Backend failed (exit code $1): '],
+  [/모듈 완성: (\S+) \(([\d.]+) MB, SHA-256 ([0-9a-f]+)…\)/g, 'Module ready: $1 ($2 MB, SHA-256 $3…)'],
+  [/모듈이 이미 있습니다: /g, 'Module already exists: '],
+  [/모델을 불러오는 중에 추론 서버가 종료되었습니다\(종료 코드 (-?\d+)\)\. ?/g, 'The inference server exited while loading the model (exit code $1). '],
+  [/모델을 불러오는 중\(([^·()]+) · ([^·()]+) · 슬롯 (\d+) · 문맥 (\d+)\)/g, 'Loading the model ($1 · $2 · $3 slots · context $4)'],
+  [/모델 준비 완료\(([\d.]+)초, 슬롯당 문맥 (\d+)\)\./g, 'Model ready ($1 s, context $2 per slot).'],
+  [/30분이 지나도 모델이 준비되지 않았습니다\./g, 'The model was not ready after 30 minutes.'],
+  [/이 모델은 이미 불러와 있습니다\./g, 'This model is already loaded.'],
+  [/추론 서버를 실행하지 못했습니다: /g, 'Could not run the inference server: '],
+  [/추론 서버가 종료되었습니다\(종료 코드 (-?\d+)\)([.:]) ?/g, 'The inference server exited (exit code $1)$2 '],
+  [/실행하지 못했습니다: /g, 'Could not run: '],
+  [/작업 스레드를 시작하지 못했습니다/g, 'Could not start the job thread'],
+  [/^실패: /gm, 'Failed: '],
+  [/^중지했습니다\.$/gm, 'Stopped.'],
+  [/Vulkan 장치를 읽지 못했습니다\(종료 코드 (-?\d+)\) — 그래픽 드라이버가 Vulkan을 지원하는지 확인하세요/g, 'Could not read the Vulkan devices (exit code $1) — check that the graphics driver supports Vulkan'],
+  [/Vulkan 장치 확인 중/g, 'Checking Vulkan devices'],
+  [/CUDA 장치 확인 중/g, 'Checking CUDA devices'],
+  [/CUDA를 쓸 수 없습니다\(NVIDIA 드라이버의 nvcuda\.dll이 없거나 열리지 않음\) — Vulkan으로 실행합니다/g, "CUDA is not available (the NVIDIA driver's nvcuda.dll is missing or won't open) — running on Vulkan"],
+  [/사용할 GPU: (.+?) · (\S+) · 메모리 ([\d.]+) GB · 커널 변형 (\S*) · 협력 행렬 ?(\S*)/g, 'GPU in use: $1 · $2 · memory $3 GB · kernel variant $4 · cooperative matrix $5'],
+  [/kernel variant 보통/g, 'kernel variant standard'],
+  [/kernel variant 공유32/g, 'kernel variant shared32'],
+  // Vulkan 장치를 막는 까닭(장치 확인 도구)
+  [/서브그룹 크기 32 를 고를 수 없다\((\d+) … (\d+)\)/g, 'Cannot select subgroup size 32 ($1 … $2)'],
+  [/없는 것: /g, 'Missing: '],
+  [/공유 메모리 (\d+) 바이트 — 32 KB 가 필요하다/g, 'Shared memory is $1 bytes — 32 KB is required'],
+  [/푸시 상수 (\d+) 바이트 — 128 바이트가 필요하다/g, 'Push constants are $1 bytes — 128 bytes are required'],
+  [/한 번 할당의 한도 (\d+) 바이트 — 가중치 한 층\(256 MiB\)도 잡지 못한다/g, 'The single-allocation limit is $1 bytes — not even one weight layer (256 MiB) fits'],
+  [/Vulkan 인스턴스를 만들지 못했다\(VkResult (-?\d+)\) — Vulkan 1\.3 드라이버가 필요하다/g, 'Could not create a Vulkan instance (VkResult $1) — a Vulkan 1.3 driver is required'],
+  [/GEULPU_VULKAN=(.*?) 인 장치가 없다/g, 'No device matches GEULPU_VULKAN=$1'],
+  [/Vulkan 장치가 없다/g, 'No Vulkan device'],
+  [/CUDA ?를 열지 못했습니다/g, 'Could not open CUDA'],
+  [/\s?\(nvcuda\.dll 없음\)/g, ' (nvcuda.dll missing)'],
+  // 추론 서버 · 엔진의 오류(오류 카드의 자세히 · 상태 막대의 도움말)
+  [/프롬프트가 슬롯의 문맥보다 길다/g, "The prompt is longer than the slot's context"],
+  [/프롬프트가 비었다/g, 'The prompt is empty'],
+  [/줄이 가득 찼다 — 잠시 뒤에/g, 'The queue is full — try again shortly'],
+  [/장치 메모리에 맞춰 문맥을 (\d+) → (\d+) 로 줄였다\(남은 ([\d.]+) GB\)/g, 'Reduced the context from $1 to $2 to fit the device memory ($3 GB left)'],
+  [/장치 메모리 (\d+) 바이트가 장치\((.+?)\)의 한 번 할당 한도 (\d+) 바이트를 넘는다/g, 'Device memory of $1 bytes exceeds the single-allocation limit of $3 bytes on $2'],
+  [/장치 메모리가 모자라다/g, 'Not enough device memory'],
+  [/모델을 올리는 중…/g, 'Loading the model…'],
+  [/^오류: /gm, 'Error: '],
+  [/(.+?)의 Compute Capability는 (\d+)\.(\d+)입니다 — GeulPU의 CUDA 모듈은 8\.0\(RTX 30 시리즈\) 이상이 필요합니다/g, "$1 has Compute Capability $2.$3 — GeulPU's CUDA modules need 8.0 (RTX 30 series) or newer"],
+  [/실행할 수 있는 GPU가 없습니다(:| —) /g, 'No GPU can run GeulPU$1 '],
+  [/nvcuda\.dll이 없습니다/g, 'nvcuda.dll is missing'],
+  [/CUDA 장치가 없습니다/g, 'No CUDA device'],
+  [/CUDA를 열지 못했습니다/g, 'Could not open CUDA'],
+  [/Vulkan 장치를 읽지 못했습니다/g, 'Could not read the Vulkan devices'],
+  [/GeulPU 요구 사항을 만족하는 Vulkan 장치가 없습니다/g, "No Vulkan device meets GeulPU's requirements"],
+  [/GPU를 비우는 중\(채팅 모델을 내립니다\)/g, 'Freeing the GPU (unloading the chat model)'],
+  [/하드웨어 한계\(메모리 대역폭 · 정수 텐서\)와 연산별 한계 대비를 측정하는 중\(GPU에 따라 1~6분\)/g, 'Measuring the hardware limits (memory bandwidth · integer tensor) and each operation against them (1–6 min depending on the GPU)'],
+  [/하드웨어 진단 중\(GPU에 따라 1~6분\)/g, 'Running the hardware diagnosis (1–6 min depending on the GPU)'],
+  [/하드웨어 진단에 실패했습니다/g, 'The hardware diagnosis failed'],
+  [/하드웨어 진단: (\S+)\(모듈 ([^)]+)\)/g, 'Hardware diagnosis: $1 (module $2)'],
+  [/진단 실패\(종료 코드 (-?\d+)\): /g, 'Diagnosis failed (exit code $1): '],
+  [/추론 서버 응답 HTTP (\d+): /g, 'Inference server response HTTP $1: '],
+  [/예열 중/g, 'Warming up'],
+  [/측정 중: /g, 'Measuring: '],
+  [/측정된 항목이 없습니다 — 실행 기록을 확인하세요/g, 'Nothing was measured — see the run log'],
+  [/모델을 불러오지 못했습니다 — 실행 기록을 확인하세요/g, 'Could not load the model — see the run log'],
+  [/\[([^\]]+)\] 추론 서버를 시작합니다\(슬롯 (\d+) — 처음에는 커널 컴파일과 실행 방식 측정으로 몇 분 걸릴 수 있습니다\)/g, '[$1] Starting the inference server ($2 slots — the first time can take a few minutes to compile kernels and measure)'],
+  [/\[([^\]]+)\] 추론 서버 준비 완료\(슬롯 (\d+), ([\d.]+)초\)\./g, '[$1] Inference server ready ($2 slots, $3 s).'],
+  [/\[([^\]]+)\] 슬롯 (\d+)개로는 추론 서버가 시작되지 않았습니다: /g, '[$1] The inference server did not start with $2 slots: '],
+  [/추론 서버를 시작하지 못했습니다\(logs 폴더의 server-(\S+)-\*\.log 참고\)/g, 'Could not start the inference server (see server-$1-*.log in the logs folder)'],
+  [/\[([^\]]+)\] 문제 (\d+)개를 보냅니다\(최대 답변 길이 (\d+)토큰\)\./g, '[$1] Sending $2 problems (max answer length $3 tokens).'],
+  [/생성 도중 추론 서버가 종료되었습니다\(logs 폴더의 server-(\S+)-\*\.log 참고\)/g, 'The inference server exited during generation (see server-$1-*.log in the logs folder)'],
+  [/생성 중 — (.+?)\(GPU에 따라 5~20분\)/g, 'Generating — $1 (5–20 min depending on the GPU)'],
+  [/재현성 검증 기준 데이터\(data\\crosscheck\)를 읽지 못했습니다/g, 'Could not read the reproducibility reference data (data\\crosscheck)'],
+  [/재현성 검증에 필요한 모델\(DeepSeek-R1-Distill-Qwen-7B Q8_0, 8\.1 GB\)이 없습니다 — 모델 화면에서 다운로드하거나 파일을 추가하세요/g, 'The model needed for the reproducibility check (DeepSeek-R1-Distill-Qwen-7B Q8_0, 8.1 GB) is missing — download it or add the file on the Models screen'],
+  [/모델 파일 무결성 확인 중\(SHA-256\)/g, "Verifying the model file's integrity (SHA-256)"],
+  [/모델 파일의 SHA-256이 기준과 다릅니다\(([0-9a-f]+)…\) — 파일을 지우고 다시 다운로드하세요/g, "The model file's SHA-256 differs from the reference ($1…) — delete the file and download it again"],
+  [/모델 파일을 읽지 못했습니다/g, 'Could not read the model file'],
+  [/모델 확인: SHA-256이 기준과 같습니다\./g, 'Model check: SHA-256 matches the reference.'],
+  [/VRAM이 (\d+) MiB라 모델\(8\.1 GB\)이 들어가지 않습니다 — 12 GB 이상이 필요합니다/g, "The model (8.1 GB) doesn't fit in $1 MiB of VRAM — 12 GB or more is needed"],
+  [/빌드 해시를 기준 PC와 비교하는 중/g, 'Comparing build hashes with the reference PC'],
+  [/커널 모듈을 만들지 못했습니다/g, 'Could not build the kernel modules'],
+  [/ {2}\[통과\] (.+?) 소스: 기준과 같음 /g, '  [pass] $1 source: same as the reference '],
+  [/ {2}\[경고\] (.+?) 소스: /g, '  [warning] $1 source: '],
+  [/ {2}\[통과\] (.+?): 기준과 같음 /g, '  [pass] $1: same as the reference '],
+  [/ {2}\[경고\] (.+?): 기준과 다름 (\S+) \(기준 /g, '  [warning] $1: differs from the reference $2 (reference '],
+  [/ {2}\[경고\] /g, '  [warning] '],
+  [/ {2}\[정보\] (.+?): 기준 해시 없음 /g, '  [info] $1: no reference hash '],
+  [/ {2}\[없음\] /g, '  [missing] '],
+  [/\(기준 없음\)/g, '(no reference)'],
+  // 속도 · 진단 요약
+  [/메모리 대역폭 ([\d.]+) GB\/s · 정수 텐서 ([\d.]+) TOPS/g, 'memory bandwidth $1 GB/s · integer tensor $2 TOPS'],
+  [/생성\(문맥 1024\) 한계의 (\d+)%/g, 'generation (context 1024) $1% of the limit'],
+  [/슬롯 8개 생성\(문맥 2048\) 한계의 (\d+)%/g, '8-slot generation (context 2048) $1% of the limit'],
+  [/프롬프트 2048토큰 한계의 (\d+)%/g, 'prompt 2048 tokens $1% of the limit'],
+  [/프롬프트 ([\d.]+) 토큰\/초\(512토큰\)/g, 'prompt $1 tokens/s (512 tokens)'],
+  [/생성 ([\d.]+) 토큰\/초/g, 'generation $1 tokens/s'],
+  [/: 토큰당 ([\d.]+) ms · ([\d.]+) 토큰\/초/g, ': $1 ms per token · $2 tokens/s'],
+  [/: ([\d.]+) ms · ([\d.]+) 토큰\/초/g, ': $1 ms · $2 tokens/s'],
+  [/프롬프트 512토큰/g, 'prompt 512 tokens'],
+  [/프롬프트 2048토큰/g, 'prompt 2048 tokens'],
+  [/생성 128토큰\(짧은 문맥\)/g, 'generation 128 tokens (short context)'],
+  [/생성 64토큰\(문맥 1024 이후\)/g, 'generation 64 tokens (after context 1024)'],
+  // 모델 파일(GGUF 머리) 까닭
+  [/여러 조각으로 나뉜 GGUF의 일부입니다\((\d+)조각\) — 하나로 합친 파일만 지원합니다\(llama-gguf-split --merge\)/g, 'Part of a GGUF split into $1 parts — only merged single files are supported (llama-gguf-split --merge)'],
+  [/지원하지 않는 모델 구조입니다\((.+?)\) — 지금은 qwen2 구조\(Qwen2\.5 · DeepSeek-R1-Distill-Qwen\)와 qwen3 구조\(Qwen3\)만 지원합니다/g, 'Unsupported model architecture ($1) — only the qwen2 (Qwen2.5 · DeepSeek-R1-Distill-Qwen) and qwen3 (Qwen3) architectures are supported for now'],
+  [/지원하지 않는 헤드 크기입니다\((\d+) · (\d+)\) — 128만 지원합니다/g, 'Unsupported head size ($1 · $2) — only 128 is supported'],
+  [/질의 폭\(헤드 (\d+) × 128 = (\d+)\)이 너비 (\d+)와 다른 Qwen3\(0\.6B · 4B · 32B\)는 아직 지원하지 않습니다/g, 'Qwen3 models whose query width (heads $1 × 128 = $2) differs from the hidden size $3 (0.6B · 4B · 32B) are not supported yet'],
+  [/RMSNorm eps가 10⁻⁶이 아닌 Qwen3 파일은 지원하지 않습니다/g, 'Qwen3 files whose RMSNorm eps is not 10⁻⁶ are not supported'],
+  [/RoPE 늘이기\((.+?)\)가 들어간 파일은 지원하지 않습니다/g, 'Files with RoPE scaling ($1) are not supported'],
+  [/지원하지 않는 모델 크기입니다\(너비 (\d+) · 헤드 (\d+) · KV 헤드 (\d+) · FFN (\d+)\) — 헤드 크기 128인 Qwen2\(7B 이상\)만 지원합니다/g, 'Unsupported model size (hidden $1 · heads $2 · KV heads $3 · FFN $4) — only Qwen2 with head size 128 (7B and up) is supported'],
+  [/지원하지 않는 토크나이저입니다\((.*?)\) — gpt2만 지원합니다/g, 'Unsupported tokenizer ($1) — only gpt2 is supported'],
+  [/지원하지 않는 토크나이저 사전 처리입니다\((.*?)\) — qwen2 · deepseek-r1-qwen만 지원합니다/g, 'Unsupported tokenizer pre-processing ($1) — only qwen2 · deepseek-r1-qwen are supported'],
+  [/지원하지 않는 GGUF 버전입니다\((\d+)\) — 버전 3만 지원합니다/g, 'Unsupported GGUF version ($1) — only version 3 is supported'],
+  [/GGUF 헤더를 끝까지 읽지 못했습니다\(파일이 잘렸거나 손상됨\)/g, 'Could not read the whole GGUF header (the file is truncated or damaged)'],
+  [/GGUF 헤더가 손상되었습니다/g, 'The GGUF header is damaged'],
+  [/GGUF 파일이 아닙니다/g, 'Not a GGUF file'],
+  [/파일을 열 수 없습니다/g, 'Cannot open the file'],
+  [/(\S+) 텐서가 없습니다/g, 'The $1 tensor is missing'],
+  [/k-양자화 모델은 너비와 FFN 폭이 256의 배수여야 합니다/g, 'For k-quant models the hidden size and FFN width must be multiples of 256'],
+  [/k-양자화 파일의 임베딩 형식\((.+?)\)은 지원하지 않습니다 — Q4_K · Q5_K · Q6_K여야 합니다/g, 'The embedding format ($1) of this k-quant file is not supported — it must be Q4_K · Q5_K · Q6_K'],
+  [/k-양자화 파일의 출력 가중치 형식\((.+?)\)은 지원하지 않습니다 — Q4_K · Q5_K · Q6_K여야 합니다/g, 'The output weight format ($1) of this k-quant file is not supported — it must be Q4_K · Q5_K · Q6_K'],
+  [/k-양자화 파일의 층 가중치 (\d+)개가 Q4_K · Q5_K · Q6_K 형식이 아닙니다/g, '$1 layer weights of this k-quant file are not Q4_K · Q5_K · Q6_K'],
+  [/임베딩 형식\((.+?)\)이 다른 가중치\((.+?)\)와 다릅니다 — 모든 가중치가 같은 형식인 파일만 지원합니다/g, 'The embedding format ($1) differs from the other weights ($2) — only files whose weights all share one format are supported'],
+  [/출력 가중치 형식\((.+?)\)이 다른 가중치\((.+?)\)와 다릅니다 — 모든 가중치가 같은 형식인 파일만 지원합니다\(공식 q4_0 파일은 출력이 Q6_K\)/g, 'The output weight format ($1) differs from the other weights ($2) — only files whose weights all share one format are supported (official q4_0 files keep the output in Q6_K)'],
+  [/층 가중치 (\d+)개가 다른 형식입니다\(기준 (.+?)\)/g, '$1 layer weights use a different format (expected $2)'],
+  [/지원하지 않는 가중치 형식입니다\((.+?)\) — Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K만 지원합니다/g, 'Unsupported weight format ($1) — only Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K are supported'],
+  [/GeulPU가 지원하지 않는 파일입니다/g, "GeulPU doesn't support this file"],
+  [/이 GPU에서는 Q4_K_M 같은 k-양자화 파일을 아직 실행할 수 없습니다\. 같은 모델의 Q8_0 · Q4_0 파일은 실행됩니다\(공유 메모리 32 KB인 GPU의 제약\)\./g, "This GPU can't run k-quant files such as Q4_K_M yet. The same model's Q8_0 · Q4_0 files run (a limit of GPUs with 32 KB of shared memory)."],
+  // 받기
+  [/ — 다시 누르면 이어서 받습니다/g, ' — click again to resume'],
+  [/요청을 열지 못했습니다\(오류 (\d+)\)/g, 'Could not open the request (error $1)'],
+  [/연결하지 못했습니다\(오류 (\d+)\) — 인터넷 · 방화벽 · 프록시를 확인해 주세요/g, 'Could not connect (error $1) — check your internet, firewall and proxy'],
+  [/다운로드 서버가 HTTP (\d+) 오류를 보냈습니다/g, 'The download server returned HTTP $1'],
+  [/서버가 HTTP (\d+) 오류를 보냈습니다/g, 'The server returned HTTP $1'],
+  [/모델 파일을 쓸 수 없습니다\(폴더 권한 · 디스크를 확인해 주세요\)/g, 'Cannot write the model file (check the folder permissions and the disk)'],
+  [/다운로드 중 연결이 끊겼습니다\(오류 (\d+)\)/g, 'The connection dropped during the download (error $1)'],
+  [/받는 중 연결이 끊겼습니다\(오류 (\d+)\)/g, 'The connection dropped while downloading (error $1)'],
+  [/디스크에 쓰지 못했습니다\(여유 공간을 확인해 주세요\)/g, 'Could not write to the disk (check the free space)'],
+  [/일시정지했습니다/g, 'Paused'],
+  [/다운로드한 파일을 읽지 못했습니다/g, 'Could not read the downloaded file'],
+  [/SHA-256이 목록과 다릅니다\(([0-9a-f]+)…, 목록 ([0-9a-f]+)…\)\. 파일을 지웠으니 다시 다운로드하세요/g, 'SHA-256 differs from the list ($1…, list $2…). The file was deleted — download it again'],
+  [/다운로드한 파일의 이름을 바꾸지 못했습니다/g, 'Could not rename the downloaded file'],
+  [/https · http 주소가 아닙니다/g, 'Not an https or http address'],
+  [/WinHTTP를 열지 못했습니다/g, 'Could not open WinHTTP'],
+  [/(\S+)에 연결하지 못했습니다/g, 'Could not connect to $1'],
+  [/다운로드를 마치지 못했습니다/g, 'The download did not finish'],
+  [/다운로드한 파일이 목록의 크기보다 큽니다 — 파일을 지우고 다시 다운로드하세요/g, 'The downloaded file is larger than listed — delete it and download again'],
+  [/파일의 앞부분을 받지 못했습니다/g, 'Could not fetch the start of the file'],
+  [/다운로드 스레드를 시작하지 못했습니다/g, 'Could not start the download thread'],
+  [/확인 스레드를 시작하지 못했습니다/g, 'Could not start the check thread'],
+  // 관리자의 거절(/api)
+  [/다른 작업이 실행 중입니다 — 끝나거나 중지한 뒤 다시 시도하세요/g, 'Another job is running — try again after it finishes or is stopped'],
+  [/다른 작업이 실행 중입니다 — 끝난 뒤 다시 시도하세요/g, 'Another job is running — try again after it finishes'],
+  [/다른 작업이 실행 중입니다/g, 'Another job is running'],
+  [/불러온 모델이 없습니다 — 앱 화면에서 모델을 먼저 불러오세요/g, 'No model is loaded — load a model in the app first'],
+  [/Host 헤더가 127\.0\.0\.1이 아닙니다/g, 'The Host header is not 127.0.0.1'],
+  [/다른 출처에서 온 요청은 받지 않습니다/g, 'Requests from other origins are refused'],
+  [/GET · POST 요청만 받습니다/g, 'Only GET and POST requests are accepted'],
+  [/결과 파일이 없습니다/g, 'The result file does not exist'],
+  [/결과가 없습니다/g, 'The result does not exist'],
+  [/zip 파일을 만들지 못했습니다/g, 'Could not create the zip file'],
+  [/없는 경로입니다: /g, 'Unknown path: '],
+  [/Content-Type은 application\/json이어야 합니다/g, 'Content-Type must be application/json'],
+  [/요청 본문이 JSON 객체가 아닙니다/g, 'The request body is not a JSON object'],
+  [/폴더가 없습니다 — 있는 폴더의 경로를 입력하세요/g, 'The folder does not exist — enter the path of an existing folder'],
+  [/모델이 없거나 이미 확인 중입니다/g, 'The model does not exist or is already being verified'],
+  [/지금 불러온 모델입니다 — 먼저 모델을 내린 뒤 제거하세요/g, 'This model is loaded now — unload it before removing it'],
+  [/무결성을 확인하는 중입니다 — 끝난 뒤 다시 시도하세요/g, 'Integrity is being verified — try again after it finishes'],
+  [/목록에 없는 모델입니다/g, 'This model is not in the list'],
+  [/이미 설치된 모델입니다 — 모델 메뉴에서 제거하세요/g, 'Already installed — remove it from the model menu'],
+  [/이미 설치된 모델입니다/g, 'This model is already installed'],
+  [/이미 다운로드 중입니다/g, 'Already downloading'],
+  [/다운로드 중입니다 — 먼저 일시정지하세요/g, 'Downloading — pause it first'],
+  [/디스크 공간이 부족합니다\(여유 ([\d.]+) GB · 필요 ([\d.]+) GB\)/g, 'Not enough disk space ($1 GB free · $2 GB needed)'],
+  [/Hugging Face 저장소 · 파일 이름이 올바르지 않습니다/g, 'The Hugging Face repository or file name is invalid'],
+  [/다른 파일을 확인하는 중입니다 — 잠시 뒤 다시 시도하세요/g, 'Another file is being checked — try again in a moment'],
+  [/SHA-256 값이 없습니다 — Hugging Face가 알려 준 파일만 받습니다/g, 'No SHA-256 value — only files with a SHA-256 from Hugging Face are downloaded'],
+  [/먼저 이 파일을 확인하세요/g, 'Check this file first'],
+  [/모델 폴더에 같은 이름의 파일이 이미 있습니다: /g, 'A file with the same name is already in the model folder: '],
+  [/같은 이름의 모델이 이미 목록에 있습니다/g, 'A model with the same name is already in the list'],
+  [/이미 추가한 파일입니다: /g, 'Already added: '],
+  [/\.gguf 파일만 추가할 수 있습니다/g, 'Only .gguf files can be added'],
+  [/요청 헤더가 너무 깁니다/g, 'The request headers are too long'],
+  [/요청을 읽을 수 없습니다/g, 'Cannot read the request'],
+  [/Content-Length가 있는 요청만 받습니다/g, 'Only requests with Content-Length are accepted'],
+  [/요청 본문은 16 MB까지 받습니다/g, 'Request bodies are limited to 16 MB'],
+  [/동시 연결이 너무 많습니다 — 잠시 뒤 다시 시도하세요/g, 'Too many simultaneous connections — try again in a moment'],
+  [/추론 서버에 연결하지 못했습니다/g, 'Could not connect to the inference server'],
+  [/모델을 불러오지 못했습니다/g, 'Could not load the model'],
+  [/파일이 없습니다/g, 'The file does not exist'],
+  [/모델이 없습니다/g, 'The model does not exist'],
+  [/하드웨어 확인/g, 'Hardware check'],
+];
+function TM(s) {
+  if (!EN || s === null || s === undefined) return s;
+  let t = String(s);
+  if (!HANGUL.test(t)) return t;
+  const d = DICT[t];
+  if (d !== undefined) return d;
+  for (const [re, rep] of TMX) { if (HANGUL.test(t)) t = t.replace(re, rep); else break; }
+  return t;
+}
+// index.html 의 정적 문구(속성 · 글)를 영어로 — 앱 코드보다 먼저 한 번
+(function applyStatic() {
+  if (!EN) return;
+  for (const el of document.querySelectorAll('[aria-label],[data-tip],[placeholder],[title]')) {
+    for (const a of ['aria-label', 'data-tip', 'placeholder', 'title']) {
+      const v = el.getAttribute(a);
+      if (v && HANGUL.test(v)) el.setAttribute(a, T(v));
+    }
+  }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const t = n.nodeValue.trim();
+    if (t && HANGUL.test(t)) n.nodeValue = n.nodeValue.replace(t, T(t));
+  }
+})();
+
 // ---------- 아이콘(24 × 24, 선 1.7 — 이 앱에서 그린 것) ----------
 const IC = {
   chat: '<path d="M20.5 11.5c0 4.4-3.8 8-8.5 8-1.2 0-2.3-.2-3.3-.6L3.5 20l1.3-4c-.8-1.3-1.3-2.8-1.3-4.5 0-4.4 3.8-8 8.5-8s8.5 3.6 8.5 8z"/>',
@@ -96,12 +968,12 @@ function fmtClock(s) {
   return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ':' + String(r).padStart(2, '0');
 }
 function fmtLeft(s) {
-  if (!(s >= 0) || !isFinite(s)) return '남은 시간 계산 중';
+  if (!(s >= 0) || !isFinite(s)) return T('남은 시간 계산 중');
   s = Math.round(s);
-  if (s < 60) return '1분 안에 끝남';
+  if (s < 60) return T('1분 안에 끝남');
   const m = Math.round(s / 60);
-  if (m < 60) return `약 ${m}분 남음`;
-  return `약 ${Math.floor(m / 60)}시간 ${m % 60}분 남음`;
+  if (m < 60) return T`약 ${m}분 남음`;
+  return T`약 ${Math.floor(m / 60)}시간 ${m % 60}분 남음`;
 }
 const fmtCtx = n => (n >= 1024 && n % 1024 === 0 ? (n / 1024) + 'K' : fmtNum(n || 0));
 async function api(path, body) {
@@ -113,8 +985,8 @@ async function api(path, body) {
   return j;
 }
 function toast(msg, kind) {
-  const close = h('button', { class: 'icon-btn', 'aria-label': '알림 닫기' }, I('x', 's'));
-  const d = h('div', { class: kind || '', role: kind === 'err' ? 'alert' : 'status' }, I(kind === 'err' ? 'alert' : kind === 'ok' ? 'check' : 'info', 's'), h('span', null, msg), close);
+  const close = h('button', { class: 'icon-btn', 'aria-label': T('알림 닫기') }, I('x', 's'));
+  const d = h('div', { class: kind || '', role: kind === 'err' ? 'alert' : 'status' }, I(kind === 'err' ? 'alert' : kind === 'ok' ? 'check' : 'info', 's'), h('span', null, TM(msg)), close);
   close.addEventListener('click', () => d.remove());
   $('#toast').append(d);
   setTimeout(() => d.remove(), kind === 'err' ? 10000 : 4000);
@@ -123,14 +995,14 @@ const announce = t => { const e = $('#sr-live'); if (e) { e.textContent = ''; se
 let storeWarned = false;
 function store(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); }
-  catch (_) { if (key === 'geulpu.rooms' && !storeWarned) { storeWarned = true; toast('브라우저 저장 공간이 부족해 채팅을 저장하지 못했습니다 — 오래된 채팅을 삭제하세요', 'err'); } }
+  catch (_) { if (key === 'geulpu.rooms' && !storeWarned) { storeWarned = true; toast(T('브라우저 저장 공간이 부족해 채팅을 저장하지 못했습니다 — 오래된 채팅을 삭제하세요'), 'err'); } }
 }
 function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (_) { return dflt; } }
 const SIG = {};
 function changed(name, obj) { const s = JSON.stringify(obj); if (SIG[name] === s) return false; SIG[name] = s; return true; }
 const resetSig = () => { for (const k of Object.keys(SIG)) delete SIG[k]; };
 async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch (_) { toast('복사하지 못했습니다', 'err'); return false; }
+  try { await navigator.clipboard.writeText(text); return true; } catch (_) { toast(T('복사하지 못했습니다'), 'err'); return false; }
 }
 
 // 창(가운데) — 머리(닫기)와 바닥(단추)은 그대로, 가운데만 스크롤. 초점은 창 안에 가두고, 닫으면 연 자리로 돌려준다
@@ -142,7 +1014,7 @@ function modal(content, buttons, wide, focusSel, onClose) {
   box.className = 'box' + (wide ? ' wide' : '');
   const body = h('div', { class: 'mb' }, content);
   put(box, body, buttons && buttons.length ? h('div', { class: 'foot' }, buttons) : null,
-    h('button', { class: 'icon-btn x', 'aria-label': '닫기', onclick: () => closeModal() }, I('x')));
+    h('button', { class: 'icon-btn x', 'aria-label': T('닫기'), onclick: () => closeModal() }, I('x')));
   const t = box.querySelector('h2');
   if (t) t.id = 'modal-title';
   $('#modal').hidden = false;
@@ -165,8 +1037,8 @@ function confirmBox(title, body, okText, kind) {
   return new Promise(res => {
     let done = false;
     const fin = v => { if (!done) { done = true; res(v); } };
-    const no = h('button', { class: 'btn ghost', onclick: () => closeModal() }, '취소');
-    const ok = h('button', { class: 'btn ' + (kind === 'danger' ? 'danger' : kind === 'quiet' ? '' : 'primary'), onclick: () => { fin(true); closeModal(); } }, okText || '확인');
+    const no = h('button', { class: 'btn ghost', onclick: () => closeModal() }, T('취소'));
+    const ok = h('button', { class: 'btn ' + (kind === 'danger' ? 'danger' : kind === 'quiet' ? '' : 'primary'), onclick: () => { fin(true); closeModal(); } }, okText || T('확인'));
     modal(h('div', null, h('h2', null, title), body), [no, ok], false, kind ? '.foot .btn.ghost' : null, () => fin(false));
   });
 }
@@ -304,7 +1176,7 @@ function setOffline(off) {
   updateComposer();
   const b = $('#banner');
   if (off) {
-    put(b, I('alert', 's'), h('span', null, 'GeulPU.exe와 연결이 끊겼습니다. 다시 연결하는 중… GeulPU.exe가 실행 중인지 확인하세요.'));
+    put(b, I('alert', 's'), h('span', null, T('GeulPU.exe와 연결이 끊겼습니다. 다시 연결하는 중… GeulPU.exe가 실행 중인지 확인하세요.')));
     b.className = 'offline';
     b.hidden = false;
   } else if (b.classList.contains('offline')) { b.className = ''; b.hidden = true; checkUpdate(); }
@@ -371,17 +1243,17 @@ function kindKey(x) {
   return 'chat';
 }
 const qtag = m => (quantOf(m) ? h('span', { class: 'qlab' }, quantOf(m)) : null);
-const kindOf = m => ({ think: '추론 모델', code: '코드 모델', chat: '일반 모델' })[kindKey(m)];
-function jobName(j) { return { diag: '하드웨어 진단', speed: '속도 측정', crosscheck: '재현성 검증', server: '모델 불러오기', device: '하드웨어 확인' }[j.kind] || j.title; }
+const kindOf = m => ({ think: T('추론 모델'), code: T('코드 모델'), chat: T('일반 모델') })[kindKey(m)];
+function jobName(j) { return { diag: T('하드웨어 진단'), speed: T('속도 측정'), crosscheck: T('재현성 검증'), server: T('모델 불러오기'), device: T('하드웨어 확인') }[j.kind] || TM(j.title); }
 const jobModel = j => String(j.title || '').split(' — ')[1] || '';
 function jobTitle(j) {
   if (j.kind === 'diag' || j.kind === 'speed' || j.kind === 'server') return `${jobName(j)} · ${labelById(jobModel(j))}`;
-  if (j.kind === 'crosscheck') return /줄인|빠른/.test(j.title) ? '재현성 검증 · 빠른 확인(문제 2개)' : '재현성 검증 · 문제 32개';
-  return j.title;
+  if (j.kind === 'crosscheck') return /줄인|빠른/.test(j.title) ? T('재현성 검증 · 빠른 확인(문제 2개)') : T('재현성 검증 · 문제 32개');
+  return TM(j.title);
 }
 // 재현성 검증의 경로 이름(관리자의 "협력 행렬 모듈 …" 등)을 쓰는 사람의 말로
 function pathLabel(l) {
-  return String(l || '').replace(/협력 행렬 모듈\s*([0-9x]*)/g, (_, s) => '텐서 코어 경로' + (s ? ` (${s})` : '')).replace(/기본 모듈/g, '기본 경로').replace(/CUDA 모듈/g, 'CUDA 경로');
+  return String(l || '').replace(/협력 행렬 모듈\s*([0-9x]*)/g, (_, s) => T('텐서 코어 경로') + (s ? ` (${s})` : '')).replace(/기본 모듈/g, T('기본 경로')).replace(/CUDA 모듈/g, T('CUDA 경로'));
 }
 // 10B 이상이면 문맥 · 작업 메모리를 더 크게 어림한다(목록의 "14B" · Hugging Face 에서 더한 "14.8B" 모두)
 const isBig = c => { const p = parseFloat(String(c.params || '').replace(/[^\d.]/g, '')); return p >= 10 || (!(p > 0) && /\b(1[0-9]|[2-9]\d)b\b/i.test(c.id || '')); };
@@ -389,19 +1261,19 @@ const isBig = c => { const p = parseFloat(String(c.params || '').replace(/[^\d.]
 function fitOf(c) {
   const d = S.st && S.st.device;
   if (!d || !d.checked) return null;
-  if (!d.layer) return { k: 'nogpu', t: '쓸 수 있는 GPU 없음' };
-  if (c.devices === 'k' && d.layer === 'vulkan' && d.variant === '공유32') return { k: 'unsup', t: '이 GPU 미지원' };
+  if (!d.layer) return { k: 'nogpu', t: T('쓸 수 있는 GPU 없음') };
+  if (c.devices === 'k' && d.layer === 'vulkan' && d.variant === '공유32') return { k: 'unsup', t: T('이 GPU 미지원') };
   const big = isBig(c);
   const mem = d.memory / GIB, size = c.size / GIB;
-  if (mem >= size + (big ? 4 : 2.5)) return { k: 'ok', t: '이 PC에 맞음' };
-  if (mem >= size + (big ? 1.5 : 1)) return { k: 'tight', t: '빠듯함 · 문맥이 줄어듦' };
-  return { k: 'no', t: '그래픽 메모리 부족' };
+  if (mem >= size + (big ? 4 : 2.5)) return { k: 'ok', t: T('이 PC에 맞음') };
+  if (mem >= size + (big ? 1.5 : 1)) return { k: 'tight', t: T('빠듯함 · 문맥이 줄어듦') };
+  return { k: 'no', t: T('그래픽 메모리 부족') };
 }
 const FITRANK = { ok: 0, tight: 1, no: 2, unsup: 3, nogpu: 4 };
 function fitTag(f) {
   if (!f) return null;
   if (f.k === 'ok') return h('span', { class: 'tag' }, I('check'), f.t);
-  if (f.k === 'tight') return h('span', { class: 'tag', 'data-tip': '실행되지만 그래픽 메모리에 맞추느라 문맥 길이가 줄어듭니다', 'data-tip-pos': 'top' }, I('info'), f.t);
+  if (f.k === 'tight') return h('span', { class: 'tag', 'data-tip': T('실행되지만 그래픽 메모리에 맞추느라 문맥 길이가 줄어듭니다'), 'data-tip-pos': 'top' }, I('info'), f.t);
   return h('span', { class: 'tag dim' }, I('alert'), f.t);
 }
 
@@ -432,17 +1304,17 @@ function show(view) {
 function renderStatus() {
   const bar = $('#statusbar');
   const segs = [];
-  if (!S.conn) segs.push({ key: 'off', dot: 'err', text: 'GeulPU.exe와 연결 끊김' });
+  if (!S.conn) segs.push({ key: 'off', dot: 'err', text: T('GeulPU.exe와 연결 끊김') });
   else if (S.st) {
     const st = S.st, d = st.device, sv = st.server, j = st.job;
-    if (!d.checked) segs.push({ key: 'gpu', dot: 'busy', text: '하드웨어 확인 중' });
-    else if (!d.layer) segs.push({ key: 'gpu', btn: () => show('device'), tip: d.reason, dot: 'err', text: '쓸 수 있는 GPU 없음' });
-    else segs.push({ key: 'gpu', btn: () => show('device'), tip: '하드웨어 보기', dot: 'ok', text: `${d.name} · ${LAYER[d.layer]} · ${fmtBytes(d.memory)}` });
+    if (!d.checked) segs.push({ key: 'gpu', dot: 'busy', text: T('하드웨어 확인 중') });
+    else if (!d.layer) segs.push({ key: 'gpu', btn: () => show('device'), tip: TM(d.reason), dot: 'err', text: T('쓸 수 있는 GPU 없음') });
+    else segs.push({ key: 'gpu', btn: () => show('device'), tip: T('하드웨어 보기'), dot: 'ok', text: `${d.name} · ${LAYER[d.layer]} · ${fmtBytes(d.memory)}` });
     const svDot = { starting: 'busy', ready: 'ok', failed: 'err' }[sv.state] || '';
-    const svTxt = sv.state === 'ready' ? `${labelById(sv.model)} · 동시 ${sv.slots}개 · 문맥 ${fmtCtx(sv.context)}`
-      : sv.state === 'starting' ? `모델 불러오는 중 · ${fmtClock(sv.seconds)}` : sv.state === 'failed' ? '모델 불러오기 실패' : '불러온 모델 없음';
-    segs.push({ key: 'srv', tip: sv.reason || '', dot: svDot, text: svTxt });
-    if (j && j.state === 'running' && j.kind !== 'server' && j.kind !== 'device') segs.push({ key: 'job', btn: () => show('bench'), tip: '벤치마크 보기', mini: j.progress / 10, text: `${jobName(j)} ${Math.round(j.progress / 10)}%` });
+    const svTxt = sv.state === 'ready' ? T`${labelById(sv.model)} · 동시 ${sv.slots}개 · 문맥 ${fmtCtx(sv.context)}`
+      : sv.state === 'starting' ? T`모델 불러오는 중 · ${fmtClock(sv.seconds)}` : sv.state === 'failed' ? T('모델 불러오기 실패') : T('불러온 모델 없음');
+    segs.push({ key: 'srv', tip: TM(sv.reason || ''), dot: svDot, text: svTxt });
+    if (j && j.state === 'running' && j.kind !== 'server' && j.kind !== 'device') segs.push({ key: 'job', btn: () => show('bench'), tip: T('벤치마크 보기'), mini: j.progress / 10, text: `${jobName(j)} ${Math.round(j.progress / 10)}%` });
     // 다운로드 — 받는 중이면 진행, 멈춤 · 실패만 남았으면 그 수. 누르면 다운로드 목록
     const all = dlList(), act = all.filter(c => c.download.state === 'downloading' || c.download.state === 'verifying');
     const openDl = ev => openDownloads(ev.currentTarget);
@@ -450,12 +1322,12 @@ function renderStatus() {
       const tot = act.reduce((a, c) => a + c.download.total, 0), got = act.reduce((a, c) => a + c.download.received, 0);
       const bps = act.reduce((a, c) => a + (c.download.bytes_per_s || 0), 0);
       const fail = all.filter(c => dlStateOf(c) === 'fail').length, pause = all.length - act.length - fail;
-      segs.push({ key: 'dl', btn: openDl, tip: '다운로드 목록', icon: 'download',
-        text: `다운로드 ${act.length}개 · ${Math.round(100 * got / Math.max(1, tot))}% · ${fmtBytes(bps)}/s${pause ? ` · 멈춤 ${pause}개` : ''}${fail ? ` · 실패 ${fail}개` : ''}` });
+      segs.push({ key: 'dl', btn: openDl, tip: T('다운로드 목록'), icon: 'download',
+        text: T`다운로드 ${act.length}개 · ${Math.round(100 * got / Math.max(1, tot))}% · ${fmtBytes(bps)}/s${pause ? T` · 멈춤 ${pause}개` : ''}${fail ? T` · 실패 ${fail}개` : ''}` });
     } else if (all.length) {
       const fail = all.filter(c => dlStateOf(c) === 'fail').length, pause = all.length - fail;
-      segs.push({ key: 'dl', btn: openDl, tip: '다운로드 목록', dot: fail ? 'err' : undefined, icon: fail ? null : 'pause',
-        text: ['다운로드', pause ? `멈춤 ${pause}개` : null, fail ? `실패 ${fail}개` : null].filter(Boolean).join(' · ') });
+      segs.push({ key: 'dl', btn: openDl, tip: T('다운로드 목록'), dot: fail ? 'err' : undefined, icon: fail ? null : 'pause',
+        text: [T('다운로드', 'list'), pause ? T`멈춤 ${pause}개` : null, fail ? T`실패 ${fail}개` : null].filter(Boolean).join(' · ') });
     }
     segs.push({ key: 'grow', grow: true }, { key: 'ver', text: 'v' + st.app.version });
   }
@@ -504,9 +1376,9 @@ async function checkUpdate() {
   const b = $('#banner');
   if (b.classList.contains('offline')) return;
   if (rel && newer(rel.tag, S.st.app.version)) {
-    put(b, h('i', { class: 'dot acc' }), h('span', null, `새 버전이 나왔습니다: ${rel.tag}(지금 v${S.st.app.version}). 새 폴더에 압축을 풀고 실행하면 모델과 결과는 그대로 이어집니다.`),
-      h('span', { class: 'grow' }), h('a', { class: 'btn sm', href: rel.url, target: '_blank', rel: 'noopener' }, '다운로드 페이지', I('ext', 's')),
-      h('button', { class: 'icon-btn', 'aria-label': '알림 닫기', onclick: () => { b.hidden = true; } }, I('x', 's')));
+    put(b, h('i', { class: 'dot acc' }), h('span', null, T`새 버전이 나왔습니다: ${rel.tag}(지금 v${S.st.app.version}). 새 폴더에 압축을 풀고 실행하면 모델과 결과는 그대로 이어집니다.`),
+      h('span', { class: 'grow' }), h('a', { class: 'btn sm', href: rel.url, target: '_blank', rel: 'noopener' }, T('다운로드 페이지'), I('ext', 's')),
+      h('button', { class: 'icon-btn', 'aria-label': T('알림 닫기'), onclick: () => { b.hidden = true; } }, I('x', 's')));
     b.hidden = false;
   } else b.hidden = true;
 }
@@ -558,7 +1430,7 @@ function newRoom() {
   if (overlayConvos()) setConvos(false);
   $('#input').focus();
 }
-put($('#newroom'), I('plus', 's'), h('span', null, '새 채팅'));
+put($('#newroom'), I('plus', 's'), h('span', null, T('새 채팅')));
 $('#newroom').addEventListener('click', newRoom);
 $('#hide-convos').innerHTML = svg('panel', 's');
 $('#show-convos').innerHTML = svg('panel', 's');
@@ -567,10 +1439,10 @@ $('#show-convos').addEventListener('click', () => setConvos(true));
 function dayGroup(t) {
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
   const day = 864e5;
-  if (t >= d0.getTime()) return '오늘';
-  if (t >= d0.getTime() - day) return '어제';
-  if (t >= d0.getTime() - 7 * day) return '지난 7일';
-  return '이전';
+  if (t >= d0.getTime()) return T('오늘');
+  if (t >= d0.getTime() - day) return T('어제');
+  if (t >= d0.getTime() - 7 * day) return T('지난 7일');
+  return T('이전');
 }
 function renderRooms() {
   const list = $('#roomlist');
@@ -583,27 +1455,27 @@ function renderRooms() {
     const busy = S.streaming && S.streaming.roomId === r.id;
     out.push(h('div', { class: 'room' + (r.id === S.roomId ? ' active' : '') },
       h('button', { class: 'pick', 'data-tip': r.title.length > 18 ? r.title : null, 'aria-current': r.id === S.roomId ? 'true' : null, onclick: () => pickRoom(r.id) },
-        busy ? h('i', { class: 'dot busy', 'aria-hidden': 'true' }) : null, h('span', null, r.title), busy ? h('span', { class: 'sr' }, ' — 답을 쓰는 중') : null),
+        busy ? h('i', { class: 'dot busy', 'aria-hidden': 'true' }) : null, h('span', null, r.title), busy ? h('span', { class: 'sr' }, T(' — 답을 쓰는 중')) : null),
       h('button', {
-        class: 'icon-btn more', 'aria-label': `'${r.title}' 메뉴`, 'aria-haspopup': 'menu', 'aria-expanded': 'false',
-        onclick: ev => menu(ev.currentTarget, '채팅 메뉴', [
-          { icon: 'edit', label: '이름 바꾸기', run: () => renameRoom(r) },
-          { icon: 'trash', label: '삭제', danger: true, disabled: busy, sub: busy ? '답이 끝난 뒤 삭제할 수 있습니다' : null, run: () => delRoom(r.id) }], 'right'),
+        class: 'icon-btn more', 'aria-label': T`'${r.title}' 메뉴`, 'aria-haspopup': 'menu', 'aria-expanded': 'false',
+        onclick: ev => menu(ev.currentTarget, T('채팅 메뉴'), [
+          { icon: 'edit', label: T('이름 바꾸기'), run: () => renameRoom(r) },
+          { icon: 'trash', label: T('삭제'), danger: true, disabled: busy, sub: busy ? T('답이 끝난 뒤 삭제할 수 있습니다') : null, run: () => delRoom(r.id) }], 'right'),
       }, I('dots', 's'))));
   }
-  if (!shown.length) out.push(h('div', { class: 'room-group eyebrow' }, '아직 채팅이 없습니다'));
+  if (!shown.length) out.push(h('div', { class: 'room-group eyebrow' }, T('아직 채팅이 없습니다')));
   put(list, out);
 }
 function renameRoom(r) {
-  const inp = h('input', { type: 'text', value: r.title, class: 'w100', 'aria-label': '채팅 이름' });
+  const inp = h('input', { type: 'text', value: r.title, class: 'w100', 'aria-label': T('채팅 이름') });
   const ok = () => { const v = inp.value.trim(); if (v) { r.title = v; saveRooms(); renderRooms(); } closeModal(); };
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); });
-  modal(h('div', { class: 'col g16' }, h('h2', null, '채팅 이름 바꾸기'), inp), [h('button', { class: 'btn ghost', onclick: () => closeModal() }, '취소'), h('button', { class: 'btn primary', onclick: ok }, '저장')], false, 'input');
+  modal(h('div', { class: 'col g16' }, h('h2', null, T('채팅 이름 바꾸기')), inp), [h('button', { class: 'btn ghost', onclick: () => closeModal() }, T('취소')), h('button', { class: 'btn primary', onclick: ok }, T('저장'))], false, 'input');
 }
 async function delRoom(id) {
   if (S.streaming && S.streaming.roomId === id) return;
   const r = S.rooms.find(x => x.id === id);
-  if (r && r.messages.length && !(await confirmBox('채팅 삭제', h('p', { class: 'muted m0' }, `'${r.title}' 채팅을 삭제할까요? 채팅은 이 브라우저에만 저장되어 있어 되돌릴 수 없습니다.`), '삭제', 'danger'))) return;
+  if (r && r.messages.length && !(await confirmBox(T('채팅 삭제'), h('p', { class: 'muted m0' }, T`'${r.title}' 채팅을 삭제할까요? 채팅은 이 브라우저에만 저장되어 있어 되돌릴 수 없습니다.`), T('삭제'), 'danger'))) return;
   S.rooms = S.rooms.filter(x => x.id !== id);
   if (S.roomId === id) { S.roomId = null; newRoom(); }
   saveRooms(); renderRooms(); renderMsgs(); renderChatTop(true);
@@ -614,15 +1486,15 @@ function updateComposer() {
   const inp = $('#input');
   const hs = helloState(S.st);
   let why = '';
-  if (!S.conn) why = 'GeulPU.exe와 연결이 끊겼습니다';
-  else if (hs === 'checking' || hs === 'loading') why = '하드웨어 확인이 끝나면 입력할 수 있습니다';
-  else if (hs === 'nogpu') why = '쓸 수 있는 GPU가 없어 채팅할 수 없습니다';
-  else if (hs === 'nomodel' || hs === 'unsupported') why = '모델을 다운로드하면 채팅을 시작할 수 있습니다';
+  if (!S.conn) why = T('GeulPU.exe와 연결이 끊겼습니다');
+  else if (hs === 'checking' || hs === 'loading') why = T('하드웨어 확인이 끝나면 입력할 수 있습니다');
+  else if (hs === 'nogpu') why = T('쓸 수 있는 GPU가 없어 채팅할 수 없습니다');
+  else if (hs === 'nomodel' || hs === 'unsupported') why = T('모델을 다운로드하면 채팅을 시작할 수 있습니다');
   inp.disabled = !!why;
-  inp.placeholder = why || '메시지 입력';
+  inp.placeholder = why || T('메시지 입력');
   updateSend();
 }
-const HINT = 'Enter 보내기 · Shift+Enter 줄바꿈';
+const HINT = T('Enter 보내기 · Shift+Enter 줄바꿈');
 // 보내기 단추 · 도움말 — 이 채팅이 답을 쓰는 중이면 중지, 다른 채팅이 쓰는 중이면 끝날 때까지 기다림
 function updateSend() {
   const b = $('#sendbtn'), inp = $('#input'), hint = $('#composer-hint');
@@ -630,12 +1502,12 @@ function updateSend() {
   b.classList.toggle('stop', here);
   const icon = here ? 'stop' : 'up';
   if (b.dataset.icon !== icon) { b.innerHTML = svg(icon, 's'); b.dataset.icon = icon; }
-  b.setAttribute('aria-label', here ? '중지' : '보내기');
+  b.setAttribute('aria-label', here ? T('중지') : T('보내기'));
   const bench = !here && !other && benchBusy();   // 벤치마크 중에도 미리 써 둘 수는 있다
-  b.dataset.tip = here ? '중지(Esc)' : other ? '다른 채팅의 답이 끝나면 보낼 수 있습니다' : bench ? '벤치마크가 끝나면 보낼 수 있습니다' : '보내기(Enter)';
+  b.dataset.tip = here ? T('중지(Esc)') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : T('보내기(Enter)');
   b.dataset.tipPos = 'top';
   b.disabled = here ? false : (other || bench || !inp.value.trim() || !S.conn || inp.disabled);
-  hint.textContent = here ? '답이 끝나면 보낼 수 있습니다 · Esc 중지' : other ? '다른 채팅의 답이 끝나면 보낼 수 있습니다' : bench ? '벤치마크가 끝나면 보낼 수 있습니다' : HINT;
+  hint.textContent = here ? T('답이 끝나면 보낼 수 있습니다 · Esc 중지') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : HINT;
   hint.hidden = inp.disabled || (!S.streaming && !bench && !!load('geulpu.hinted', false));
 }
 function renderChatTop(force) {
@@ -646,20 +1518,20 @@ function renderChatTop(force) {
   const m = room && modelOf(room.model);
   const sv = st.server, d = st.device;
   if (!changed('chattop', [room && room.model, m && [displayName(m), quantOf(m), m.device_reason, runnable(m)], sv.state, sv.model, sv.layer, st.models.length, d.checked, d.layer, S.conn, !!S.streaming, benchBusy()]) && !force) return;
-  put($('#model-pill'), h('span', { class: 'name' }, m ? displayName(m) : (st.models.length ? '모델 선택' : '모델 없음')), m && quantOf(m) ? h('span', { class: 'q' }, quantOf(m)) : null, I('chevD', 's'));
+  put($('#model-pill'), h('span', { class: 'name' }, m ? displayName(m) : (st.models.length ? T('모델 선택') : T('모델 없음'))), m && quantOf(m) ? h('span', { class: 'q' }, quantOf(m)) : null, I('chevD', 's'));
   const ms = $('#model-state');
   delete ms.dataset.tip;
-  if (!S.conn) put(ms, h('i', { class: 'dot err' }), h('span', null, '연결 끊김'));
-  else if (!d.checked) put(ms, h('i', { class: 'dot busy' }), h('span', null, '하드웨어 확인 중'));
-  else if (benchBusy() && !(sv.model === (m && m.id) && sv.state === 'ready')) put(ms, h('i', { class: 'dot busy' }), h('span', null, '벤치마크 실행 중 · 끝나면 보낼 수 있습니다'));
-  else if (!d.layer) put(ms, h('i', { class: 'dot err' }), h('span', null, '쓸 수 있는 GPU 없음'));
+  if (!S.conn) put(ms, h('i', { class: 'dot err' }), h('span', null, T('연결 끊김')));
+  else if (!d.checked) put(ms, h('i', { class: 'dot busy' }), h('span', null, T('하드웨어 확인 중')));
+  else if (benchBusy() && !(sv.model === (m && m.id) && sv.state === 'ready')) put(ms, h('i', { class: 'dot busy' }), h('span', null, T('벤치마크 실행 중 · 끝나면 보낼 수 있습니다')));
+  else if (!d.layer) put(ms, h('i', { class: 'dot err' }), h('span', null, T('쓸 수 있는 GPU 없음')));
   else if (!m) put(ms);
-  else if (sv.model === m.id && sv.state === 'ready') put(ms, h('i', { class: 'dot ok' }), h('span', null, `준비됨 · ${LAYER[sv.layer] || ''}`));
-  else if (sv.model === m.id && sv.state === 'starting') put(ms, h('i', { class: 'dot busy' }), h('span', null, '불러오는 중'));
-  else if (!runnable(m)) put(ms, h('i', { class: 'dot err' }), h('span', null, '이 PC에서 실행할 수 없음'));
-  else if (sv.state === 'failed') put(ms, h('i', { class: 'dot err' }), h('span', null, '불러오기 실패 · 보내면 다시 시도합니다'));
-  else if (sv.state === 'ready' || sv.state === 'starting') { put(ms, h('i', { class: 'dot' }), h('span', null, '보내면 이 모델로 바뀝니다')); ms.dataset.tip = `지금 불러온 모델: ${labelById(sv.model)}`; ms.dataset.tipPos = 'bottom'; }
-  else put(ms, h('i', { class: 'dot' }), h('span', null, '보내면 불러옵니다'));
+  else if (sv.model === m.id && sv.state === 'ready') put(ms, h('i', { class: 'dot ok' }), h('span', null, T`준비됨 · ${LAYER[sv.layer] || ''}`));
+  else if (sv.model === m.id && sv.state === 'starting') put(ms, h('i', { class: 'dot busy' }), h('span', null, T('불러오는 중')));
+  else if (!runnable(m)) put(ms, h('i', { class: 'dot err' }), h('span', null, T('이 PC에서 실행할 수 없음')));
+  else if (sv.state === 'failed') put(ms, h('i', { class: 'dot err' }), h('span', null, T('불러오기 실패 · 보내면 다시 시도합니다')));
+  else if (sv.state === 'ready' || sv.state === 'starting') { put(ms, h('i', { class: 'dot' }), h('span', null, T('보내면 이 모델로 바뀝니다'))); ms.dataset.tip = T`지금 불러온 모델: ${labelById(sv.model)}`; ms.dataset.tipPos = 'bottom'; }
+  else put(ms, h('i', { class: 'dot' }), h('span', null, T('보내면 불러옵니다')));
   updateComposer();
 }
 $('#model-pill').addEventListener('click', e => {
@@ -677,7 +1549,7 @@ $('#model-pill').addEventListener('click', e => {
     g.items.push(m);
   }
   const body = [];
-  if (locked) body.push(h('div', { class: 'pad small muted' }, '답이 끝나면 모델을 바꿀 수 있습니다.'));
+  if (locked) body.push(h('div', { class: 'pad small muted' }, T('답이 끝나면 모델을 바꿀 수 있습니다.')));
   // 모델마다 머리(이름 · 종류) 아래에 양자화 줄 — 이 PC 에서 도는 모델이 먼저
   groups.sort((a, b) => (a.items.some(runnable) ? 0 : 1) - (b.items.some(runnable) ? 0 : 1));
   for (const g of groups) {
@@ -689,27 +1561,27 @@ $('#model-pill').addEventListener('click', e => {
         const sel = room && room.model === m.id;
         const loaded = sv.model === m.id && sv.state === 'ready';
         const reason = m.device_reason || (m.shape && m.shape.reason) || '';
-        const label = `${g.name} ${quantOf(m)}, ${fmtBytes(m.size)}${loaded ? ', 불러옴' : ''}${ok ? '' : ', 이 PC에서 실행할 수 없음: ' + reason}`;
+        const label = `${g.name} ${quantOf(m)}, ${fmtBytes(m.size)}${loaded ? T(', 불러옴') : ''}${ok ? '' : T(', 이 PC에서 실행할 수 없음: ') + TM(reason)}`;
         return h('button', {
           class: 'opt q' + (sel ? ' sel' : ''), role: 'menuitemradio', 'aria-checked': sel ? 'true' : 'false', 'aria-label': label, disabled: (ok && !locked) ? null : true,
           onclick: () => { closePop(); if (!room) return; room.model = m.id; saveRooms(); renderChatTop(true); renderMsgs(); $('#input').focus(); },
         }, h('span', { class: 'qlab' }, quantOf(m)), h('span', { class: 'sz' }, fmtBytes(m.size)),
-          ok ? null : h('span', { class: 'why' }, m.device_reason ? '이 GPU 미지원' : '지원하지 않는 파일'),
-          h('span', { class: 'grow' }), loaded ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), '불러옴') : null, sel ? I('check', 's') : null);
+          ok ? null : h('span', { class: 'why' }, m.device_reason ? T('이 GPU 미지원') : T('지원하지 않는 파일')),
+          h('span', { class: 'grow' }), loaded ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), T('불러옴')) : null, sel ? I('check', 's') : null);
       })));
   }
-  if (!st.models.length) body.push(h('div', { class: 'pad muted' }, '아직 모델이 없습니다.'));
-  body.push(h('div', { class: 'sep', role: 'separator' }), h('button', { class: 'opt', role: 'menuitem', onclick: () => { closePop(); show('models'); } }, I('download', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, '모델 다운로드 · 추가'))));
-  if (sv.state === 'ready' || sv.state === 'starting') body.push(h('button', { class: 'opt', role: 'menuitem', disabled: S.streaming ? true : null, onclick: () => { closePop(); unloadModel(); } }, I('eject', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, '불러온 모델 내리기'), h('div', { class: 's' }, 'GPU 메모리를 비웁니다'))));
-  openPop(e.currentTarget, h('div', { role: 'menu', 'aria-label': '모델 선택' }, body));
+  if (!st.models.length) body.push(h('div', { class: 'pad muted' }, T('아직 모델이 없습니다.')));
+  body.push(h('div', { class: 'sep', role: 'separator' }), h('button', { class: 'opt', role: 'menuitem', onclick: () => { closePop(); show('models'); } }, I('download', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, T('모델 다운로드 · 추가')))));
+  if (sv.state === 'ready' || sv.state === 'starting') body.push(h('button', { class: 'opt', role: 'menuitem', disabled: S.streaming ? true : null, onclick: () => { closePop(); unloadModel(); } }, I('eject', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, T('불러온 모델 내리기')), h('div', { class: 's' }, T('GPU 메모리를 비웁니다')))));
+  openPop(e.currentTarget, h('div', { role: 'menu', 'aria-label': T('모델 선택') }, body));
 });
 $('#optbtn').innerHTML = svg('sliders');
 $('#optbtn').addEventListener('click', e => {
   if (POP) { closePop(); return; }
-  const temp = h('input', { type: 'number', min: '0', max: '2', step: '0.1', value: OPT.temp, 'aria-label': '온도' });
-  const max = h('input', { type: 'number', min: '16', max: '32768', step: '256', value: OPT.max, 'aria-label': '최대 답변 길이(토큰)' });
-  const sys = h('textarea', { rows: '4', placeholder: '비워 두면 모델 기본값', 'aria-label': '시스템 프롬프트', class: 'w100' }, OPT.system || '');
-  const think = h('input', { type: 'checkbox', 'aria-label': '생각 과정 쓰기(Qwen3)', onchange: () => { OPT.think = think.checked; store('geulpu.opt', OPT); } });
+  const temp = h('input', { type: 'number', min: '0', max: '2', step: '0.1', value: OPT.temp, 'aria-label': T('온도') });
+  const max = h('input', { type: 'number', min: '16', max: '32768', step: '256', value: OPT.max, 'aria-label': T('최대 답변 길이(토큰)') });
+  const sys = h('textarea', { rows: '4', placeholder: T('비워 두면 모델 기본값'), 'aria-label': T('시스템 프롬프트'), class: 'w100' }, OPT.system || '');
+  const think = h('input', { type: 'checkbox', 'aria-label': T('생각 과정 쓰기(Qwen3)'), onchange: () => { OPT.think = think.checked; store('geulpu.opt', OPT); } });
   think.checked = OPT.think !== false;
   // 쓰는 동안은 그대로 두고, 칸을 떠날 때(또는 Enter) 범위에 맞춰 칸에도 다시 적는다(온도 0~2 · 길이 16~32768)
   const clampNum = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -717,12 +1589,12 @@ $('#optbtn').addEventListener('click', e => {
   const settle = () => { save(); temp.value = OPT.temp; max.value = OPT.max; };
   [temp, max, sys].forEach(x => x.addEventListener('input', save));
   [temp, max].forEach(x => { x.addEventListener('change', settle); x.addEventListener('keydown', ev => { if (ev.key === 'Enter') settle(); }); });
-  openPop(e.currentTarget, h('div', { class: 'pad w360', role: 'dialog', 'aria-label': '생성 설정' },
-    h('div', { class: 'eyebrow' }, '생성 설정 · 이 브라우저에 저장'),
-    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '온도'), h('div', { class: 'small muted' }, '0이면 같은 질문에 늘 같은 답')), temp),
-    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '최대 답변 길이'), h('div', { class: 'small muted' }, '토큰 · 추론 모델은 생각 과정도 포함')), max),
-    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '생각 과정 쓰기'), h('div', { class: 'small muted' }, 'Qwen3 · 끄면 생각 없이 바로 답합니다')), h('label', { class: 'switch' }, think, h('i'))),
-    h('div', { class: 'col' }, h('div', { class: 'ink' }, '시스템 프롬프트'), sys)), 'right');
+  openPop(e.currentTarget, h('div', { class: 'pad w360', role: 'dialog', 'aria-label': T('생성 설정') },
+    h('div', { class: 'eyebrow' }, T('생성 설정 · 이 브라우저에 저장')),
+    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, T('온도')), h('div', { class: 'small muted' }, T('0이면 같은 질문에 늘 같은 답'))), temp),
+    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, T('최대 답변 길이')), h('div', { class: 'small muted' }, T('토큰 · 추론 모델은 생각 과정도 포함'))), max),
+    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, T('생각 과정 쓰기')), h('div', { class: 'small muted' }, T('Qwen3 · 끄면 생각 없이 바로 답합니다'))), h('label', { class: 'switch' }, think, h('i'))),
+    h('div', { class: 'col' }, h('div', { class: 'ink' }, T('시스템 프롬프트')), sys)), 'right');
 });
 
 // ---------- 마크다운 · 수식(앱 안에서 — 바깥 라이브러리 없음, 글은 늘 탈출해서 넣는다) ----------
@@ -808,7 +1680,7 @@ function tex(src) {
 const mathInline = t => `<span class="math">${tex(t)}</span>`;
 const mathBlock = t => `<div class="math block">${tex(t)}</div>`;
 function codeBlock(code, lang) {
-  return `<div class="codeblk"><div class="ch"><span>${esc(lang || '코드')}</span><button class="cp" type="button">${svg('copy', 's')}<span>복사</span></button></div><pre><code>${esc(code)}</code></pre></div>`;
+  return T`<div class="codeblk"><div class="ch"><span>${esc(lang || T('코드'))}</span><button class="cp" type="button">${svg('copy', 's')}<span>복사</span></button></div><pre><code>${esc(code)}</code></pre></div>`;
 }
 function inline(src) {
   const slots = [];
@@ -945,8 +1817,8 @@ $('#msgs').addEventListener('click', async e => {
   const b = e.target.closest('.codeblk .cp');
   if (!b) return;
   if (await copyText(b.closest('.codeblk').querySelector('code').textContent)) {
-    b.lastChild.textContent = '복사함';
-    setTimeout(() => { b.lastChild.textContent = '복사'; }, 1200);
+    b.lastChild.textContent = T('복사함');
+    setTimeout(() => { b.lastChild.textContent = T('복사'); }, 1200);
   }
 });
 
@@ -987,33 +1859,33 @@ function humanError(msg, room) {
   const m = room && modelOf(room.model);
   if (/out of memory|OUT_OF_MEMORY|메모리가 (모자|부족)|ERROR_OUT_OF_DEVICE_MEMORY/i.test(s)) {
     const sib = smallerSibling(m);
-    if (sib) return ['그래픽 메모리가 부족합니다', `같은 모델의 더 작은 파일(${quantOf(sib)} · ${fmtBytes(sib.size)})로 바꾸면 실행될 수 있습니다.`,
-      [h('button', { class: 'btn sm', onclick: () => { room.model = sib.id; saveRooms(); renderChatTop(true); retryLast(); } }, I('refresh', 's'), `${quantOf(sib)} 파일로 다시 시도`)]];
-    return ['그래픽 메모리가 부족합니다', '설정에서 동시 처리 수나 채팅마다 문맥 길이를 줄이거나, 더 작은 모델을 쓰세요.',
-      [h('button', { class: 'btn sm', onclick: () => show('settings') }, I('gear', 's'), '설정 열기'), h('button', { class: 'btn sm ghost', onclick: () => $('#model-pill').click() }, I('box', 's'), '모델 바꾸기')]];
+    if (sib) return [T('그래픽 메모리가 부족합니다'), T`같은 모델의 더 작은 파일(${quantOf(sib)} · ${fmtBytes(sib.size)})로 바꾸면 실행될 수 있습니다.`,
+      [h('button', { class: 'btn sm', onclick: () => { room.model = sib.id; saveRooms(); renderChatTop(true); retryLast(); } }, I('refresh', 's'), T`${quantOf(sib)} 파일로 다시 시도`)]];
+    return [T('그래픽 메모리가 부족합니다'), T('설정에서 동시 처리 수나 채팅마다 문맥 길이를 줄이거나, 더 작은 모델을 쓰세요.'),
+      [h('button', { class: 'btn sm', onclick: () => show('settings') }, I('gear', 's'), T('설정 열기')), h('button', { class: 'btn sm ghost', onclick: () => $('#model-pill').click() }, I('box', 's'), T('모델 바꾸기'))]];
   }
-  const retry = h('button', { class: 'btn sm needs-conn', onclick: () => retryLast() }, I('refresh', 's'), '다시 시도');
-  const swap = h('button', { class: 'btn sm ghost', onclick: () => $('#model-pill').click() }, I('box', 's'), '모델 바꾸기');
-  if (/Failed to fetch|NetworkError|연결이 끊/.test(s)) return ['GeulPU.exe와 연결이 끊겼습니다', 'GeulPU.exe가 실행 중인지 확인한 뒤 다시 시도하세요.', [retry]];
-  if (/다른 (일이 돌고|작업이 실행 중)/.test(s)) return ['다른 작업이 실행 중입니다', '벤치마크가 끝나거나 중지된 뒤 다시 시도하세요.', [retry, h('button', { class: 'btn sm ghost', onclick: () => show('bench') }, I('gauge', 's'), '벤치마크 보기')]];
-  if (/모델을 불러오지|추론 서버|서버/.test(s)) return ['모델을 불러오지 못했습니다', '자세히를 열어 원인을 확인하세요. 다른 모델로 바꾸거나 다시 시도할 수 있습니다.', [retry, swap]];
-  if (/HTTP 503/.test(s)) return ['모델이 아직 준비되지 않았습니다', '잠시 뒤 다시 시도하세요.', [retry]];
-  return ['답을 받지 못했습니다', '다시 시도하거나 다른 모델로 바꿔 보세요.', [retry, swap]];
+  const retry = h('button', { class: 'btn sm needs-conn', onclick: () => retryLast() }, I('refresh', 's'), T('다시 시도'));
+  const swap = h('button', { class: 'btn sm ghost', onclick: () => $('#model-pill').click() }, I('box', 's'), T('모델 바꾸기'));
+  if (/Failed to fetch|NetworkError|연결이 끊/.test(s)) return [T('GeulPU.exe와 연결이 끊겼습니다'), T('GeulPU.exe가 실행 중인지 확인한 뒤 다시 시도하세요.'), [retry]];
+  if (/다른 (일이 돌고|작업이 실행 중)/.test(s)) return [T('다른 작업이 실행 중입니다'), T('벤치마크가 끝나거나 중지된 뒤 다시 시도하세요.'), [retry, h('button', { class: 'btn sm ghost', onclick: () => show('bench') }, I('gauge', 's'), T('벤치마크 보기'))]];
+  if (/모델을 불러오지|추론 서버|서버/.test(s)) return [T('모델을 불러오지 못했습니다'), T('자세히를 열어 원인을 확인하세요. 다른 모델로 바꾸거나 다시 시도할 수 있습니다.'), [retry, swap]];
+  if (/HTTP 503/.test(s)) return [T('모델이 아직 준비되지 않았습니다'), T('잠시 뒤 다시 시도하세요.'), [retry]];
+  return [T('답을 받지 못했습니다'), T('다시 시도하거나 다른 모델로 바꿔 보세요.'), [retry, swap]];
 }
 // 벤치마크 실패 까닭 — 아는 꼴이면 쉬운 말로(원문은 자세히에)
 function humanJob(reason) {
   const s = String(reason || '');
-  if (/out of memory|OUT_OF_MEMORY|ERROR_OUT_OF_DEVICE_MEMORY|들어가지 않습니다/i.test(s)) return ['그래픽 메모리가 부족합니다', '더 작은 모델로 측정하거나 다른 프로그램의 GPU 사용을 줄여 보세요.'];
-  if (/DEVICE_LOST|장치를 잃/.test(s)) return ['GPU 드라이버가 작업을 멈췄습니다', '그래픽 드라이버를 최신으로 업데이트한 뒤 다시 실행해 보세요.'];
-  if (/중지/.test(s)) return ['중지했습니다', ''];
-  return ['측정을 끝내지 못했습니다', '자세히를 열어 원인을 확인하세요.'];
+  if (/out of memory|OUT_OF_MEMORY|ERROR_OUT_OF_DEVICE_MEMORY|들어가지 않습니다/i.test(s)) return [T('그래픽 메모리가 부족합니다'), T('더 작은 모델로 측정하거나 다른 프로그램의 GPU 사용을 줄여 보세요.')];
+  if (/DEVICE_LOST|장치를 잃/.test(s)) return [T('GPU 드라이버가 작업을 멈췄습니다'), T('그래픽 드라이버를 최신으로 업데이트한 뒤 다시 실행해 보세요.')];
+  if (/중지/.test(s)) return [T('중지했습니다'), ''];
+  return [T('측정을 끝내지 못했습니다'), T('자세히를 열어 원인을 확인하세요.')];
 }
 // live: 새로 생긴 오류만 화면 읽기 프로그램에 알린다(다시 그릴 때마다 지난 오류를 또 읽지 않게)
 function errorCard(title, desc, actions, raw, live) {
   return h('div', { class: 'ecard', role: live ? 'alert' : null },
     h('div', { class: 't' }, I('alert', 's'), h('span', null, title)), desc ? h('div', { class: 'd' }, desc) : null,
     actions && actions.length ? h('div', { class: 'row' }, actions) : null,
-    raw ? h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '자세히'), h('pre', { class: 'log sans' }, raw)) : null);
+    raw ? h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), T('자세히')), h('pre', { class: 'log sans' }, TM(raw))) : null);
 }
 function addCaret(root) {
   let last = root;
@@ -1026,7 +1898,7 @@ function addCaret(root) {
   }
   last.append(h('span', { class: 'caret', 'aria-hidden': 'true' }));
 }
-const KERNEL_NOTE = '처음 한 번은 이 GPU에 맞는 커널을 만들고 가장 빠른 실행 방식을 측정합니다(보통 수십 초~2분). 다음부터는 더 빨리 준비됩니다.';
+const KERNEL_NOTE = T('처음 한 번은 이 GPU에 맞는 커널을 만들고 가장 빠른 실행 방식을 측정합니다(보통 수십 초~2분). 다음부터는 더 빨리 준비됩니다.');
 const FRESH = new WeakSet();   // 방금 생긴 오류(한 번만 알린다)
 function msgEl(m, room, opts) {
   opts = opts || {};
@@ -1034,16 +1906,16 @@ function msgEl(m, room, opts) {
     const k = room.messages.indexOf(m);
     if (S.editing && S.editing.roomId === room.id && S.editing.k === k) return editBox(m, room, k);
     return h('div', { class: 'msg user' },
-      !S.streaming ? h('button', { class: 'icon-btn edit', 'data-tip': '수정', 'data-tip-pos': 'top', 'aria-label': '이 메시지 수정', onclick: () => startEdit(room, k) }, I('edit', 's')) : null,
+      !S.streaming ? h('button', { class: 'icon-btn edit', 'data-tip': T('수정'), 'data-tip-pos': 'top', 'aria-label': T('이 메시지 수정'), onclick: () => startEdit(room, k) }, I('edit', 's')) : null,
       h('div', { class: 'bubble' }, m.content));
   }
   if (m.role === 'notice') {
     return h('div', { class: 'msg notice' }, h('div', { class: 'ncard', role: 'status' },
       h('div', { class: 'row' }, h('i', { class: 'dot busy' }), h('span', { class: 't' }, m.text || m.content)),
       h('div', { class: 'bar' }, h('i', { class: 'nbar', style: `width:${m.pct || 0}%` })),
-      h('div', { class: 's' }, m.kernel ? KERNEL_NOTE : '모델을 GPU에 올리는 중입니다.')));
+      h('div', { class: 's' }, m.kernel ? KERNEL_NOTE : T('모델을 GPU에 올리는 중입니다.'))));
   }
-  if (m.role === 'note') return h('div', { class: 'msg note' }, I('info', 's'), h('span', null, m.content));
+  if (m.role === 'note') return h('div', { class: 'msg note' }, I('info', 's'), h('span', null, TM(m.content)));
   if (m.role === 'error') {
     const [t, d, acts] = humanError(m.content, room);
     const live = FRESH.has(m);
@@ -1075,8 +1947,8 @@ function fillMsg(e, m, room, done) {
   if (sp.think) {
     const stopped = done && m.stopped && !sp.answer;
     const live = sp.open && !done;
-    const label = live ? '생각하는 중' : stopped ? '생각 과정 · 중지됨' : (sp.unfinished || (sp.open && done)) ? '생각 과정 · 끊김'
-      : m.thinkMs ? `${Math.max(1, Math.round(m.thinkMs / 1000))}초 동안 생각함` : '생각 과정';
+    const label = live ? T('생각하는 중') : stopped ? T('생각 과정 · 중지됨') : (sp.unfinished || (sp.open && done)) ? T('생각 과정 · 끊김')
+      : m.thinkMs ? T`${Math.max(1, Math.round(m.thinkMs / 1000))}초 동안 생각함` : T('생각 과정');
     const user = e.dataset.thinkOpen;
     body.append(h('details', { class: 'think', open: (user ? user === '1' : live) ? true : null },
       h('summary', { onclick: ev => { e.dataset.thinkOpen = ev.currentTarget.parentElement.open ? '0' : '1'; } },
@@ -1092,42 +1964,47 @@ function fillMsg(e, m, room, done) {
     const max = (m.max || OPT.max);
     body.append(h('div', { class: 'cut-note' }, I('info', 's'),
       h('div', { class: 'col g12' },
-        h('span', null, noAns ? `답을 쓰기 전에 최대 답변 길이(${fmtNum(max)}토큰)에 닿았습니다.` : `최대 답변 길이(${fmtNum(max)}토큰)에서 답이 끊겼습니다.`),
+        h('span', null, noAns ? T`답을 쓰기 전에 최대 답변 길이(${fmtNum(max)}토큰)에 닿았습니다.` : T`최대 답변 길이(${fmtNum(max)}토큰)에서 답이 끊겼습니다.`),
         e._last && !S.streaming ? h('div', { class: 'row' },
-          r1 ? h('button', { class: 'btn sm needs-conn', onclick: continueLast }, I('forward', 's'), '이어서 생성') : null,
-          h('button', { class: 'btn sm ghost needs-conn', onclick: () => retryLast(Math.min(32768, max * 2)) }, I('refresh', 's'), `${fmtNum(Math.min(32768, max * 2))}토큰으로 다시 생성`)) : null)));
+          r1 ? h('button', { class: 'btn sm needs-conn', onclick: continueLast }, I('forward', 's'), T('이어서 생성')) : null,
+          h('button', { class: 'btn sm ghost needs-conn', onclick: () => retryLast(Math.min(32768, max * 2)) }, I('refresh', 's'), T`${fmtNum(Math.min(32768, max * 2))}토큰으로 다시 생성`)) : null)));
   }
   const tools = e.querySelector('.tools');
   put(tools,
     e._vk !== undefined ? verSwitch(room, e._vk) : null,
     done && m.content ? h('button', {
-      class: 'icon-btn', 'data-tip': '답 복사', 'data-tip-pos': 'top', 'aria-label': '답 복사', onclick: async ev => {
+      class: 'icon-btn', 'data-tip': T('답 복사'), 'data-tip-pos': 'top', 'aria-label': T('답 복사'), onclick: async ev => {
         const btn = ev.currentTarget;
-        if (await copyText(sp.answer || m.content)) { btn.innerHTML = svg('check', 's'); announce('복사했습니다'); setTimeout(() => { btn.innerHTML = svg('copy', 's'); }, 1200); }
+        if (await copyText(sp.answer || m.content)) { btn.innerHTML = svg('check', 's'); announce(T('복사했습니다')); setTimeout(() => { btn.innerHTML = svg('copy', 's'); }, 1200); }
       },
     }, I('copy', 's')) : null,
-    done && e._last && !S.streaming ? h('button', { class: 'icon-btn needs-conn', 'data-tip': '다시 생성 — 지금 답은 버전으로 남습니다', 'data-tip-pos': 'top', 'aria-label': '다시 생성', onclick: () => retryLast() }, I('refresh', 's')) : null,
+    done && e._last && !S.streaming ? h('button', { class: 'icon-btn needs-conn', 'data-tip': T('다시 생성 — 지금 답은 버전으로 남습니다'), 'data-tip-pos': 'top', 'aria-label': T('다시 생성'), onclick: () => retryLast() }, I('refresh', 's')) : null,
     m.stats ? h('span', { class: 'stats' }, statsText(m.stats)) : null);
 }
 // 지난 기록의 통계 글도 지금 꼴로(“412 토큰” → “412토큰”)
 // 숫자와 '토큰'은 붙여 쓴다(“412토큰 · 59.8토큰/초”) — 지난 기록의 띄어 쓴 꼴도 이렇게 보인다
-const statsText = s => String(s).replace(/ · 최대 길이에서 끊김$/, '').replace(/(\d) 토큰/g, '$1토큰');
+const statsText = s => {
+  const t = String(s).replace(/ · 최대 길이에서 끊김$/, '').replace(/(\d) 토큰/g, '$1토큰');
+  if (!EN) return t;
+  return t.replace(/^이어서 /, 'Continued · ').replace(/([\d.,]+)토큰\/초/g, '$1 tokens/s').replace(/첫 토큰 /g, 'first token ')
+    .replace(/([\d.,]+)토큰/g, (_, n) => `${n} ${n === '1' ? 'token' : 'tokens'}`).replace(/([\d.]+)초/g, '$1 s').replace(/^중지됨$/, 'Stopped').replace(/^오류$/, 'Error');
+};
 // 버전 넘기기 ‹ 2 / 3 › — 고쳐 보내기 · 다시 생성이 남긴 앞 버전
 function verSwitch(room, k) {
   const u = room.messages[k];
   if (!u || !u.vers || u.vers.length < 2) return null;
   const busy = !!S.streaming;
-  return h('span', { class: 'vers', role: 'group', 'aria-label': `버전 ${u.vi + 1} / ${u.vers.length}` },
-    h('button', { class: 'icon-btn', 'data-tip': '이전 버전', 'data-tip-pos': 'top', 'aria-label': '이전 버전', disabled: (busy || u.vi === 0) ? true : null, onclick: () => switchVersion(room, k, u.vi - 1) }, I('chevL', 's')),
+  return h('span', { class: 'vers', role: 'group', 'aria-label': T`버전 ${u.vi + 1} / ${u.vers.length}` },
+    h('button', { class: 'icon-btn', 'data-tip': T('이전 버전'), 'data-tip-pos': 'top', 'aria-label': T('이전 버전'), disabled: (busy || u.vi === 0) ? true : null, onclick: () => switchVersion(room, k, u.vi - 1) }, I('chevL', 's')),
     h('span', { class: 'n', 'aria-hidden': 'true' }, `${u.vi + 1} / ${u.vers.length}`),
-    h('button', { class: 'icon-btn', 'data-tip': '다음 버전', 'data-tip-pos': 'top', 'aria-label': '다음 버전', disabled: (busy || u.vi === u.vers.length - 1) ? true : null, onclick: () => switchVersion(room, k, u.vi + 1) }, I('chevR', 's')));
+    h('button', { class: 'icon-btn', 'data-tip': T('다음 버전'), 'data-tip-pos': 'top', 'aria-label': T('다음 버전'), disabled: (busy || u.vi === u.vers.length - 1) ? true : null, onclick: () => switchVersion(room, k, u.vi + 1) }, I('chevR', 's')));
 }
 // 제안은 입력창을 채우기만 한다(보내기는 사람이 — 모델을 불러오는 일이 뜻밖에 시작되지 않게)
 const SUGGEST = [
-  { t: '다음 문장을 자연스러운 영어로 바꿔 줘: 내일 회의는 3시로 미뤄졌습니다' },
-  { t: '파이썬으로 피보나치 함수를 작성해 줘' },
-  { t: '봄을 주제로 짧은 시를 써 줘' },
-  { t: '아래 글을 세 줄로 요약해 줘', fill: '아래 글을 세 줄로 요약해 줘.\n\n' },
+  { t: T('다음 문장을 자연스러운 영어로 바꿔 줘: 내일 회의는 3시로 미뤄졌습니다') },
+  { t: T('파이썬으로 피보나치 함수를 작성해 줘') },
+  { t: T('봄을 주제로 짧은 시를 써 줘') },
+  { t: T('아래 글을 세 줄로 요약해 줘'), fill: T('아래 글을 세 줄로 요약해 줘.\n\n') },
 ];
 function fillComposer(text) {
   const inp = $('#input');
@@ -1165,7 +2042,7 @@ function dlBox(c, bare) {
   return h('div', { class: 'dl', 'data-dl': c.id },
     h('div', { class: 'bar' + (paused ? ' paused' : '') }, h('i', { style: 'width:0%' })),
     h('div', { class: 'line' }, h('span', { class: 'txt' }, ''),
-      !bare && d.state === 'downloading' ? h('button', { class: 'btn sm ghost needs-conn', 'data-fk': 'pause:' + c.id, onclick: () => pauseDownload(c) }, I('pause', 's'), '일시정지') : null),
+      !bare && d.state === 'downloading' ? h('button', { class: 'btn sm ghost needs-conn', 'data-fk': 'pause:' + c.id, onclick: () => pauseDownload(c) }, I('pause', 's'), T('일시정지')) : null),
     h('div', { class: 'sub' }, ''));
 }
 // 내려받기 막대는 1초마다 글과 폭만 고친다(모델 화면 · 첫 화면 · 다운로드 목록 · 양자화 칸)
@@ -1177,7 +2054,7 @@ function updateDlBars() {
     if (!d) continue;
     const ver = d.state === 'verifying';
     const pct = d.total ? 100 * (ver ? d.verify_bytes : d.received) / d.total : 0;
-    const t = (ver ? '확인 ' : '') + pct.toFixed(0) + '%';
+    const t = (ver ? T('확인 ') : '') + pct.toFixed(0) + '%';
     if (el.textContent !== t) el.textContent = t;
   }
   for (const el of document.querySelectorAll('[data-dl]')) {
@@ -1188,7 +2065,7 @@ function updateDlBars() {
     const pct = ver ? (d.total ? 100 * d.verify_bytes / d.total : 0) : (d.total ? 100 * d.received / d.total : 0);
     el.querySelector('.bar > i').style.width = pct.toFixed(1) + '%';
     const eta = d.bytes_per_s > 0 ? (d.total - d.received) / d.bytes_per_s : NaN;
-    el.querySelector('.txt').textContent = ver ? `무결성 확인 중${NB}${pct.toFixed(0)}%` : paused ? `${pct.toFixed(0)}%에서 멈춤` : `${pct.toFixed(0)}%${NB}${fmtLeft(eta)}`;
+    el.querySelector('.txt').textContent = ver ? T`무결성 확인 중${NB}${pct.toFixed(0)}%` : paused ? T`${pct.toFixed(0)}%에서 멈춤` : `${pct.toFixed(0)}%${NB}${fmtLeft(eta)}`;
     el.querySelector('.sub').textContent = ver ? `SHA-256${NB}${fmtBytes(d.total)}` : paused ? `${fmtBytes(d.received)} / ${fmtBytes(d.total)}` : `${fmtBytes(d.received)} / ${fmtBytes(d.total)}${NB}${fmtBytes(d.bytes_per_s)}/s`;
   }
 }
@@ -1206,39 +2083,39 @@ function renderMsgs() {
     const rec = st && recommendId(st);
     const recC = rec && st.catalog.find(c => c.id === rec);
     const recDl = recC && recC.download && (recC.download.state === 'downloading' || recC.download.state === 'verifying');
-    const head = h('div', { class: 'row g12' }, h('span', { class: 'eyebrow caps' }, 'GeulPU'), h('span', { class: 'eyebrow' }, '글(geul) 언어로 만든 로컬 LLM'));
+    const head = h('div', { class: 'row g12' }, h('span', { class: 'eyebrow caps' }, 'GeulPU'), h('span', { class: 'eyebrow' }, T('글(geul) 언어로 만든 로컬 LLM')));
     let title, lede, actions = null;
     if (hs === 'ready') {
-      title = '무엇을 도와드릴까요?';
+      title = T('무엇을 도와드릴까요?');
       lede = null;
       actions = h('div', { class: 'chips' }, SUGGEST.map(s => h('button', { class: 'chip-btn needs-conn', onclick: () => fillComposer(s.fill || s.t) }, s.t)));
     } else if (hs === 'checking' || hs === 'loading') {
-      title = '하드웨어를 확인하는 중입니다';
-      lede = '처음 실행할 때 GPU와 드라이버를 확인합니다. 잠시만 기다려 주세요.';
+      title = T('하드웨어를 확인하는 중입니다');
+      lede = T('처음 실행할 때 GPU와 드라이버를 확인합니다. 잠시만 기다려 주세요.');
     } else if (hs === 'nogpu') {
-      title = '쓸 수 있는 GPU를 찾지 못했습니다';
-      lede = 'NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU와 최신 그래픽 드라이버가 필요합니다.';
+      title = T('쓸 수 있는 GPU를 찾지 못했습니다');
+      lede = T('NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU와 최신 그래픽 드라이버가 필요합니다.');
       actions = h('div', { class: 'col g16 mt20' },
-        st.device.reason ? h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '확인한 내용'), h('pre', { class: 'log sans' }, st.device.reason)) : null,
-        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => show('device') }, I('cpu', 's'), '하드웨어 보기')));
+        st.device.reason ? h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), T('확인한 내용')), h('pre', { class: 'log sans' }, TM(st.device.reason))) : null,
+        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => show('device') }, I('cpu', 's'), T('하드웨어 보기'))));
     } else if (hs === 'unsupported') {
-      title = '이 PC에서 실행할 수 있는 모델이 없습니다';
-      lede = '설치된 모델을 이 GPU나 GeulPU가 지원하지 않습니다. 모델 화면에서 이유를 확인하고 다른 모델을 다운로드하세요.';
-      actions = h('div', { class: 'row mt24' }, h('button', { class: 'btn', onclick: () => show('models') }, I('box', 's'), '모델 보기'));
+      title = T('이 PC에서 실행할 수 있는 모델이 없습니다');
+      lede = T('설치된 모델을 이 GPU나 GeulPU가 지원하지 않습니다. 모델 화면에서 이유를 확인하고 다른 모델을 다운로드하세요.');
+      actions = h('div', { class: 'row mt24' }, h('button', { class: 'btn', onclick: () => show('models') }, I('box', 's'), T('모델 보기')));
     } else {
-      title = '먼저 모델이 필요합니다';
+      title = T('먼저 모델이 필요합니다');
       // 맞는 것이 없을 때 — 공유 메모리 32 KB GPU(AMD 등)는 형식 제약까지 그대로 밝힌다(흔한 Q4_0 파일도 출력이 Q6_K 라 아직 받지 않음)
-      lede = recC ? `이 PC에는 ${recC.name} ${recC.quant}(${fmtBytes(recC.size)}) 모델을 추천합니다.`
-        : st.device.variant === '공유32' ? `이 GPU(공유 메모리 32 KB)는 가중치가 모두 Q8_0이거나 모두 Q4_0인 파일만 실행합니다. 목록의 Q8_0 7B는 그래픽 메모리가 10 GB 이상 필요하고(이 PC ${fmtBytes(st.device.memory)}), 흔한 Q4_0 파일은 출력 가중치가 Q6_K라 아직 받지 않습니다. 지금은 이 PC에서 실행할 수 있는 파일이 없습니다.`
-          : `목록의 모델 가운데 이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})에 맞는 것이 없습니다. Hugging Face에서 더 작은 파일을 찾아볼 수 있습니다 — 받기 전에 실행되는지 확인합니다.`;
+      lede = recC ? T`이 PC에는 ${recC.name} ${recC.quant}(${fmtBytes(recC.size)}) 모델을 추천합니다.`
+        : st.device.variant === '공유32' ? T`이 GPU(공유 메모리 32 KB)는 가중치가 모두 Q8_0이거나 모두 Q4_0인 파일만 실행합니다. 목록의 Q8_0 7B는 그래픽 메모리가 10 GB 이상 필요하고(이 PC ${fmtBytes(st.device.memory)}), 흔한 Q4_0 파일은 출력 가중치가 Q6_K라 아직 받지 않습니다. 지금은 이 PC에서 실행할 수 있는 파일이 없습니다.`
+          : T`목록의 모델 가운데 이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})에 맞는 것이 없습니다. Hugging Face에서 더 작은 파일을 찾아볼 수 있습니다 — 받기 전에 실행되는지 확인합니다.`;
       actions = h('div', { class: 'col g0' },
         recDl ? dlBox(recC) : null,
         h('div', { class: 'row mt24' },
-          recC && !recC.installed && !recDl ? h('button', { class: 'btn primary needs-conn', onclick: () => startDownload(recC) }, I('download', 's'), '추천 모델 다운로드') : null,
-          !recC && st.device.variant !== '공유32' ? h('button', { class: 'btn primary needs-conn', onclick: openHfSearch }, I('search', 's'), '모델 찾기') : null,
-          !recC ? h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가') : null,
-          !recC && st.device.variant === '공유32' ? h('button', { class: 'btn ghost', onclick: () => show('device') }, I('cpu', 's'), '하드웨어 보기') : null,
-          recC ? h('button', { class: 'btn' + (!recDl ? ' ghost' : ''), onclick: () => show('models') }, recDl ? '다운로드 진행 보기' : '모델 둘러보기') : null));
+          recC && !recC.installed && !recDl ? h('button', { class: 'btn primary needs-conn', onclick: () => startDownload(recC) }, I('download', 's'), T('추천 모델 다운로드')) : null,
+          !recC && st.device.variant !== '공유32' ? h('button', { class: 'btn primary needs-conn', onclick: openHfSearch }, I('search', 's'), T('모델 찾기')) : null,
+          !recC ? h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), T('GGUF 파일 추가')) : null,
+          !recC && st.device.variant === '공유32' ? h('button', { class: 'btn ghost', onclick: () => show('device') }, I('cpu', 's'), T('하드웨어 보기')) : null,
+          recC ? h('button', { class: 'btn' + (!recDl ? ' ghost' : ''), onclick: () => show('models') }, recDl ? T('다운로드 진행 보기') : T('모델 둘러보기')) : null));
     }
     put(box, h('div', { class: 'hello' }, head, h('h1', null, title), lede ? h('p', null, lede) : null, actions));
     updateDlBars();
@@ -1314,7 +2191,7 @@ async function ensureServer(modelId, notice) {
     if (s2.server.state === 'failed') throw new Error('모델을 불러오지 못했습니다 — ' + (s2.server.reason || ''));
     if (notice) {
       notice.kernel = notice.kernel || !!(j && /커널/.test(j.step || ''));
-      notice.text = `${labelById(modelId)} 불러오는 중 · ${fmtClock(j ? j.seconds : s2.server.seconds)}${notice.kernel ? ' · 커널 준비 중' : ''}`;
+      notice.text = T`${labelById(modelId)} 불러오는 중 · ${fmtClock(j ? j.seconds : s2.server.seconds)}${notice.kernel ? T(' · 커널 준비 중') : ''}`;
       notice.pct = j ? Math.min(100, j.progress / 10) : 0;
       const el = notice.el;
       if (el && el.isConnected) {
@@ -1330,12 +2207,12 @@ async function ensureServer(modelId, notice) {
 const benchBusy = () => { const j = S.st && S.st.job; return !!(j && j.state === 'running' && j.kind !== 'server' && j.kind !== 'device'); };
 // 보낼 수 없는 까닭(없으면 '') — 아무것도 바꾸지 않고 먼저 묻는다
 function sendBlock(room) {
-  if (S.streaming) return '다른 채팅의 답이 끝나면 보낼 수 있습니다';
-  if (!S.conn) return 'GeulPU.exe와 연결이 끊겨 보낼 수 없습니다';
-  if (benchBusy()) return '벤치마크가 끝나면 보낼 수 있습니다';
+  if (S.streaming) return T('다른 채팅의 답이 끝나면 보낼 수 있습니다');
+  if (!S.conn) return T('GeulPU.exe와 연결이 끊겨 보낼 수 없습니다');
+  if (benchBusy()) return T('벤치마크가 끝나면 보낼 수 있습니다');
   const m = room && modelOf(room.model);
-  if (!m) return S.st && S.st.models.length ? '위의 모델 선택에서 모델을 고르세요' : '먼저 모델 화면에서 모델을 다운로드하거나 추가하세요';
-  if (!runnable(m)) return '이 모델은 이 PC에서 실행할 수 없습니다 — ' + (m.device_reason || (m.shape && m.shape.reason) || '');
+  if (!m) return S.st && S.st.models.length ? T('위의 모델 선택에서 모델을 고르세요') : T('먼저 모델 화면에서 모델을 다운로드하거나 추가하세요');
+  if (!runnable(m)) return T('이 모델은 이 PC에서 실행할 수 없습니다 — ') + TM(m.device_reason || (m.shape && m.shape.reason) || '');
   return '';
 }
 // 차례 k(사용자 메시지)의 새 버전을 연다 — 지금 뒤의 대화(답 · 그 뒤의 차례)는 앞 버전으로 남긴다.
@@ -1367,7 +2244,7 @@ function switchVersion(room, k, j) {
   const keepY = $('#msgs').scrollTop;
   renderMsgs();
   $('#msgs').scrollTop = keepY;
-  announce(`버전 ${j + 1} / ${u.vers.length}`);
+  announce(T`버전 ${j + 1} / ${u.vers.length}`);
 }
 function retryLast(maxOverride) {
   const room = curRoom();
@@ -1386,10 +2263,10 @@ function startEdit(room, k) {
   renderMsgs();
 }
 function editBox(m, room, k) {
-  const ta = h('textarea', { class: 'edit-input', rows: '1', 'aria-label': '메시지 수정' });
+  const ta = h('textarea', { class: 'edit-input', rows: '1', 'aria-label': T('메시지 수정') });
   ta.value = m.content;
   const later = room.messages.slice(k + 1).some(x => x.role === 'user');   // 이 뒤에 다른 차례가 있는가
-  const send = h('button', { class: 'btn sm primary needs-conn', onclick: () => submitEdit(room, k, ta.value) }, '보내기');
+  const send = h('button', { class: 'btn sm primary needs-conn', onclick: () => submitEdit(room, k, ta.value) }, T('보내기'));
   const cancel = () => { S.editing = null; renderMsgs(); };
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(320, ta.scrollHeight) + 'px'; send.disabled = !ta.value.trim(); };
   ta.addEventListener('input', fit);
@@ -1399,8 +2276,8 @@ function editBox(m, room, k) {
   });
   setTimeout(() => { fit(); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
   return h('div', { class: 'msg user editing' }, h('div', { class: 'edit-box' }, ta,
-    h('div', { class: 'edit-bar' }, h('span', { class: 'hint' }, later ? '보내면 지금 대화는 이전 버전으로 남습니다 · Esc 취소' : '보내면 지금 답은 이전 버전으로 남습니다 · Esc 취소'),
-      h('span', { class: 'grow' }), h('button', { class: 'btn sm ghost', onclick: cancel }, '취소'), send)));
+    h('div', { class: 'edit-bar' }, h('span', { class: 'hint' }, later ? T('보내면 지금 대화는 이전 버전으로 남습니다 · Esc 취소') : T('보내면 지금 답은 이전 버전으로 남습니다 · Esc 취소')),
+      h('span', { class: 'grow' }), h('button', { class: 'btn sm ghost', onclick: cancel }, T('취소')), send)));
 }
 function submitEdit(room, k, text) {
   text = String(text || '').trim();
@@ -1477,7 +2354,7 @@ async function streamReply(asst, room, url, body) {
   return tFirst ? `${fmtNum(n)}토큰 · ${((performance.now() - t0) / 1000).toFixed(1)}초` : '';
 }
 async function send(textOverride) {
-  if (S.streaming) { if (!streamingHere()) toast('다른 채팅의 답이 끝나면 보낼 수 있습니다'); return; }
+  if (S.streaming) { if (!streamingHere()) toast(T('다른 채팅의 답이 끝나면 보낼 수 있습니다')); return; }
   const input = $('#input');
   const text = (typeof textOverride === 'string' ? textOverride : input.value).trim();
   if (!text) return;
@@ -1500,7 +2377,7 @@ async function replyTo(room, maxOverride) {
   saveRooms(); renderRooms(); renderMsgs(); renderChatTop(true);
   try {
     if (!(S.st.server.state === 'ready' && S.st.server.model === room.model)) {
-      const notice = { role: 'notice', text: `${labelById(room.model)} 불러오는 중`, pct: 0, kernel: false, el: null };
+      const notice = { role: 'notice', text: T`${labelById(room.model)} 불러오는 중`, pct: 0, kernel: false, el: null };
       S.streaming.notice = notice;
       if (S.roomId === room.id) renderMsgs();
       await ensureServer(room.model, notice);
@@ -1531,7 +2408,7 @@ async function replyTo(room, maxOverride) {
     room.updated = Date.now();
     store('geulpu.hinted', true);
     saveRooms();
-    announce('답변이 끝났습니다');
+    announce(T('답변이 끝났습니다'));
   } catch (e) {
     const aborted = S.streaming && S.streaming.aborted;
     const last = room.messages[room.messages.length - 1];
@@ -1574,7 +2451,7 @@ async function continueLast() {
     m.stats = stat ? '이어서 ' + stat : m.stats;
     room.updated = Date.now();
     saveRooms();
-    announce('답변이 끝났습니다');
+    announce(T('답변이 끝났습니다'));
   } catch (e) {
     delete m.partial;
     if (!(S.streaming && S.streaming.aborted)) { const em = { role: 'error', content: e.message }; FRESH.add(em); room.messages.push(em); }
@@ -1608,8 +2485,8 @@ function pageHead(eyebrow, title, lede, actions) {
     actions ? h('div', { class: 'row' }, actions) : null);
 }
 function catDesc(c) {
-  return /r1/i.test(c.id) ? `생각을 먼저 쓰고 답하는 추론 모델${NB}수학${NB}논리` : /coder/i.test(c.id) ? `코드 작성${NB}설명`
-    : /qwen3/i.test(c.id) ? `생각 켬${NB}끔을 고르는 대화 모델${NB}한국어${NB}영어` : `한국어${NB}영어 일반 대화`;
+  return /r1/i.test(c.id) ? T`생각을 먼저 쓰고 답하는 추론 모델${NB}수학${NB}논리` : /coder/i.test(c.id) ? T`코드 작성${NB}설명`
+    : /qwen3/i.test(c.id) ? T`생각 켬${NB}끔을 고르는 대화 모델${NB}한국어${NB}영어` : T`한국어${NB}영어 일반 대화`;
 }
 const vramNeed = c => Math.ceil((c.size + (isBig(c) ? 4 : 2.5) * GIB) / GIB);
 // 모델 화면은 두 칸 — 내 모델(받는 중 · 설치된 모델) · 모델 찾기(Hugging Face 의 GGUF 저장소 전체를 정렬해 둘러보고, 고르면 옆에 자세히)
@@ -1633,9 +2510,9 @@ function modelTabs(tab) {
     onclick: () => setModelsTab(t),
   }, label, extra);
   return h('div', {
-    class: 'seg-ctl mtabs', role: 'tablist', 'aria-label': '모델 화면',
+    class: 'seg-ctl mtabs', role: 'tablist', 'aria-label': T('모델 화면'),
     onkeydown: ev => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); setModelsTab(tab === 'mine' ? 'find' : 'mine', true); } },
-  }, b('mine', '내 모델', n ? h('span', { class: 'cnt' }, String(n)) : null), b('find', '모델 찾기'));
+  }, b('mine', T('내 모델'), n ? h('span', { class: 'cnt' }, String(n)) : null), b('find', T('모델 찾기')));
 }
 function renderModels() {
   const st = S.st;
@@ -1643,7 +2520,7 @@ function renderModels() {
   const tab = modelsTab();
   const rec = recommendId(st);
   const dls = dlList();
-  const eyebrow = `설치 ${st.models.length}개${dls.length ? NB + '받는 중 ' + dls.length + '개' : ''}${st.app.disk_free >= 0 ? NB + '여유 ' + fmtBytes(st.app.disk_free) : ''}`;
+  const eyebrow = T`설치 ${st.models.length}개` + (dls.length ? NB + T`받는 중 ${dls.length}개` : '') + (st.app.disk_free >= 0 ? NB + T`여유 ${fmtBytes(st.app.disk_free)}` : '');
   // 받는 동안 바뀌는 수(받은 바이트 · 여유 공간)는 넣지 않는다 — 제자리에서 고친다(다시 그리면 초점 · 열린 메뉴가 사라진다).
   // 모델 찾기는 칸(목록 · 자세히)을 한 번 만들어 두고 다시 쓴다 — 상태가 바뀌어도 목록의 스크롤 · 고른 것이 그대로다
   const struct = tab === 'mine'
@@ -1654,9 +2531,9 @@ function renderModels() {
   if (changed('models', struct)) {
     page.classList.toggle('wide', tab === 'find');
     rebuild(page,
-      pageHead(eyebrow, '모델', null,
-        [h('button', { class: 'btn needs-conn', 'data-fk': 'add', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가'),
-          h('button', { class: 'icon-btn needs-conn', 'data-tip': '모델 폴더 열기', 'data-tip-pos': 'bottom', 'aria-label': '모델 폴더 열기', onclick: () => api('/api/open', { what: 'models' }).catch(e => toast(e.message, 'err')) }, I('folder'))]),
+      pageHead(eyebrow, T('모델'), null,
+        [h('button', { class: 'btn needs-conn', 'data-fk': 'add', onclick: () => browse('') }, I('plus', 's'), T('GGUF 파일 추가')),
+          h('button', { class: 'icon-btn needs-conn', 'data-tip': T('모델 폴더 열기'), 'data-tip-pos': 'bottom', 'aria-label': T('모델 폴더 열기'), onclick: () => api('/api/open', { what: 'models' }).catch(e => toast(e.message, 'err')) }, I('folder'))]),
       modelTabs(tab),
       tab === 'mine' ? mineView() : finderEl());
     if (tab === 'find') finderStart();
@@ -1669,7 +2546,7 @@ function renderModels() {
     st.catalog.map(c => [c.id, c.installed, dlStateOf(c), c.download && c.download.state]), st.models.map(m => m.path)])) fdRedraw();
   for (const m of st.models) {
     const e = document.getElementById('vf-' + m.id);
-    if (e && m.verifying) e.textContent = `무결성 확인 중${NB}${m.size > 0 ? Math.round(100 * m.verify_bytes / m.size) : 0}%`;
+    if (e && m.verifying) e.textContent = T`무결성 확인 중${NB}${m.size > 0 ? Math.round(100 * m.verify_bytes / m.size) : 0}%`;
   }
 }
 // 내 모델 — 받는 중(멈춤 · 실패 포함)과 설치된 모델
@@ -1679,17 +2556,17 @@ function mineView() {
   const reasons = [...new Set(st.models.filter(m => m.shape && m.shape.ok && m.device_reason).map(m => m.device_reason))];
   const dls = dlList();
   return h('div', { class: 'mine' },
-    dls.length ? h('div', { class: 'section mt0' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '받는 중')),
+    dls.length ? h('div', { class: 'section mt0' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, T('받는 중'))),
       h('div', { class: 'list dllist' }, dls.map(dlRow))) : null,
-    h('div', { class: 'section' + (dls.length ? '' : ' mt0') }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '설치된 모델')),
+    h('div', { class: 'section' + (dls.length ? '' : ' mt0') }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, T('설치된 모델'))),
       // 이 GPU 에서 못 도는 까닭은 여기 한 번만(줄에는 꼬리표만)
-      reasons.length ? h('div', { class: 'note-line note-gap' }, I('info', 's'), h('span', null, reasons.length === 1 ? reasons[0] : '일부 모델은 이 GPU에서 실행할 수 없습니다. 꼬리표에 마우스를 올리면 까닭이 보입니다.')) : null,
+      reasons.length ? h('div', { class: 'note-line note-gap' }, I('info', 's'), h('span', null, reasons.length === 1 ? TM(reasons[0]) : T('일부 모델은 이 GPU에서 실행할 수 없습니다. 꼬리표에 마우스를 올리면 까닭이 보입니다.'))) : null,
       nInst ? h('div', { class: 'list mlist' }, modelBlocks())
-        : h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '아직 설치된 모델이 없습니다'),
-          h('div', null, 'Hugging Face의 모델을 둘러보고 받거나, 이미 있는 GGUF 파일을 추가하세요.'),
+        : h('div', { class: 'empty-box' }, h('div', { class: 'big' }, T('아직 설치된 모델이 없습니다')),
+          h('div', null, T('Hugging Face의 모델을 둘러보고 받거나, 이미 있는 GGUF 파일을 추가하세요.')),
           h('div', { class: 'row center mt16' },
-            h('button', { class: 'btn primary needs-conn', onclick: () => setModelsTab('find') }, I('search', 's'), '모델 찾기'),
-            h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가')))));
+            h('button', { class: 'btn primary needs-conn', onclick: () => setModelsTab('find') }, I('search', 's'), T('모델 찾기')),
+            h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), T('GGUF 파일 추가'))))));
 }
 // 받는 중인 파일 한 줄 — 상태 막대의 다운로드 목록과 같은 단추(이름 앞 동그라미 아이콘은 두지 않는다)
 function dlRow(c) {
@@ -1699,10 +2576,10 @@ function dlRow(c) {
       h('div', { class: 'title' }, h('span', { class: 'nm' }, c.name), h('span', { class: 'qlab' }, c.quant)),
       ds === 'fail' ? dlWhyLine(d.reason, c) : dlBox(c, true)),
     h('div', { class: 'acts needs-conn' },
-      ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost', onclick: () => pauseDownload(c) }, I('pause', 's'), '일시정지') : null,
-      ds === 'pause' ? h('button', { class: 'btn sm', onclick: () => resumeDownload(c) }, I('download', 's'), '이어서 다운로드') : null,
-      ds === 'fail' ? h('button', { class: 'btn sm', onclick: () => startDownload(c) }, I('refresh', 's'), '다시 다운로드') : null,
-      ds !== 'run' ? h('button', { class: 'icon-btn', 'data-tip': '받은 것 지우기', 'data-tip-pos': 'top', 'aria-label': `받은 것 지우기: ${c.name} ${c.quant}`, onclick: () => discardDownload(c) }, I('trash', 's')) : null));
+      ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost', onclick: () => pauseDownload(c) }, I('pause', 's'), T('일시정지')) : null,
+      ds === 'pause' ? h('button', { class: 'btn sm', onclick: () => resumeDownload(c) }, I('download', 's'), T('이어서 다운로드')) : null,
+      ds === 'fail' ? h('button', { class: 'btn sm', onclick: () => startDownload(c) }, I('refresh', 's'), T('다시 다운로드')) : null,
+      ds !== 'run' ? h('button', { class: 'icon-btn', 'data-tip': T('받은 것 지우기'), 'data-tip-pos': 'top', 'aria-label': T`받은 것 지우기: ${c.name} ${c.quant}`, onclick: () => discardDownload(c) }, I('trash', 's')) : null));
 }
 // 설치된 모델 — 모델마다 머리(이름 · 크기 · 종류 · 문맥) 하나, 그 아래 양자화 줄(양자화 · 파일 크기 · 상태 · 동작)
 function modelBlocks() {
@@ -1716,7 +2593,7 @@ function modelBlocks() {
     const head = g.items.find(m => m.shape && m.shape.ok) || g.items[0];
     const s = head.shape || {};
     const ctxNow = Math.min(s.context || 0, S.st.settings.context || s.context || 0);
-    const sub = s.ok ? `${s.params ? (s.params / 1e9).toFixed(1) + 'B' + NB : ''}${kindOf(head)}${NB}문맥 ${fmtCtx(ctxNow)}${s.context > ctxNow ? ` (최대 ${fmtCtx(s.context)})` : ''}` : kindOf(head);
+    const sub = s.ok ? T`${s.params ? (s.params / 1e9).toFixed(1) + 'B' + NB : ''}${kindOf(head)}${NB}문맥 ${fmtCtx(ctxNow)}${s.context > ctxNow ? T` (최대 ${fmtCtx(s.context)})` : ''}` : kindOf(head);
     return h('div', { class: 'mblock' },
       h('div', { class: 'mhead' },
         h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, g.name)), h('div', { class: 'sub' }, sub))),
@@ -1730,31 +2607,31 @@ function quantLine(m) {
   const loaded = srv.model === m.id && (srv.state === 'ready' || srv.state === 'starting');
   const name = displayName(m), q = quantOf(m);
   const tags = [];
-  if (loaded) tags.push(h('span', { class: 'tag' }, h('i', { class: srv.state === 'ready' ? 'dot ok' : 'dot busy' }), srv.state === 'ready' ? '불러옴' : '불러오는 중'));
-  if (!s.ok) tags.push(h('span', { class: 'tag err' }, I('alert'), '지원하지 않는 파일'));
-  else if (m.device_reason) tags.push(h('span', { class: 'tag dim', 'data-tip': m.device_reason, 'data-tip-pos': 'top' }, '이 GPU 미지원'));
-  if (m.verifying) tags.push(h('span', { class: 'tag', id: 'vf-' + m.id }, '무결성 확인 중'));
-  else if (m.catalog && m.sha256 && !m.verified) tags.push(h('span', { class: 'tag err' }, I('alert'), '무결성 확인 안 됨'));
+  if (loaded) tags.push(h('span', { class: 'tag' }, h('i', { class: srv.state === 'ready' ? 'dot ok' : 'dot busy' }), srv.state === 'ready' ? T('불러옴') : T('불러오는 중')));
+  if (!s.ok) tags.push(h('span', { class: 'tag err' }, I('alert'), T('지원하지 않는 파일')));
+  else if (m.device_reason) tags.push(h('span', { class: 'tag dim', 'data-tip': TM(m.device_reason), 'data-tip-pos': 'top' }, T('이 GPU 미지원')));
+  if (m.verifying) tags.push(h('span', { class: 'tag', id: 'vf-' + m.id }, T('무결성 확인 중')));
+  else if (m.catalog && m.sha256 && !m.verified) tags.push(h('span', { class: 'tag err' }, I('alert'), T('무결성 확인 안 됨')));
   return h('div', { class: 'qline' + (s.ok && m.device_reason ? ' dimmed' : '') },
     h('span', { class: 'qlab', 'data-tip': m.path, 'data-tip-pos': 'top' }, q || '-'),
     h('span', { class: 'sz' }, fmtBytes(m.size)),
     tags.length ? h('span', { class: 'qtags' }, tags) : null,
     h('span', { class: 'grow' }),
     h('div', { class: 'acts needs-conn' },
-      h('button', { class: 'btn sm ghost', 'data-fk': 'chat:' + m.id, 'aria-label': `이 모델로 채팅: ${name} ${q}`, disabled: ok ? null : true, onclick: () => chatWith(m.id) }, I('chat', 's'), '채팅'),
+      h('button', { class: 'btn sm ghost', 'data-fk': 'chat:' + m.id, 'aria-label': T`이 모델로 채팅: ${name} ${q}`, disabled: ok ? null : true, onclick: () => chatWith(m.id) }, I('chat', 's'), T('채팅')),
       h('button', {
-        class: 'icon-btn', 'data-fk': 'more:' + m.id, 'aria-label': `메뉴: ${name} ${q}`, 'aria-haspopup': 'menu', 'aria-expanded': 'false',
-        onclick: ev => menu(ev.currentTarget, '모델 메뉴', [
-          loaded ? { icon: 'eject', label: '모델 내리기', sub: 'GPU 메모리를 비웁니다', disabled: !!S.streaming, run: unloadModel } : null,
-          { icon: 'hash', label: '파일 무결성 다시 확인', sub: m.verified ? '받은 그대로임을 확인했습니다(SHA-256) · 몇 초' : '받은 그대로인지 SHA-256으로 확인 · 몇 초', disabled: m.verifying, run: () => verifyModel(m.id) },
+        class: 'icon-btn', 'data-fk': 'more:' + m.id, 'aria-label': T`메뉴: ${name} ${q}`, 'aria-haspopup': 'menu', 'aria-expanded': 'false',
+        onclick: ev => menu(ev.currentTarget, T('모델 메뉴'), [
+          loaded ? { icon: 'eject', label: T('모델 내리기'), sub: T('GPU 메모리를 비웁니다'), disabled: !!S.streaming, run: unloadModel } : null,
+          { icon: 'hash', label: T('파일 무결성 다시 확인'), sub: m.verified ? T('받은 그대로임을 확인했습니다(SHA-256) · 몇 초') : T('받은 그대로인지 SHA-256으로 확인 · 몇 초'), disabled: m.verifying, run: () => verifyModel(m.id) },
           '-',
-          { icon: 'trash', label: loaded ? '내리고 목록에서 제거' : '목록에서 제거', danger: true, disabled: loaded && !!S.streaming, run: () => removeModel(m, loaded) }], 'right'),
+          { icon: 'trash', label: loaded ? T('내리고 목록에서 제거') : T('목록에서 제거'), danger: true, disabled: loaded && !!S.streaming, run: () => removeModel(m, loaded) }], 'right'),
       }, I('dots'))),
-    !s.ok && s.reason ? h('div', { class: 'qwhy' }, s.reason) : null);
+    !s.ok && s.reason ? h('div', { class: 'qwhy' }, TM(s.reason)) : null);
 }
 async function unloadModel() {
   if (S.streaming) return;
-  try { await api('/api/server/stop', {}); toast('모델을 내렸습니다', 'ok'); resetSig(); refresh(); }
+  try { await api('/api/server/stop', {}); toast(T('모델을 내렸습니다'), 'ok'); resetSig(); refresh(); }
   catch (e) { toast(e.message, 'err'); }
 }
 // 이 모델로 채팅 — 늘 새 채팅(흐르는 채팅의 모델을 바꾸지 않는다)
@@ -1773,15 +2650,15 @@ function chatWith(id) {
   $('#input').focus();
 }
 async function verifyModel(id) {
-  try { await api('/api/models/verify', { id }); toast('파일 무결성(SHA-256)을 확인합니다 — 8 GB 파일에 몇 초 걸립니다', 'ok'); resetSig(); refresh(); }
+  try { await api('/api/models/verify', { id }); toast(T('파일 무결성(SHA-256)을 확인합니다 — 8 GB 파일에 몇 초 걸립니다'), 'ok'); resetSig(); refresh(); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function removeModel(m, loaded) {
   const inside = m.path.toLowerCase().startsWith(S.st.app.models_dir.toLowerCase());
   const cb = h('input', { type: 'checkbox' });
-  const body = h('div', { class: 'col g16' }, h('p', { class: 'muted m0' }, `${displayName(m)} ${quantOf(m)} — ${loaded ? '불러온 모델을 내리고 ' : ''}목록에서 제거합니다.`),
-    inside ? h('label', { class: 'check' }, cb, `파일도 삭제 (${fmtBytes(m.size)})`) : h('p', { class: 'small muted m0' }, 'GeulPU 모델 폴더 밖의 파일은 삭제하지 않고 목록에서만 제거합니다.'));
-  if (!(await confirmBox('모델 제거', body, '제거', 'danger'))) return;
+  const body = h('div', { class: 'col g16' }, h('p', { class: 'muted m0' }, T`${displayName(m)} ${quantOf(m)} — ${loaded ? T('불러온 모델을 내리고 ') : ''}목록에서 제거합니다.`),
+    inside ? h('label', { class: 'check' }, cb, T`파일도 삭제 (${fmtBytes(m.size)})`) : h('p', { class: 'small muted m0' }, T('GeulPU 모델 폴더 밖의 파일은 삭제하지 않고 목록에서만 제거합니다.')));
+  if (!(await confirmBox(T('모델 제거'), body, T('제거'), 'danger'))) return;
   try {
     if (loaded) await api('/api/server/stop', {});
     await api('/api/models/remove', { id: m.id, delete_file: inside && cb.checked });
@@ -1801,33 +2678,33 @@ function dlStateOf(c) {
 const dlList = () => ((S.st && S.st.catalog) || []).filter(c => dlStateOf(c));
 // 다운로드 실패 까닭을 한 문장으로 — 누를 단추(이 상태의 단추)를 말하고, 윈도(WinHTTP) 오류 번호는 도움말로.
 // 관리자가 붙이는 "— 다시 누르면 이어서 받습니다"는 뺀다(받은 것이 없으면 이어받기가 아니다)
-const WINHTTP = { 12002: '서버가 응답하지 않음(시간 초과)', 12007: '서버 주소를 찾지 못함', 12029: '서버에 연결하지 못함', 12030: '연결이 끊김',
-  12031: '서버가 연결을 끊음', 12152: '서버의 응답이 올바르지 않음', 12175: '보안 연결(HTTPS)을 맺지 못함' };
+const WINHTTP = { 12002: T('서버가 응답하지 않음(시간 초과)'), 12007: T('서버 주소를 찾지 못함'), 12029: T('서버에 연결하지 못함'), 12030: T('연결이 끊김'),
+  12031: T('서버가 연결을 끊음'), 12152: T('서버의 응답이 올바르지 않음'), 12175: T('보안 연결(HTTPS)을 맺지 못함') };
 function dlWhy(reason, c) {
   const s = String(reason || '').replace(/\s*—\s*다시 누르면 이어서 받습니다\.?\s*$/, '');
   const m = /\(오류 (\d+)\)/.exec(s);
-  const tip = m ? `WinHTTP 오류 ${m[1]}${WINHTTP[+m[1]] ? ' — ' + WINHTTP[+m[1]] : ''}` : '';
+  const tip = m ? T`WinHTTP 오류 ${m[1]}${WINHTTP[+m[1]] ? ' — ' + WINHTTP[+m[1]] : ''}` : '';
   const ds = c ? dlStateOf(c) : null;
-  const btn = ds === 'pause' ? "'이어서 다운로드'" : "'다시 다운로드'";
+  const btn = ds === 'pause' ? T("'이어서 다운로드'") : T("'다시 다운로드'");
   const d = c && c.download;
   const pct = d && d.total ? Math.floor(100 * d.received / d.total) : 0;
   let text;
-  if (/연결이 끊겼|연결하지 못했|요청을 열지/.test(s)) text = ds === 'pause' ? `연결이 끊겨 ${pct}%에서 멈췄습니다. 인터넷 연결을 확인한 뒤 ${btn}를 누르세요.`
-    : `다운로드 서버에 연결하지 못했습니다. 인터넷 · 방화벽 · 프록시를 확인한 뒤 ${btn}를 누르세요.`;
-  else if (/HTTP (\d+)/.test(s)) text = `다운로드 서버가 오류(HTTP ${/HTTP (\d+)/.exec(s)[1]})를 보냈습니다. 잠시 뒤 ${btn}를 누르세요.`;
-  else if (/디스크에 쓰지|쓸 수 없습니다/.test(s)) text = `${s.replace(/\s*\([^)]*\)\s*$/, '')}. 여유 공간과 폴더 권한을 확인한 뒤 ${btn}를 누르세요.`;
-  else if (/SHA-256/.test(s)) text = `받은 파일이 원본과 다릅니다(SHA-256 불일치). 받은 것을 지웠으니 ${btn}를 누르세요.`;
-  else text = s.replace(/\(오류 \d+\)/, '').trim() || '다운로드하지 못했습니다';
+  if (/연결이 끊겼|연결하지 못했|요청을 열지/.test(s)) text = ds === 'pause' ? T`연결이 끊겨 ${pct}%에서 멈췄습니다. 인터넷 연결을 확인한 뒤 ${btn}를 누르세요.`
+    : T`다운로드 서버에 연결하지 못했습니다. 인터넷 · 방화벽 · 프록시를 확인한 뒤 ${btn}를 누르세요.`;
+  else if (/HTTP (\d+)/.test(s)) text = T`다운로드 서버가 오류(HTTP ${/HTTP (\d+)/.exec(s)[1]})를 보냈습니다. 잠시 뒤 ${btn}를 누르세요.`;
+  else if (/디스크에 쓰지|쓸 수 없습니다/.test(s)) text = T`${TM(s.replace(/\s*\([^)]*\)\s*$/, ''))}. 여유 공간과 폴더 권한을 확인한 뒤 ${btn}를 누르세요.`;
+  else if (/SHA-256/.test(s)) text = T`받은 파일이 원본과 다릅니다(SHA-256 불일치). 받은 것을 지웠으니 ${btn}를 누르세요.`;
+  else text = TM(s.replace(/\(오류 \d+\)/, '').trim()) || T('다운로드하지 못했습니다');
   return { text, tip };
 }
 const dlWhyLine = (reason, c) => { const w = dlWhy(reason, c); return h('div', { class: 'note-line err', 'data-tip': w.tip || null, 'data-tip-pos': 'top' }, I('alert', 's'), h('span', null, w.text)); };
 // 받기 전 확인이 실패한 까닭(파일 앞부분을 받지 못함)
 function checkWhy(reason) {
   const s = String(reason || '');
-  if (/연결이 끊겼|연결하지 못했|요청을 열지/.test(s)) return 'Hugging Face에서 파일 앞부분을 받지 못했습니다. 인터넷 연결을 확인한 뒤 다시 확인하세요.';
+  if (/연결이 끊겼|연결하지 못했|요청을 열지/.test(s)) return T('Hugging Face에서 파일 앞부분을 받지 못했습니다. 인터넷 연결을 확인한 뒤 다시 확인하세요.');
   const m = /HTTP (\d+)/.exec(s);
-  if (m) return `Hugging Face가 오류(HTTP ${m[1]})를 보냈습니다. 잠시 뒤 다시 확인하세요.`;
-  return s || '확인하지 못했습니다';
+  if (m) return T`Hugging Face가 오류(HTTP ${m[1]})를 보냈습니다. 잠시 뒤 다시 확인하세요.`;
+  return TM(s) || T('확인하지 못했습니다');
 }
 async function resumeDownload(c) {
   try { await api('/api/models/download', { id: c.id }); resetSig(); refresh(); }
@@ -1857,16 +2734,16 @@ function dlPopBody() {
       h('div', { class: 'dlh' }, h('span', { class: 'nm' }, c.name), h('span', { class: 'qlab' }, c.quant)),
       ds === 'fail' ? dlWhyLine(d.reason, c) : dlBox(c, true),
       h('div', { class: 'row' },
-        ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost needs-conn', onclick: () => pauseDownload(c) }, I('pause', 's'), '일시정지') : null,
-        ds === 'pause' ? h('button', { class: 'btn sm needs-conn', onclick: () => resumeDownload(c) }, I('download', 's'), '이어서 다운로드') : null,
-        ds !== 'run' ? h('button', { class: 'btn sm ghost needs-conn', onclick: () => { closePop(); discardDownload(c); } }, I('trash', 's'), '지우기') : null,
-        ds === 'fail' ? h('button', { class: 'btn sm needs-conn', onclick: () => { closePop(); startDownload(c); } }, I('refresh', 's'), '다시 다운로드') : null));
+        ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost needs-conn', onclick: () => pauseDownload(c) }, I('pause', 's'), T('일시정지')) : null,
+        ds === 'pause' ? h('button', { class: 'btn sm needs-conn', onclick: () => resumeDownload(c) }, I('download', 's'), T('이어서 다운로드')) : null,
+        ds !== 'run' ? h('button', { class: 'btn sm ghost needs-conn', onclick: () => { closePop(); discardDownload(c); } }, I('trash', 's'), T('지우기')) : null,
+        ds === 'fail' ? h('button', { class: 'btn sm needs-conn', onclick: () => { closePop(); startDownload(c); } }, I('refresh', 's'), T('다시 다운로드')) : null));
   });
-  return h('div', { class: 'dlpop', role: 'dialog', 'aria-label': '다운로드' },
-    h('div', { class: 'pop-title' }, '다운로드'),
-    rows.length ? rows : h('div', { class: 'pad small muted' }, '진행 중인 다운로드가 없습니다.'),
+  return h('div', { class: 'dlpop', role: 'dialog', 'aria-label': T('다운로드', 'list') },
+    h('div', { class: 'pop-title' }, T('다운로드', 'list')),
+    rows.length ? rows : h('div', { class: 'pad small muted' }, T('진행 중인 다운로드가 없습니다.')),
     h('div', { class: 'sep', role: 'separator' }),
-    h('button', { class: 'opt', onclick: () => { closePop(); show('models'); } }, I('box', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, '모델 화면에서 보기'))));
+    h('button', { class: 'opt', onclick: () => { closePop(); show('models'); } }, I('box', 's'), h('span', { class: 'main' }, h('div', { class: 't' }, T('모델 화면에서 보기')))));
 }
 const dlSig = () => JSON.stringify(dlList().map(c => [c.id, dlStateOf(c), c.download.state, c.download.reason]));
 function openDownloads(anchor) {
@@ -1889,23 +2766,23 @@ async function startDownload(c) {
   const st = S.st;
   const f = fitOf(c);
   const bad = f && (f.k === 'no' || f.k === 'nogpu');
-  const warn = !f ? null : f.k === 'nogpu' ? '이 PC에서는 쓸 수 있는 GPU를 찾지 못해 이 모델을 실행할 수 없습니다. 다른 PC로 옮겨 쓸 파일이면 그대로 다운로드할 수 있습니다.'
-    : f.k === 'no' ? `이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})로는 실행되지 않을 수 있습니다. 그래픽 메모리 ${vramNeed(c)} GB 이상을 권장합니다.`
-      : f.k === 'tight' ? `이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})에서는 문맥 길이가 줄어듭니다.` : null;
+  const warn = !f ? null : f.k === 'nogpu' ? T('이 PC에서는 쓸 수 있는 GPU를 찾지 못해 이 모델을 실행할 수 없습니다. 다른 PC로 옮겨 쓸 파일이면 그대로 다운로드할 수 있습니다.')
+    : f.k === 'no' ? T`이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})로는 실행되지 않을 수 있습니다. 그래픽 메모리 ${vramNeed(c)} GB 이상을 권장합니다.`
+      : f.k === 'tight' ? T`이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})에서는 문맥 길이가 줄어듭니다.` : null;
   const body = h('div', { class: 'col g20' },
     h('p', { class: 'muted m0' }, `${c.name} ${c.quant}${NB}${catDesc(c)}`),
     warn ? h('div', { class: 'note-line' + (bad ? ' err' : '') }, I(bad ? 'alert' : 'info', 's'), h('span', null, warn)) : null,
     h('div', { class: 'kv' },
-      h('div', { class: 'k' }, '파일'), h('div', { class: 'v mono small break' }, c.file),
-      h('div', { class: 'k' }, '크기'), h('div', { class: 'v' }, `${fmtBytes(c.size)} (${fmtNum(c.size)} 바이트)`),
-      h('div', { class: 'k' }, '저장 위치'), h('div', { class: 'v small break' }, `${st.app.models_dir}${NB}여유 ${st.app.disk_free >= 0 ? fmtBytes(st.app.disk_free) : '알 수 없음'}`),
-      h('div', { class: 'k' }, '출처'), h('div', { class: 'v small break' }, h('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.source)),
-      h('div', { class: 'k' }, '라이선스'), h('div', { class: 'v' }, c.license)),
-    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '기술 정보'),
-      h('div', { class: 'col g8' }, h('div', { class: 'small muted' }, c.note), h('div', { class: 'small mono muted break' }, 'SHA-256 ' + c.sha256))),
-    c.check === 'untested' ? h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '이 파일로는 아직 GeulPU에서 실행해 보지 않았습니다. 다운로드가 끝나면 지원 여부를 바로 알려 드립니다.')) : null,
-    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '중간에 끊겨도 다시 누르면 이어서 받고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.')));
-  if (!(await confirmBox('모델 다운로드', body, '다운로드', bad ? 'quiet' : null))) return;
+      h('div', { class: 'k' }, T('파일', 'k')), h('div', { class: 'v mono small break' }, c.file),
+      h('div', { class: 'k' }, T('크기')), h('div', { class: 'v' }, T`${fmtBytes(c.size)} (${fmtNum(c.size)} 바이트)`),
+      h('div', { class: 'k' }, T('저장 위치')), h('div', { class: 'v small break' }, T`${st.app.models_dir}${NB}여유 ${st.app.disk_free >= 0 ? fmtBytes(st.app.disk_free) : T('알 수 없음')}`),
+      h('div', { class: 'k' }, T('출처')), h('div', { class: 'v small break' }, h('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.source)),
+      h('div', { class: 'k' }, T('라이선스')), h('div', { class: 'v' }, c.license)),
+    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), T('기술 정보')),
+      h('div', { class: 'col g8' }, h('div', { class: 'small muted' }, TM(c.note)), h('div', { class: 'small mono muted break' }, 'SHA-256 ' + c.sha256))),
+    c.check === 'untested' ? h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('이 파일로는 아직 GeulPU에서 실행해 보지 않았습니다. 다운로드가 끝나면 지원 여부를 바로 알려 드립니다.'))) : null,
+    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('중간에 끊겨도 다시 누르면 이어서 받고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.'))));
+  if (!(await confirmBox(T('모델 다운로드'), body, T('다운로드'), bad ? 'quiet' : null))) return;
   try { await api('/api/models/download', { id: c.id }); resetSig(); refresh(); }
   catch (e) { toast(e.message, 'err'); }
 }
@@ -1915,27 +2792,27 @@ async function browse(path, pick) {
   try { j = await api('/api/fs?path=' + encodeURIComponent(path)); }
   catch (e) { toast(e.message, 'err'); return; }
   const list = h('div', { class: 'fs-list' });
-  if (j.path) list.append(h('button', { class: 'fs-item', onclick: () => browse(j.parent || '', pick) }, I('chevU', 's'), h('span', { class: 'n' }, '상위 폴더')));
+  if (j.path) list.append(h('button', { class: 'fs-item', onclick: () => browse(j.parent || '', pick) }, I('chevU', 's'), h('span', { class: 'n' }, T('상위 폴더'))));
   const entries = pick ? j.entries.filter(e => e.dir) : j.entries;
   for (const e of entries) {
     list.append(h('button', {
       class: 'fs-item', onclick: async () => {
         if (e.dir) { browse(e.path, pick); return; }
         closeModal();
-        try { await api('/api/models/add', { path: e.path }); toast(`추가했습니다: ${e.name}`, 'ok'); resetSig(); refresh(); }
+        try { await api('/api/models/add', { path: e.path }); toast(T`추가했습니다: ${e.name}`, 'ok'); resetSig(); refresh(); }
         catch (err) { toast(err.message, 'err'); }
       },
     }, I(e.dir ? 'folder' : 'file', 's'), h('span', { class: 'n' }, e.name), e.dir ? I('chevR', 's') : h('span', { class: 'num muted small' }, fmtBytes(e.size))));
   }
-  if (!entries.length) list.append(h('div', { class: 'fs-item muted' }, pick ? '하위 폴더가 없습니다' : '이 폴더에는 .gguf 파일이나 하위 폴더가 없습니다'));
-  const inp = h('input', { type: 'text', value: j.path || '', placeholder: '폴더 경로(예: D:\\models)', 'aria-label': '폴더 경로' });
+  if (!entries.length) list.append(h('div', { class: 'fs-item muted' }, pick ? T('하위 폴더가 없습니다') : T('이 폴더에는 .gguf 파일이나 하위 폴더가 없습니다')));
+  const inp = h('input', { type: 'text', value: j.path || '', placeholder: T('폴더 경로(예: D:\\models)'), 'aria-label': T('폴더 경로') });
   const go = () => browse(inp.value.trim(), pick);
   inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); });
-  modal(h('div', null, h('h2', null, pick ? '모델 폴더 고르기' : 'GGUF 파일 추가'),
-    h('p', { class: 'small muted m0 mb12' }, pick ? '받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.' : 'GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.'),
-    h('div', { class: 'fs-path' }, inp, h('button', { class: 'btn', onclick: go }, '이동')), list),
-    [h('button', { class: 'btn ghost', onclick: () => closeModal() }, '닫기'),
-      pick ? h('button', { class: 'btn primary', disabled: j.path ? null : true, onclick: () => { closeModal(); pick(j.path); } }, '이 폴더 선택') : null].filter(Boolean), false, '.fs-item');
+  modal(h('div', null, h('h2', null, pick ? T('모델 폴더 고르기') : T('GGUF 파일 추가')),
+    h('p', { class: 'small muted m0 mb12' }, pick ? T('받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.') : T('GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.')),
+    h('div', { class: 'fs-path' }, inp, h('button', { class: 'btn', onclick: go }, T('이동'))), list),
+    [h('button', { class: 'btn ghost', onclick: () => closeModal() }, T('닫기')),
+      pick ? h('button', { class: 'btn primary', disabled: j.path ? null : true, onclick: () => { closeModal(); pick(j.path); } }, T('이 폴더 선택')) : null].filter(Boolean), false, '.fs-item');
 }
 
 // ---------- 모델 찾기 — Hugging Face 의 GGUF 저장소 전체를 정렬해 둘러본다(검색은 좁히는 도구) ----------
@@ -1963,21 +2840,27 @@ const fdNonChat = m => {
 function fdSupport(m) {
   const g = (m && m.gguf) || {};
   const a = g.architecture, p = g.total || 0;
-  if (!a) return { k: 'unknown', t: '구조 정보 없음' };
-  if (!archOk(a)) return { k: 'arch', t: `${a} · 미지원 구조` };
-  if (fdNonChat(m)) return { k: 'task', t: '대화용 모델 아님', why: '이미지 생성용 텍스트 인코더 · 임베딩 · 음성처럼 채팅에 쓰는 모델이 아닙니다.' };
+  if (!a) return { k: 'unknown', t: T('구조 정보 없음') };
+  if (!archOk(a)) return { k: 'arch', t: T`${a} · 미지원 구조` };
+  if (fdNonChat(m)) return { k: 'task', t: T('대화용 모델 아님'), why: T('이미지 생성용 텍스트 인코더 · 임베딩 · 음성처럼 채팅에 쓰는 모델이 아닙니다.') };
   if (a === 'qwen3') {
-    if (inRange(p, Q3OK)) return { k: 'ok', t: 'GeulPU에서 실행됨' };
-    if (inRange(p, Q3BAD)) return { k: 'size', t: '이 크기는 아직 미지원', why: 'Qwen3의 0.6B · 4B · 32B는 질의 폭이 너비와 달라 GeulPU가 아직 실행하지 않습니다.' };
-    return { k: 'check', t: '크기 확인 필요', why: '흔한 Qwen3 크기(1.7B · 8B · 14B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.' };
+    if (inRange(p, Q3OK)) return { k: 'ok', t: T('GeulPU에서 실행됨') };
+    if (inRange(p, Q3BAD)) return { k: 'size', t: T('이 크기는 아직 미지원'), why: T('Qwen3의 0.6B · 4B · 32B는 질의 폭이 너비와 달라 GeulPU가 아직 실행하지 않습니다.') };
+    return { k: 'check', t: T('크기 확인 필요'), why: T('흔한 Qwen3 크기(1.7B · 8B · 14B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.') };
   }
-  if (p > 0 && p < 1.4e9) return { k: 'size', t: '이 크기는 아직 미지원', why: '헤드 크기가 64인 작은 Qwen2(0.5B 등)는 GeulPU가 아직 실행하지 않습니다.' };
-  return { k: 'ok', t: 'GeulPU에서 실행됨' };
+  if (p > 0 && p < 1.4e9) return { k: 'size', t: T('이 크기는 아직 미지원'), why: T('헤드 크기가 64인 작은 Qwen2(0.5B 등)는 GeulPU가 아직 실행하지 않습니다.') };
+  return { k: 'ok', t: T('GeulPU에서 실행됨') };
 }
 const fmtParams = p => (p >= 1e9 ? (p / 1e9).toFixed(p >= 1e10 ? 0 : 1) + 'B' : Math.round(p / 1e6) + 'M');
 // 수는 만 · 억으로(55.5만 · 1.2억)
 function fmtCount(n) {
   n = n || 0;
+  if (EN) {   // 영어 화면: 1.2K · 55K · 1.2M · 1.2B
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e3) return (n >= 1e5 ? String(Math.round(n / 1e3)) : (n / 1e3).toFixed(1).replace(/\.0$/, '')) + 'K';
+    return fmtNum(n);
+  }
   if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, '') + '억';
   if (n >= 1e4) return (n >= 1e6 ? String(Math.round(n / 1e4)) : (n / 1e4).toFixed(1).replace(/\.0$/, '')) + '만';
   return fmtNum(n);
@@ -1986,14 +2869,14 @@ function fmtAgo(iso) {
   const t = Date.parse(iso || '');
   if (!(t > 0)) return '-';
   const d = Math.floor((Date.now() - t) / 86400000);
-  if (d < 1) return '오늘';
-  if (d < 2) return '어제';
-  if (d < 7) return `${d}일 전`;
-  if (d < 31) return `${Math.floor(d / 7)}주 전`;
-  if (d < 365) return `${Math.floor(d / 30)}개월 전`;
-  return `${Math.floor(d / 365)}년 전`;
+  if (d < 1) return T('오늘');
+  if (d < 2) return T('어제');
+  if (d < 7) return T`${d}일 전`;
+  if (d < 31) return T`${Math.floor(d / 7)}주 전`;
+  if (d < 365) return T`${Math.floor(d / 30)}개월 전`;
+  return T`${Math.floor(d / 365)}년 전`;
 }
-const fmtDate = iso => { const t = Date.parse(iso || ''); return t > 0 ? new Date(t).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; };
+const fmtDate = iso => { const t = Date.parse(iso || ''); return t > 0 ? new Date(t).toLocaleDateString(EN ? 'en-US' : 'ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; };
 const asList = v => (Array.isArray(v) ? v : v ? [v] : []).map(String);
 // 저장소의 라이선스 — cardData.license, 없으면 꼬리표(license:…)
 const fdLicense = m => (m && m.cardData && m.cardData.license) || ((m && m.tags) || []).map(String).filter(t => t.startsWith('license:')).map(t => t.slice(8))[0] || '';
@@ -2006,9 +2889,9 @@ const fdEst = p => p * 4.85 / 8;
 const fdFits = p => { const f = fitOf({ size: fdEst(p), params: fmtParams(p), id: '' }); return !!f && (f.k === 'ok' || f.k === 'tight'); };
 
 // 기본은 '요즘 뜨는'(Hugging Face 의 트렌드 점수) — 30일 다운로드 순은 다운로드가 부풀려진 저장소가 위에 오기 쉽다
-const FD_SORTS = [['trendingScore', '요즘 뜨는', 'Hugging Face의 트렌드 점수 순'], ['downloads', '인기', '최근 30일 다운로드가 많은 순'],
-  ['likes', '좋아요', '좋아요가 많은 순'], ['lastModified', '최근 업데이트', '최근에 고친 저장소 순']];
-const FD_SIZES = [['all', '모든 크기'], ['s', '~4B'], ['m', '4~10B'], ['l', '10~20B'], ['xl', '20B~']];
+const FD_SORTS = [['trendingScore', T('요즘 뜨는'), T('Hugging Face의 트렌드 점수 순')], ['downloads', T('인기'), T('최근 30일 다운로드가 많은 순')],
+  ['likes', T('좋아요'), T('좋아요가 많은 순')], ['lastModified', T('최근 업데이트'), T('최근에 고친 저장소 순')]];
+const FD_SIZES = [['all', T('모든 크기')], ['s', '~4B'], ['m', '4~10B'], ['l', '10~20B'], ['xl', '20B~']];
 const FD_EXPAND = ['gguf', 'downloads', 'likes', 'lastModified', 'cardData', 'trendingScore', 'author', 'createdAt', 'tags'].map(x => 'expand[]=' + x).join('&');
 const FD = {
   el: null, bar: null, sum: null, list: null, more: null, scroll: null, det: null, y: [0, 0],
@@ -2030,10 +2913,10 @@ function finderEl() {
   if (FD.el) return FD.el;
   FD.bar = h('div', { class: 'fd-bar' });
   FD.sum = h('div', { class: 'fd-sum', 'aria-live': 'polite' });
-  FD.list = h('div', { class: 'fd-list', 'aria-label': '모델 목록' });
+  FD.list = h('div', { class: 'fd-list', 'aria-label': T('모델 목록') });
   FD.more = h('div', { class: 'fd-more' });
   FD.scroll = h('div', { class: 'fd-scroll' }, FD.list, FD.more);
-  FD.det = h('aside', { class: 'fd-detail', 'aria-label': '모델 자세히' });
+  FD.det = h('aside', { class: 'fd-detail', 'aria-label': T('모델 자세히') });
   FD.el = h('div', { class: 'finder' }, FD.bar, h('div', { class: 'fd-body' }, FD.sum, FD.scroll, FD.det));
   fdBar();
   // 두 칸의 스크롤 자리를 적어 둔다 — 화면을 다시 짜면(받기를 시작해 칸 수가 바뀔 때 · 다른 화면에 다녀올 때) 칸이 떨어졌다 붙어 처음으로 가므로 되돌린다
@@ -2059,7 +2942,7 @@ function fdBarFocus(fn) {
 }
 function fdBar() {
   fdBarFocus(() => {
-    const inp = h('input', { type: 'text', placeholder: '이름으로 좁히기 — 예: qwen3, coder, r1, 14b', 'aria-label': '모델 이름으로 좁히기', 'data-fk': 'fd-q', enterkeyhint: 'search' });
+    const inp = h('input', { type: 'text', placeholder: T('이름으로 좁히기 — 예: qwen3, coder, r1, 14b'), 'aria-label': T('모델 이름으로 좁히기'), 'data-fk': 'fd-q', enterkeyhint: 'search' });
     inp.value = FD.draft;
     let t = 0;
     inp.addEventListener('input', () => { FD.draft = inp.value; clearTimeout(t); t = setTimeout(() => fdSearch(inp.value.trim()), 450); fdClearBtn(); });
@@ -2067,7 +2950,7 @@ function fdBar() {
       if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); clearTimeout(t); fdSearch(inp.value.trim()); }
       if (e.key === 'Escape' && inp.value) { e.preventDefault(); inp.value = ''; FD.draft = ''; clearTimeout(t); fdSearch(''); fdClearBtn(); }
     });
-    const clear = h('button', { class: 'icon-btn sm', 'aria-label': '검색어 지우기', 'data-fk': 'fd-qx', hidden: FD.draft ? null : true,
+    const clear = h('button', { class: 'icon-btn sm', 'aria-label': T('검색어 지우기'), 'data-fk': 'fd-qx', hidden: FD.draft ? null : true,
       onclick: () => { inp.value = ''; FD.draft = ''; fdSearch(''); fdClearBtn(); inp.focus(); } }, I('x', 's'));
     const radio = (list, cur, label, fk, set) => h('div', { class: 'seg-ctl fd-seg', role: 'radiogroup', 'aria-label': label, onkeydown: radioKeys }, list.map(([k, text, tip]) =>
       h('button', {
@@ -2077,22 +2960,22 @@ function fdBar() {
     const chip = (on, text, tip, fk, flip) => h('button', { class: 'fchip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', 'data-fk': fk, 'data-tip': tip, 'data-tip-pos': 'bottom', onclick: flip },
       on ? I('check', 's') : null, text);
     // 기본은 GeulPU 에서 실행되는 것만 — 켜면 실행 안 되는 모델(다른 구조 · 아직 미지원 크기)도 흐리게 함께 보인다
-    const all = h('input', { type: 'checkbox', role: 'switch', 'data-fk': 'fd-all', 'aria-label': '실행 안 되는 모델도 보기',
+    const all = h('input', { type: 'checkbox', role: 'switch', 'data-fk': 'fd-all', 'aria-label': T('실행 안 되는 모델도 보기'),
       onchange: () => { FD.only = !all.checked; fdBar(); fdReload(); } });
     all.checked = !FD.only;
-    const allSw = h('label', { class: 'fd-toggle', 'data-tip': '끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다', 'data-tip-pos': 'bottom' },
-      h('span', { class: 'switch' }, all, h('i')), h('span', null, '실행 안 되는 모델도 보기'));
+    const allSw = h('label', { class: 'fd-toggle', 'data-tip': T('끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다'), 'data-tip-pos': 'bottom' },
+      h('span', { class: 'switch' }, all, h('i')), h('span', null, T('실행 안 되는 모델도 보기')));
     put(FD.bar,
       h('div', { class: 'fd-line' },
         h('div', { class: 'fd-search' }, I('search', 's'), inp, clear),
-        radio(FD_SORTS, FD.sort, '정렬', 'fd-sort', k => { FD.sort = k; store('geulpu.fd.sort', k); fdBar(); fdReload(); })),
+        radio(FD_SORTS, FD.sort, T('정렬'), 'fd-sort', k => { FD.sort = k; store('geulpu.fd.sort', k); fdBar(); fdReload(); })),
       h('div', { class: 'fd-line' },
         allSw,
         h('span', { class: 'fd-div', 'aria-hidden': 'true' }),
-        chip(FD.checked, 'GeulPU 확인됨', 'GeulPU에서 실제로 돌려 본 파일이 있는 저장소만', 'fd-checked', () => { FD.checked = !FD.checked; fdBar(); fdReload(); }),
-        chip(FD.fit, '이 PC에 맞는 크기', '매개변수 수로 어림한 Q4_K_M 파일이 이 PC의 그래픽 메모리에 들어가는 것만', 'fd-fit', () => { FD.fit = !FD.fit; store('geulpu.fd.fit', FD.fit); fdBar(); fdReload(); }),
+        chip(FD.checked, T('GeulPU 확인됨'), T('GeulPU에서 실제로 돌려 본 파일이 있는 저장소만'), 'fd-checked', () => { FD.checked = !FD.checked; fdBar(); fdReload(); }),
+        chip(FD.fit, T('이 PC에 맞는 크기'), T('매개변수 수로 어림한 Q4_K_M 파일이 이 PC의 그래픽 메모리에 들어가는 것만'), 'fd-fit', () => { FD.fit = !FD.fit; store('geulpu.fd.fit', FD.fit); fdBar(); fdReload(); }),
         h('span', { class: 'grow' }),
-        radio(FD_SIZES, FD.size, '크기', 'fd-size', k => { FD.size = k; store('geulpu.fd.size', k); fdBar(); fdReload(); })));
+        radio(FD_SIZES, FD.size, T('크기'), 'fd-size', k => { FD.size = k; store('geulpu.fd.size', k); fdBar(); fdReload(); })));
   });
 }
 function fdClearBtn() { const b = FD.bar.querySelector('[data-fk="fd-qx"]'); if (b) b.hidden = !FD.draft; }
@@ -2156,7 +3039,7 @@ async function fdMore(n = 30) {
       }
       if (!FD.srcs.some(s => s.buf.length || s.next)) FD.done = true;
     }
-  } catch (_) { if (my === FD.seq) FD.err = 'Hugging Face에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.'; }
+  } catch (_) { if (my === FD.seq) FD.err = T('Hugging Face에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.'); }
   if (my !== FD.seq) return;
   FD.busy = false;
   FD.dry = FD.items.length === before ? FD.dry + 1 : 0;
@@ -2187,23 +3070,23 @@ function fdDrawList() {
   if (!FD.list) return;
   put(FD.list, FD.items.map(fdRow));
   const sortName = (FD_SORTS.find(s => s[0] === FD.sort) || FD_SORTS[0])[1];
-  const conds = [FD.only ? 'GeulPU에서 실행되는 것' : '실행 안 되는 것 포함', FD.checked ? 'GeulPU 확인됨' : null, FD.fit ? '이 PC에 맞는 크기' : null,
+  const conds = [FD.only ? T('GeulPU에서 실행되는 것') : T('실행 안 되는 것 포함'), FD.checked ? T('GeulPU 확인됨') : null, FD.fit ? T('이 PC에 맞는 크기') : null,
     FD.size !== 'all' ? (FD_SIZES.find(s => s[0] === FD.size) || [])[1] : null, FD.q ? `“${FD.q}”` : null].filter(Boolean);
-  put(FD.sum, h('span', { class: 'ink' }, FD.items.length ? `${fmtNum(FD.items.length)}개${FD.done ? '' : ' 이상'}` : FD.busy ? '불러오는 중' : '0개'),
-    h('span', null, `${NB}${sortName}순${NB}${conds.join(' · ')}`),
+  put(FD.sum, h('span', { class: 'ink' }, FD.items.length ? T`${fmtNum(FD.items.length)}개${FD.done ? '' : T(' 이상')}` : FD.busy ? T('불러오는 중') : T('0개')),
+    h('span', null, T`${NB}${sortName}순${NB}${conds.join(' · ')}`),
     h('span', { class: 'grow' }),
-    h('span', { class: 'faint' }, 'Hugging Face의 GGUF 저장소'));
+    h('span', { class: 'faint' }, T('Hugging Face의 GGUF 저장소')));
   fdDrawMore();
 }
 function fdDrawMore() {
   if (!FD.more) return;
   let body = null;
-  if (FD.busy) body = h('div', { class: 'row center small muted' }, h('i', { class: 'dot busy' }), '불러오는 중…');
+  if (FD.busy) body = h('div', { class: 'row center small muted' }, h('i', { class: 'dot busy' }), T('불러오는 중…'));
   else if (FD.err) body = h('div', { class: 'col center g12' }, h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, FD.err)),
-    h('button', { class: 'btn sm needs-conn', onclick: () => { FD.err = ''; fdMore(); } }, I('refresh', 's'), '다시 시도'));
-  else if (!FD.items.length && FD.done) body = h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '조건에 맞는 모델이 없습니다'),
-    h('div', null, FD.only ? "거르기를 줄이거나, '실행 안 되는 모델도 보기'를 켜면 Hugging Face의 모든 GGUF 모델이 보입니다(실행되지 않는 것은 흐리게)." : '검색어나 거르기를 바꿔 보세요.'));
-  else if (!FD.done) body = h('button', { class: 'btn ghost w100 needs-conn', onclick: () => fdMore() }, I('chevD', 's'), '더 보기');
+    h('button', { class: 'btn sm needs-conn', onclick: () => { FD.err = ''; fdMore(); } }, I('refresh', 's'), T('다시 시도')));
+  else if (!FD.items.length && FD.done) body = h('div', { class: 'empty-box' }, h('div', { class: 'big' }, T('조건에 맞는 모델이 없습니다')),
+    h('div', null, FD.only ? T("거르기를 줄이거나, '실행 안 되는 모델도 보기'를 켜면 Hugging Face의 모든 GGUF 모델이 보입니다(실행되지 않는 것은 흐리게).") : T('검색어나 거르기를 바꿔 보세요.')));
+  else if (!FD.done) body = h('button', { class: 'btn ghost w100 needs-conn', onclick: () => fdMore() }, I('chevD', 's'), T('더 보기'));
   put(FD.more, body);
 }
 function fdStat(icon, text, label) { return h('span', { class: 'st', 'aria-label': label ? `${label} ${text}` : null }, I(icon, 's'), h('span', { 'aria-hidden': label ? 'true' : null }, text)); }
@@ -2214,10 +3097,10 @@ function fdRow(m) {
   const st = S.st;
   const rec = st && cat.some(c => c.id === recommendId(st));
   const base = asList(m.cardData && m.cardData.base_model);
-  const by = [m.author || m.id.split('/')[0], base.length ? `${base[0].split('/').pop()} 기반` : null].filter(Boolean).join(NB);
-  const badge = fdChecked(m.id) ? h('span', { class: 'tag', 'data-tip': 'GeulPU에서 실제로 돌려 본 파일이 있습니다', 'data-tip-pos': 'top' }, I('shield'), 'GeulPU 확인됨')
-    : sup.k === 'ok' ? (FD.only ? null : h('span', { class: 'tag' }, I('check'), '실행됨'))
-      : h('span', { class: 'tag dim', 'data-tip': sup.why || null, 'data-tip-pos': 'top' }, sup.k === 'unknown' ? '구조 알 수 없음' : sup.t);
+  const by = [m.author || m.id.split('/')[0], base.length ? T`${base[0].split('/').pop()} 기반` : null].filter(Boolean).join(NB);
+  const badge = fdChecked(m.id) ? h('span', { class: 'tag', 'data-tip': T('GeulPU에서 실제로 돌려 본 파일이 있습니다'), 'data-tip-pos': 'top' }, I('shield'), T('GeulPU 확인됨'))
+    : sup.k === 'ok' ? (FD.only ? null : h('span', { class: 'tag' }, I('check'), T('실행됨')))
+      : h('span', { class: 'tag dim', 'data-tip': sup.why || null, 'data-tip-pos': 'top' }, sup.k === 'unknown' ? T('구조 알 수 없음') : sup.t);
   return h('button', {
     class: 'fd-row' + (FD.sel === m.id ? ' on' : '') + (sup.k === 'arch' || sup.k === 'size' || sup.k === 'task' ? ' dim' : ''), 'data-repo': m.id, 'data-fk': 'fd:' + m.id,
     'aria-current': FD.sel === m.id ? 'true' : null, onclick: () => fdSelect(m.id),
@@ -2226,8 +3109,8 @@ function fdRow(m) {
       h('span', { class: 'top' }, h('span', { class: 'nm' }, hfName(m.id)), g.total ? h('span', { class: 'qlab' }, fmtParams(g.total)) : null),
       h('span', { class: 'by' }, by),
       h('span', { class: 'foot' },
-        fdStat('download', fmtCount(m.downloads), '최근 30일 다운로드'), fdStat('heart', fmtCount(m.likes), '좋아요'), fdStat('clock', fmtAgo(m.lastModified), '업데이트'),
-        h('span', { class: 'grow' }), rec ? h('span', { class: 'tag' }, I('star'), '이 PC 추천') : null, badge)));
+        fdStat('download', fmtCount(m.downloads), T('최근 30일 다운로드')), fdStat('heart', fmtCount(m.likes), T('좋아요')), fdStat('clock', fmtAgo(m.lastModified), T('업데이트')),
+        h('span', { class: 'grow' }), rec ? h('span', { class: 'tag' }, I('star'), T('이 PC 추천')) : null, badge)));
 }
 function fdSelect(repo, auto) {
   FD.sel = repo;
@@ -2239,7 +3122,7 @@ function fdSelect(repo, auto) {
   fdLoadInfo(repo);
   if (fdNarrow() && !auto) {
     FD.modal = repo;
-    modal(h('div', { class: 'fd-d-wrap' }, fdDetail(repo)), [h('button', { class: 'btn', onclick: () => closeModal() }, '닫기')], true, '.foot .btn', () => { FD.modal = null; });
+    modal(h('div', { class: 'fd-d-wrap' }, fdDetail(repo)), [h('button', { class: 'btn', onclick: () => closeModal() }, T('닫기'))], true, '.foot .btn', () => { FD.modal = null; });
   }
   fdRedraw();
   if (!fdNarrow()) FD.det.scrollTop = FD.y[1] = 0;
@@ -2267,8 +3150,8 @@ function fdRedraw() {
   updateDlBars();
 }
 function fdDetailEmpty() {
-  return h('div', { class: 'fd-empty' }, I('box', 'l'), h('div', { class: 'big' }, '모델을 고르면 자세한 정보가 여기에 보입니다'),
-    h('div', { class: 'small muted' }, `크기${NB}구조${NB}다운로드 수${NB}라이선스${NB}파일마다 이 PC에 맞는지${NB}모델 설명`));
+  return h('div', { class: 'fd-empty' }, I('box', 'l'), h('div', { class: 'big' }, T('모델을 고르면 자세한 정보가 여기에 보입니다')),
+    h('div', { class: 'small muted' }, T`크기${NB}구조${NB}다운로드 수${NB}라이선스${NB}파일마다 이 PC에 맞는지${NB}모델 설명`));
 }
 // README — 앞머리(YAML) · 그림 · HTML 꼬리표를 떼고 마크다운만(md 는 글을 늘 탈출해서 넣고 http(s) 링크만 만든다)
 function fdReadme(text) {
@@ -2292,7 +3175,7 @@ function fdDetail(repo) {
   const base = asList(m.cardData && m.cardData.base_model);
   const langs = asList(m.cardData && m.cardData.language);
   const kind = kindOf({ id: repo });
-  const sub = [kind, g.architecture ? `${g.architecture} 구조` : null, g.total ? `매개변수 ${fmtParams(g.total)}` : null, g.context_length ? `문맥 최대 ${fmtCtx(g.context_length)}` : null].filter(Boolean).join(NB);
+  const sub = [kind, g.architecture ? T`${g.architecture} 구조` : null, g.total ? T`매개변수 ${fmtParams(g.total)}` : null, g.context_length ? T`문맥 최대 ${fmtCtx(g.context_length)}` : null].filter(Boolean).join(NB);
   const cell = (k, v, s) => h('div', { class: 'cell' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), s ? h('div', { class: 's' }, s) : null);
   const head = h('div', { class: 'fd-dhead' },
     h('div', { class: 'row g8' }, h('span', { class: 'eyebrow caps' }, m.author || repo.split('/')[0]), h('span', { class: 'grow' }),
@@ -2300,44 +3183,44 @@ function fdDetail(repo) {
     h('h2', { class: 'fd-title' }, hfName(repo)),
     sub ? h('div', { class: 'fd-sub' }, sub) : null,
     h('div', { class: 'fd-badges' },
-      fdChecked(repo) ? h('span', { class: 'tag' }, I('shield'), 'GeulPU 확인됨') : null,
-      rec ? h('span', { class: 'tag' }, I('star'), '이 PC 추천') : null,
-      sup.k === 'ok' ? h('span', { class: 'tag' }, I('check'), 'GeulPU에서 실행되는 구조') : h('span', { class: 'tag dim' }, I('alert'), sup.k === 'unknown' ? '구조 정보 없음' : sup.t),
+      fdChecked(repo) ? h('span', { class: 'tag' }, I('shield'), T('GeulPU 확인됨')) : null,
+      rec ? h('span', { class: 'tag' }, I('star'), T('이 PC 추천')) : null,
+      sup.k === 'ok' ? h('span', { class: 'tag' }, I('check'), T('GeulPU에서 실행되는 구조')) : h('span', { class: 'tag dim' }, I('alert'), sup.k === 'unknown' ? T('구조 정보 없음') : sup.t),
       lic ? h('span', { class: 'tag dim caps' }, lic) : null));
   const stats = h('div', { class: 'fd-stats' },
-    cell('다운로드', fmtCount(m.downloads), '최근 30일'),
-    cell('누적 다운로드', m.downloadsAllTime != null ? fmtCount(m.downloadsAllTime) : '-'),
-    cell('좋아요', fmtCount(m.likes)),
-    cell('업데이트', fmtAgo(m.lastModified), m.lastModified ? fmtDate(m.lastModified) : null));
+    cell(T('다운로드', 'list'), fmtCount(m.downloads), T('최근 30일')),
+    cell(T('누적 다운로드'), m.downloadsAllTime != null ? fmtCount(m.downloadsAllTime) : '-'),
+    cell(T('좋아요'), fmtCount(m.likes)),
+    cell(T('업데이트'), fmtAgo(m.lastModified), m.lastModified ? fmtDate(m.lastModified) : null));
   const hard = sup.k === 'arch' || sup.k === 'size' || sup.k === 'task';
   const note = sup.k === 'ok' ? null
     : h('div', { class: 'note-line' + (hard ? ' err' : '') }, I(hard ? 'alert' : 'info', 's'), h('span', null,
-      sup.k === 'arch' ? `이 저장소의 구조(${g.architecture})는 아직 GeulPU 엔진에 없습니다. 정보는 볼 수 있지만 받을 수 없습니다.`
-        : sup.why || 'Hugging Face가 이 저장소의 GGUF 구조를 알려 주지 않았습니다. 파일을 받기 전에 앞부분을 받아 확인합니다.'));
+      sup.k === 'arch' ? T`이 저장소의 구조(${g.architecture})는 아직 GeulPU 엔진에 없습니다. 정보는 볼 수 있지만 받을 수 없습니다.`
+        : sup.why || T('Hugging Face가 이 저장소의 GGUF 구조를 알려 주지 않았습니다. 파일을 받기 전에 앞부분을 받아 확인합니다.')));
   // 파일
   let files;
   if (x.files) files = fdFiles(repo, x.files, sup, m);
-  else if (x.ferr) files = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, '파일 목록을 받지 못했습니다. 인터넷 연결을 확인한 뒤 모델을 다시 고르세요.'));
-  else files = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), '파일 목록을 불러오는 중…');
+  else if (x.ferr) files = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, T('파일 목록을 받지 못했습니다. 인터넷 연결을 확인한 뒤 모델을 다시 고르세요.')));
+  else files = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), T('파일 목록을 불러오는 중…'));
   const info = h('div', { class: 'kv' },
-    h('div', { class: 'k' }, '저장소'), h('div', { class: 'v small break' }, repo),
-    h('div', { class: 'k' }, '라이선스'), h('div', { class: 'v' }, lic || '저장소에 적혀 있지 않음'),
-    base.length ? [h('div', { class: 'k' }, '바탕 모델'), h('div', { class: 'v small' }, base.slice(0, 3).map((b, i) => [i ? ', ' : null, /^[\w.-]+\/[\w.-]+$/.test(b) ? h('a', { href: `${HFHOST}/${b}`, target: '_blank', rel: 'noopener' }, b) : b]), base.length > 3 ? ` 외 ${base.length - 3}개` : null)] : null,
-    langs.length ? [h('div', { class: 'k' }, '언어'), h('div', { class: 'v small' }, langs.slice(0, 12).join(', ') + (langs.length > 12 ? ` 외 ${langs.length - 12}개` : ''))] : null,
-    m.cardData && m.cardData.pipeline_tag ? [h('div', { class: 'k' }, '용도'), h('div', { class: 'v small' }, m.cardData.pipeline_tag)] : null,
-    m.createdAt ? [h('div', { class: 'k' }, '만든 날'), h('div', { class: 'v small' }, fmtDate(m.createdAt))] : null);
+    h('div', { class: 'k' }, T('저장소')), h('div', { class: 'v small break' }, repo),
+    h('div', { class: 'k' }, T('라이선스')), h('div', { class: 'v' }, lic || T('저장소에 적혀 있지 않음')),
+    base.length ? [h('div', { class: 'k' }, T('바탕 모델')), h('div', { class: 'v small' }, base.slice(0, 3).map((b, i) => [i ? ', ' : null, /^[\w.-]+\/[\w.-]+$/.test(b) ? h('a', { href: `${HFHOST}/${b}`, target: '_blank', rel: 'noopener' }, b) : b]), base.length > 3 ? T` 외 ${base.length - 3}개` : null)] : null,
+    langs.length ? [h('div', { class: 'k' }, T('언어')), h('div', { class: 'v small' }, langs.slice(0, 12).join(', ') + (langs.length > 12 ? T` 외 ${langs.length - 12}개` : ''))] : null,
+    m.cardData && m.cardData.pipeline_tag ? [h('div', { class: 'k' }, T('용도')), h('div', { class: 'v small' }, m.cardData.pipeline_tag)] : null,
+    m.createdAt ? [h('div', { class: 'k' }, T('만든 날')), h('div', { class: 'v small' }, fmtDate(m.createdAt))] : null);
   // 모델 설명(README)
   let readme = null;
   const rtext = x.readme ? fdReadme(x.readme) : '';
   if (rtext) {
     const open = !!FD.readmeOpen[repo];
-    readme = h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '모델 설명', h('span', { class: 'grow' }), h('span', { class: 'faint small' }, 'Hugging Face의 README')),
+    readme = h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, T('모델 설명'), h('span', { class: 'grow' }), h('span', { class: 'faint small' }, T('Hugging Face의 README'))),
       h('div', { class: 'md fd-readme' + (open ? ' open' : ''), html: md(rtext) }),
-      h('button', { class: 'btn sm ghost', onclick: () => { FD.readmeOpen[repo] = !open; fdRedraw(); } }, I(open ? 'chevU' : 'chevD', 's'), open ? '접기' : '모두 보기'));
-  } else if (x.readme === undefined && !x.err) readme = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), '모델 설명을 불러오는 중…');
+      h('button', { class: 'btn sm ghost', onclick: () => { FD.readmeOpen[repo] = !open; fdRedraw(); } }, I(open ? 'chevU' : 'chevD', 's'), open ? T('접기') : T('모두 보기')));
+  } else if (x.readme === undefined && !x.err) readme = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), T('모델 설명을 불러오는 중…'));
   return h('div', { class: 'fd-d' }, head, stats, note,
-    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '파일', h('span', { class: 'grow' }), h('span', { class: 'faint small' }, '양자화마다 하나 — 고르면 받기 전에 실행되는지 확인')), files),
-    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '정보'), info),
+    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, T('파일'), h('span', { class: 'grow' }), h('span', { class: 'faint small' }, T('양자화마다 하나 — 고르면 받기 전에 실행되는지 확인'))), files),
+    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, T('정보')), info),
     readme);
 }
 // 이 PC 에 가장 맞는 파일 — 받는 형식 가운데 메모리에 넉넉히 맞는 것 중 Q4_K_M → 가장 큰 것, 없으면 빠듯한 것 중 가장 작은 것
@@ -2351,7 +3234,7 @@ function fdBest(rows, sup) {
   return tight[0] || null;
 }
 function fdFiles(repo, files, sup, m) {
-  if (!files.length) return h('div', { class: 'small muted' }, '이 저장소에는 GGUF 파일이 없습니다.');
+  if (!files.length) return h('div', { class: 'small muted' }, T('이 저장소에는 GGUF 파일이 없습니다.'));
   // 받을 수 있는 형식(한 파일)이 먼저 — 양자화 차례 → 큰 것부터, 받지 못하는 것은 뒤에
   const can = f => quantOk(quantFromName(f.path)) && !/-\d{5}-of-\d{5}\.gguf$/i.test(f.path);
   const rows = files.slice().sort((a, b) => (can(b) - can(a)) || qRank(quantFromName(a.path)) - qRank(quantFromName(b.path)) || b.size - a.size);
@@ -2368,31 +3251,31 @@ function fdFileRow(repo, f, sup, best, m) {
   const ds = c ? dlStateOf(c) : null;
   const fit = fitOf({ size: f.size, params: '', id: repo, devices: c && c.devices ? c.devices : (/K/.test(q) ? 'k' : 'all') });
   let why = '';
-  if (sup.k === 'arch') why = '지원하지 않는 구조';
-  else if (sup.k === 'size') why = '아직 미지원 크기';
-  else if (sup.k === 'task') why = '대화용 모델이 아님';
-  else if (split) why = '여러 조각으로 나뉜 파일 — 합친 파일만 받습니다';
-  else if (q && !quantOk(q)) why = `${q} 형식은 아직 미지원`;
-  else if (!q) why = '양자화 형식을 알 수 없는 파일';
-  else if (!c && !(f.lfs && f.lfs.oid)) why = 'SHA-256 정보가 없는 파일';
+  if (sup.k === 'arch') why = T('지원하지 않는 구조');
+  else if (sup.k === 'size') why = T('아직 미지원 크기');
+  else if (sup.k === 'task') why = T('대화용 모델이 아님');
+  else if (split) why = T('여러 조각으로 나뉜 파일 — 합친 파일만 받습니다');
+  else if (q && !quantOk(q)) why = T`${q} 형식은 아직 미지원`;
+  else if (!q) why = T('양자화 형식을 알 수 없는 파일');
+  else if (!c && !(f.lfs && f.lfs.oid)) why = T('SHA-256 정보가 없는 파일');
   const k = repo + '/' + f.path;
   const chk = FD.chk.get(k);
   let act = null, extra = null;
-  if (mdl) act = [h('span', { class: 'tag ok' }, I('check'), '설치됨'), h('button', { class: 'btn sm needs-conn', onclick: () => chatWith(mdl.id) }, I('chat', 's'), '채팅')];
+  if (mdl) act = [h('span', { class: 'tag ok' }, I('check'), T('설치됨')), h('button', { class: 'btn sm needs-conn', onclick: () => chatWith(mdl.id) }, I('chat', 's'), T('채팅'))];
   else if (ds === 'run') extra = dlBox(c);
-  else if (ds === 'pause') { act = h('button', { class: 'btn sm needs-conn', onclick: () => resumeDownload(c) }, I('download', 's'), '이어서 다운로드'); extra = dlBox(c, true); }
-  else if (ds === 'fail') { act = h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(c) }, I('refresh', 's'), '다시 다운로드'); extra = dlWhyLine(c.download.reason, c); }
+  else if (ds === 'pause') { act = h('button', { class: 'btn sm needs-conn', onclick: () => resumeDownload(c) }, I('download', 's'), T('이어서 다운로드')); extra = dlBox(c, true); }
+  else if (ds === 'fail') { act = h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(c) }, I('refresh', 's'), T('다시 다운로드')); extra = dlWhyLine(c.download.reason, c); }
   else if (why) act = h('span', { class: 'why' }, why);
-  else if (chk && chk.state === 'checking') act = h('span', { class: 'why row g8 nowrap' }, h('i', { class: 'dot busy' }), '실행되는지 확인하는 중');
-  else act = h('button', { class: 'btn sm needs-conn' + (best ? ' primary' : ''), 'data-fk': 'get:' + k, onclick: () => (c ? startDownload(c) : fdGet(repo, f, q, m)) }, I('download', 's'), '다운로드');
-  if (!extra && chk && chk.state === 'bad') extra = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, chk.why));
+  else if (chk && chk.state === 'checking') act = h('span', { class: 'why row g8 nowrap' }, h('i', { class: 'dot busy' }), T('실행되는지 확인하는 중'));
+  else act = h('button', { class: 'btn sm needs-conn' + (best ? ' primary' : ''), 'data-fk': 'get:' + k, onclick: () => (c ? startDownload(c) : fdGet(repo, f, q, m)) }, I('download', 's'), T('다운로드'));
+  if (!extra && chk && chk.state === 'bad') extra = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, TM(chk.why)));
   const verified = c && (c.check === 'tested' || c.check === 'crosscheck');
   return h('div', { class: 'fd-file' + (why ? ' dim' : '') + (best && !mdl ? ' best' : '') },
     h('span', { class: 'qlab' }, q || '?'),
     h('span', { class: 'sz' }, fmtBytes(f.size)),
     h('span', { class: 'tags' },
-      best && !mdl && !why ? h('span', { class: 'tag' }, I('star'), '이 PC에 추천') : null,
-      verified ? h('span', { class: 'tag', 'data-tip': 'GeulPU에서 이 파일로 실제로 돌려 보았습니다', 'data-tip-pos': 'top' }, I('shield'), '실행 확인됨') : null,
+      best && !mdl && !why ? h('span', { class: 'tag' }, I('star'), T('이 PC에 추천')) : null,
+      verified ? h('span', { class: 'tag', 'data-tip': T('GeulPU에서 이 파일로 실제로 돌려 보았습니다'), 'data-tip-pos': 'top' }, I('shield'), T('실행 확인됨')) : null,
       !why && !mdl && fit && fit.k !== 'ok' ? fitTag(fit) : null),
     h('span', { class: 'grow' }),
     act ? h('span', { class: 'act' }, act) : null,
@@ -2421,12 +3304,12 @@ async function hfCheckFile(repo, f) {
       const r = await api('/api/hf/check');
       if (r.state === 'done' || r.state === 'failed') {
         if (r.state === 'failed') return { state: 'bad', why: checkWhy(r.reason) };
-        if (!r.shape || !r.shape.ok) return { state: 'bad', why: (r.shape && r.shape.reason) || '이 엔진이 받지 않는 파일입니다' };
+        if (!r.shape || !r.shape.ok) return { state: 'bad', why: (r.shape && r.shape.reason) || T('이 엔진이 받지 않는 파일입니다') };
         if (r.device_reason) return { state: 'bad', why: r.device_reason };
         return { state: 'ok', shape: r.shape };
       }
     }
-    return { state: 'bad', why: '확인이 너무 오래 걸립니다. 잠시 뒤 다시 누르세요.' };
+    return { state: 'bad', why: T('확인이 너무 오래 걸립니다. 잠시 뒤 다시 누르세요.') };
   } catch (e) { return { state: 'bad', why: e.message }; }
 }
 async function hfDownload(x, f, q, shape) {
@@ -2437,41 +3320,41 @@ async function hfDownload(x, f, q, shape) {
   const bad = fit && (fit.k === 'no' || fit.k === 'nogpu');
   const lic = fdLicense(x);
   const body = h('div', { class: 'col g16' },
-    h('p', { class: 'muted m0' }, `${hfName(x.id)} ${q}${NB}${(shape.params / 1e9).toFixed(1)}B${NB}문맥 최대 ${fmtCtx(shape.context)}`),
-    bad ? h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, `이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})로는 실행되지 않을 수 있습니다. 그래픽 메모리 ${vramNeed(c)} GB 이상을 권장합니다.`)) : null,
+    h('p', { class: 'muted m0' }, T`${hfName(x.id)} ${q}${NB}${(shape.params / 1e9).toFixed(1)}B${NB}문맥 최대 ${fmtCtx(shape.context)}`),
+    bad ? h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, T`이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})로는 실행되지 않을 수 있습니다. 그래픽 메모리 ${vramNeed(c)} GB 이상을 권장합니다.`)) : null,
     h('div', { class: 'kv' },
-      h('div', { class: 'k' }, '파일'), h('div', { class: 'v mono small break' }, name),
-      h('div', { class: 'k' }, '크기'), h('div', { class: 'v' }, `${fmtBytes(f.size)} (${fmtNum(f.size)} 바이트)`),
-      h('div', { class: 'k' }, '저장 위치'), h('div', { class: 'v small break' }, `${st.app.models_dir}${NB}여유 ${st.app.disk_free >= 0 ? fmtBytes(st.app.disk_free) : '알 수 없음'}`),
-      h('div', { class: 'k' }, '출처'), h('div', { class: 'v small break' }, h('a', { href: `${HFHOST}/${x.id}`, target: '_blank', rel: 'noopener' }, `huggingface.co/${x.id}`)),
-      h('div', { class: 'k' }, '라이선스'), h('div', { class: 'v' }, lic || '저장소에 적혀 있지 않음 — 저장소에서 확인하세요')),
-    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '기술 정보'),
+      h('div', { class: 'k' }, T('파일', 'k')), h('div', { class: 'v mono small break' }, name),
+      h('div', { class: 'k' }, T('크기')), h('div', { class: 'v' }, T`${fmtBytes(f.size)} (${fmtNum(f.size)} 바이트)`),
+      h('div', { class: 'k' }, T('저장 위치')), h('div', { class: 'v small break' }, T`${st.app.models_dir}${NB}여유 ${st.app.disk_free >= 0 ? fmtBytes(st.app.disk_free) : T('알 수 없음')}`),
+      h('div', { class: 'k' }, T('출처')), h('div', { class: 'v small break' }, h('a', { href: `${HFHOST}/${x.id}`, target: '_blank', rel: 'noopener' }, `huggingface.co/${x.id}`)),
+      h('div', { class: 'k' }, T('라이선스')), h('div', { class: 'v' }, lic || T('저장소에 적혀 있지 않음 — 저장소에서 확인하세요'))),
+    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), T('기술 정보')),
       h('div', { class: 'small mono muted break' }, `SHA-256 ${f.lfs.oid}`)),
-    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '이 파일의 답 품질은 GeulPU에서 확인하지 않았습니다. 구조와 형식은 받기 전에 확인했고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.')));
-  if (!(await confirmBox('모델 다운로드', body, '다운로드', bad ? 'quiet' : null))) return;
+    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('이 파일의 답 품질은 GeulPU에서 확인하지 않았습니다. 구조와 형식은 받기 전에 확인했고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.'))));
+  if (!(await confirmBox(T('모델 다운로드'), body, T('다운로드'), bad ? 'quiet' : null))) return;
   try {
     const r = await api('/api/hf/add', { repo: x.id, file: f.path, size: f.size, sha256: f.lfs.oid, name: hfName(x.id), quant: q, license: lic });
     await api('/api/models/download', { id: r.id });
-    toast("다운로드를 시작했습니다 — 진행은 상태 막대와 '내 모델'에서 볼 수 있습니다", 'ok');
+    toast(T("다운로드를 시작했습니다 — 진행은 상태 막대와 '내 모델'에서 볼 수 있습니다"), 'ok');
     resetSig(); refresh();
   } catch (e) { toast(e.message, 'err'); }
 }
 async function discardDownload(c) {
-  if (!(await confirmBox('받다 만 파일 지우기', h('p', { class: 'muted m0' }, `${c.name} ${c.quant} — 지금까지 받은 ${fmtBytes((c.download && c.download.received) || 0)}를 지웁니다.${c.check === 'hf' ? ' Hugging Face에서 더한 항목이라 목록에서도 뺍니다.' : ''}`), '지우기', 'danger'))) return;
+  if (!(await confirmBox(T('받다 만 파일 지우기'), h('p', { class: 'muted m0' }, T`${c.name} ${c.quant} — 지금까지 받은 ${fmtBytes((c.download && c.download.received) || 0)}를 지웁니다.${c.check === 'hf' ? T(' Hugging Face에서 더한 항목이라 목록에서도 뺍니다.') : ''}`), T('지우기'), 'danger'))) return;
   try { await api('/api/models/discard', { id: c.id }); resetSig(); refresh(); }
   catch (e) { toast(e.message, 'err'); }
 }
 
 // ---------- 벤치마크 ----------
 const BENCH = [
-  { kind: 'diag', title: '하드웨어 진단', needModel: true, time: '1~6분',
-    desc: '이 PC의 메모리 대역폭과 정수 연산 성능을 측정하고, 엔진의 각 연산이 하드웨어 한계에 얼마나 가까운지 보여 줍니다.' },
-  { kind: 'speed', title: '속도 측정', needModel: true, time: '1~3분',
-    desc: '프롬프트 처리(512 · 2048토큰)와 답 생성 속도를 토큰/초로 세 번씩 측정합니다.' },
-  { kind: 'crosscheck', title: '재현성 검증', needModel: false, time: '경로마다 5~20분',
-    desc: 'DeepSeek-R1-Distill-Qwen-7B Q8_0으로 수학 문제 32개를 풀어 기준 PC의 출력과 비트 단위로 비교합니다. 빌드와 커널의 해시도 함께 확인합니다.' },
+  { kind: 'diag', title: T('하드웨어 진단'), needModel: true, time: T('1~6분'),
+    desc: T('이 PC의 메모리 대역폭과 정수 연산 성능을 측정하고, 엔진의 각 연산이 하드웨어 한계에 얼마나 가까운지 보여 줍니다.') },
+  { kind: 'speed', title: T('속도 측정'), needModel: true, time: T('1~3분'),
+    desc: T('프롬프트 처리(512 · 2048토큰)와 답 생성 속도를 토큰/초로 세 번씩 측정합니다.') },
+  { kind: 'crosscheck', title: T('재현성 검증'), needModel: false, time: T('경로마다 5~20분'),
+    desc: T('DeepSeek-R1-Distill-Qwen-7B Q8_0으로 수학 문제 32개를 풀어 기준 PC의 출력과 비트 단위로 비교합니다. 빌드와 커널의 해시도 함께 확인합니다.') },
 ];
-const KIND = { '진단': ['pulse', '하드웨어 진단'], '속도': ['bolt', '속도 측정'], '교차검증': ['shield', '재현성 검증'] };
+const KIND = { '진단': ['pulse', T('하드웨어 진단')], '속도': ['bolt', T('속도 측정')], '교차검증': ['shield', T('재현성 검증')] };
 const R1_REF = 'deepseek-r1-distill-qwen-7b-q8_0';
 function benchModel(runnables) {
   if (!runnables.some(m => m.id === S.benchModel)) S.benchModel = runnables.length ? runnables[0].id : '';
@@ -2487,15 +3370,15 @@ function kpiFromText(kind, t) {
     let p = n(/프롬프트 ([\d.]+) 토큰\/초/);
     if (isNaN(p)) p = n(/프롬프트 \d+: [\d.]+ ms · ([\d.]+) 토큰\/초/);
     if (isNaN(g) && isNaN(p)) return null;
-    return [isNaN(g) ? null : [fmtNum(g, 1), '생성 토큰/초'], isNaN(p) ? null : [fmtNum(p), '프롬프트 토큰/초']];
+    return [isNaN(g) ? null : [fmtNum(g, 1), T('생성 토큰/초')], isNaN(p) ? null : [fmtNum(p), T('프롬프트 토큰/초')]];
   }
   if (kind === 'diag' || kind === '진단') {
     // 한계 대비 — 새 꼴 "한계의 91%", 지난 결과의 꼴 "한계의 1.10배"(잰 시간 ÷ 한계 시간)도 읽는다
     const eff = name => { const p = n(new RegExp(name + ' 한계의 (\\d+)%')); return isNaN(p) ? effOf(n(new RegExp(name + ' 한계의 ([\\d.]+)배'))) : p; };
     const bw = n(/메모리 대역폭 ([\d.]+) GB\/s/), tops = n(/정수 텐서 ([\d.]+) TOPS/), gen = eff('생성\\(문맥 1024\\)'), pr = eff('프롬프트 2048토큰');
     if (isNaN(bw)) return null;
-    return [[fmtNum(bw, 1) + ' GB/s', '메모리 대역폭'], isNaN(tops) ? null : [fmtNum(tops) + ' TOPS', '정수 텐서'],
-      isNaN(gen) ? null : [fmtEff(gen), '생성 · 하드웨어 한계 대비', '한계 대비 생성'], isNaN(pr) ? null : [fmtEff(pr), '프롬프트 · 하드웨어 한계 대비', '한계 대비 프롬프트']];
+    return [[fmtNum(bw, 1) + ' GB/s', T('메모리 대역폭')], isNaN(tops) ? null : [fmtNum(tops) + ' TOPS', T('정수 텐서')],
+      isNaN(gen) ? null : [fmtEff(gen), T('생성 · 하드웨어 한계 대비'), T('한계 대비 생성')], isNaN(pr) ? null : [fmtEff(pr), T('프롬프트 · 하드웨어 한계 대비'), T('한계 대비 프롬프트')]];
   }
   return null;
 }
@@ -2513,31 +3396,31 @@ function renderBench() {
     const busy = !!(j && j.state === 'running');
     const r1c = st.catalog.find(c => c.id === R1_REF);
     rebuild(page,
-      pageHead(S.results ? `결과 ${S.results.length}개` : null, '벤치마크', '한 번에 하나씩 실행됩니다. 실행하는 동안 불러온 채팅 모델은 GPU에서 내립니다. 결과는 zip으로 내보낼 수 있습니다.'),
+      pageHead(S.results ? T`결과 ${S.results.length}개` : null, T('벤치마크'), T('한 번에 하나씩 실행됩니다. 실행하는 동안 불러온 채팅 모델은 GPU에서 내립니다. 결과는 zip으로 내보낼 수 있습니다.')),
       j ? jobCard(j) : null,
       h('div', { class: 'section bench-grid' },
         h('div', { class: 'card pick-card' },
-          h('div', { class: 'pc-t' }, h('span', { class: 'lab' }, '측정할 모델'), h('span', { class: 'small muted' }, '하드웨어 진단 · 속도 측정에 씁니다')),
+          h('div', { class: 'pc-t' }, h('span', { class: 'lab' }, T('측정할 모델')), h('span', { class: 'small muted' }, T('하드웨어 진단 · 속도 측정에 씁니다'))),
           h('div', { class: 'pc-c' },
             h('select', {
-              class: 'input', 'data-fk': 'bench-model', 'aria-label': '하드웨어 진단 · 속도 측정에 쓸 모델', disabled: runnables.length ? null : true,
+              class: 'input', 'data-fk': 'bench-model', 'aria-label': T('하드웨어 진단 · 속도 측정에 쓸 모델'), disabled: runnables.length ? null : true,
               onchange: ev => { S.benchModel = ev.target.value; store('geulpu.benchModel', S.benchModel); },
-            }, runnables.length ? runnables.map(m => h('option', { value: m.id, selected: m.id === sel ? true : null }, `${displayName(m)} · ${quantOf(m)}`)) : h('option', { value: '' }, '실행할 수 있는 모델이 없습니다')),
-            !runnables.length ? h('button', { class: 'btn sm', onclick: () => show('models') }, I('box', 's'), '모델 화면') : null)),
+            }, runnables.length ? runnables.map(m => h('option', { value: m.id, selected: m.id === sel ? true : null }, `${displayName(m)} · ${quantOf(m)}`)) : h('option', { value: '' }, T('실행할 수 있는 모델이 없습니다'))),
+            !runnables.length ? h('button', { class: 'btn sm', onclick: () => show('models') }, I('box', 's'), T('모델 화면')) : null)),
         BENCH.map(b => benchCard(b, runnables, hasR1, busy, r1c))),
-      h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '최근 결과'), h('span', { class: 'grow' }),
-        h('button', { class: 'icon-btn needs-conn', 'data-tip': '결과 폴더 열기', 'data-tip-pos': 'left', 'aria-label': '결과 폴더 열기', onclick: () => api('/api/open', { what: 'results' }).catch(e => toast(e.message, 'err')) }, I('folder'))),
-        h('div', { id: 'results' }, S.results ? resultsTable(S.results) : h('div', { class: 'muted' }, '불러오는 중…'))));
+      h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, T('최근 결과')), h('span', { class: 'grow' }),
+        h('button', { class: 'icon-btn needs-conn', 'data-tip': T('결과 폴더 열기'), 'data-tip-pos': 'left', 'aria-label': T('결과 폴더 열기'), onclick: () => api('/api/open', { what: 'results' }).catch(e => toast(e.message, 'err')) }, I('folder'))),
+        h('div', { id: 'results' }, S.results ? resultsTable(S.results) : h('div', { class: 'muted' }, T('불러오는 중…')))));
     S.log = { job: j ? j.id : 0, from: 0 };
   }
   if (j) {
     const set = (id, v) => { const e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
-    set('job-step', j.state === 'running' ? (j.step || '') : { done: '끝났습니다', failed: '실패했습니다', cancelled: '중지했습니다' }[j.state] || '');
-    set('job-time', `${{ running: '실행 중', done: '완료', failed: '실패', cancelled: '중지됨' }[j.state] || j.state} · ${fmtClock(j.seconds)}`);
+    set('job-step', j.state === 'running' ? TM(j.step || '') : { done: T('끝났습니다'), failed: T('실패했습니다'), cancelled: T('중지했습니다') }[j.state] || '');
+    set('job-time', `${{ running: T('실행 중'), done: T('완료'), failed: T('실패'), cancelled: T('중지됨') }[j.state] || j.state} · ${fmtClock(j.seconds)}`);
     const bar = document.getElementById('job-bar');
     if (bar) bar.style.width = (j.state === 'done' ? 100 : j.progress / 10) + '%';
     const tail = document.getElementById('job-tail');
-    if (tail) { tail.textContent = st.job_tail || ''; tail.closest('details').hidden = !st.job_tail; }
+    if (tail) { tail.textContent = TM(st.job_tail || ''); tail.closest('details').hidden = !st.job_tail; }
   }
   if (Date.now() - S.resultsAt > 5000) loadResults(false);
 }
@@ -2560,32 +3443,32 @@ function jobCard(j) {
     const [rt, rd] = humanJob(j.reason);
     const live = !JOBSEEN.has(jobKey(j));
     JOBSEEN.add(jobKey(j));
-    fail = errorCard(rt, rd, (j.state === 'failed' || j.state === 'cancelled') && benchDef ? [h('button', { class: 'btn sm needs-conn', 'data-fk': 'rerun', onclick: () => rerun(j) }, I('refresh', 's'), '같은 설정으로 다시 실행')] : null, j.reason, live);
+    fail = errorCard(rt, rd, (j.state === 'failed' || j.state === 'cancelled') && benchDef ? [h('button', { class: 'btn sm needs-conn', 'data-fk': 'rerun', onclick: () => rerun(j) }, I('refresh', 's'), T('같은 설정으로 다시 실행'))] : null, j.reason, live);
   }
   return h('div', { class: 'card job' },
     h('div', { class: 'head' },
-      h('div', { class: 't' }, h('div', { class: 'ink h3' }, jobTitle(j)), h('div', { class: 'small muted', id: 'job-step' }, j.state === 'running' ? (j.step || '') : '')),
+      h('div', { class: 't' }, h('div', { class: 'ink h3' }, jobTitle(j)), h('div', { class: 'small muted', id: 'job-step' }, j.state === 'running' ? TM(j.step || '') : '')),
       h('span', { class: 'tag ' + tone, id: 'job-time' }, ''),
-      j.state === 'running' ? h('button', { class: 'btn sm needs-conn', 'data-fk': 'job-stop', onclick: () => api('/api/job/cancel', {}).then(refresh).catch(e => toast(e.message, 'err')) }, I('stop', 's'), '중지')
-        : h('button', { class: 'icon-btn', 'data-tip': '카드 닫기', 'data-tip-pos': 'left', 'aria-label': '끝난 작업 카드 닫기', onclick: () => { S.jobHide = jobKey(j); store('geulpu.jobHide', S.jobHide); resetSig(); renderBench(); } }, I('x', 's'))),
+      j.state === 'running' ? h('button', { class: 'btn sm needs-conn', 'data-fk': 'job-stop', onclick: () => api('/api/job/cancel', {}).then(refresh).catch(e => toast(e.message, 'err')) }, I('stop', 's'), T('중지'))
+        : h('button', { class: 'icon-btn', 'data-tip': T('카드 닫기'), 'data-tip-pos': 'left', 'aria-label': T('끝난 작업 카드 닫기'), onclick: () => { S.jobHide = jobKey(j); store('geulpu.jobHide', S.jobHide); resetSig(); renderBench(); } }, I('x', 's'))),
     h('div', { class: 'bar' + (j.state === 'done' ? ' done' : j.state === 'failed' ? ' fail' : '') }, h('i', { id: 'job-bar', style: `width:${j.state === 'done' ? 100 : j.progress / 10}%` })),
-    k ? kpis(k, true) : j.summary && j.state === 'done' ? h('div', { class: 'verdict' }, (quick ? '빠른 확인 — ' : '') + pathLabel(headText(j.summary))) : null,
+    k ? kpis(k, true) : j.summary && j.state === 'done' ? h('div', { class: 'verdict' }, (quick ? T('빠른 확인 — ') : '') + TM(pathLabel(headText(j.summary)))) : null,
     fail,
     j.state === 'done' && j.result ? h('div', { class: 'row' },
-      h('button', { class: 'btn sm primary', onclick: () => openResult(j.result) }, '결과 보기'),
-      h('a', { class: 'btn sm', href: '/api/results/zip?name=' + encodeURIComponent(j.result) }, I('download', 's'), 'zip 내보내기')) : null,
-    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '실행 기록'), h('pre', { class: 'log', id: 'joblog' })),
-    h('details', { class: 'fold', hidden: true }, h('summary', null, I('chevR', 's'), '도구 출력'), h('pre', { class: 'log', id: 'job-tail' })));
+      h('button', { class: 'btn sm primary', onclick: () => openResult(j.result) }, T('결과 보기')),
+      h('a', { class: 'btn sm', href: '/api/results/zip?name=' + encodeURIComponent(j.result) }, I('download', 's'), T('zip 내보내기'))) : null,
+    h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), T('실행 기록')), h('pre', { class: 'log', id: 'joblog' })),
+    h('details', { class: 'fold', hidden: true }, h('summary', null, I('chevR', 's'), T('도구 출력')), h('pre', { class: 'log', id: 'job-tail' })));
 }
 function benchCard(b, runnables, hasR1, busy, r1c) {
   const extra = b.kind === 'crosscheck' ? h('div', { class: 'col g12' },
-    h('label', { class: 'check' }, h('input', { type: 'checkbox', class: 'cc-quick' }), '빠른 확인 — 문제 2개 · 64토큰(전체 검증 아님)'),
-    h('select', { class: 'input cc-mod', 'aria-label': '검증할 경로' }, h('option', { value: 'both' }, '모든 경로(권장)'), h('option', { value: 'coop' }, '텐서 코어 경로만'), h('option', { value: 'base' }, '기본 경로만'))) : null;
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', class: 'cc-quick' }), T('빠른 확인 — 문제 2개 · 64토큰(전체 검증 아님)')),
+    h('select', { class: 'input cc-mod', 'aria-label': T('검증할 경로') }, h('option', { value: 'both' }, T('모든 경로(권장)')), h('option', { value: 'coop' }, T('텐서 코어 경로만')), h('option', { value: 'base' }, T('기본 경로만')))) : null;
   const can = b.needModel ? runnables.length > 0 : hasR1;
   let need = null;
-  if (!can && b.kind === 'crosscheck') need = h('div', { class: 'note-line' }, I('info', 's'), h('div', { class: 'col g8' }, h('span', null, 'DeepSeek-R1-Distill-Qwen-7B Q8_0 모델이 필요합니다.'),
-    r1c && !r1c.installed ? h('div', null, h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(r1c) }, I('download', 's'), `다운로드(${fmtBytes(r1c.size)})`)) : null));
-  else if (!can) need = h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '먼저 모델을 설치하세요.'));
+  if (!can && b.kind === 'crosscheck') need = h('div', { class: 'note-line' }, I('info', 's'), h('div', { class: 'col g8' }, h('span', null, T('DeepSeek-R1-Distill-Qwen-7B Q8_0 모델이 필요합니다.')),
+    r1c && !r1c.installed ? h('div', null, h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(r1c) }, I('download', 's'), T`다운로드(${fmtBytes(r1c.size)})`)) : null));
+  else if (!can) need = h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('먼저 모델을 설치하세요.')));
   return h('div', { class: 'card bench-card', 'data-kind': b.kind },
     h('div', null, h('h2', null, b.title), h('div', { class: 'eyebrow' }, b.time)),
     h('p', null, b.desc), extra, need,
@@ -2595,12 +3478,12 @@ function benchCard(b, runnables, hasR1, busy, r1c) {
         const body = {};
         if (b.needModel) { body.model = S.benchModel; if (!body.model) return; }
         if (b.kind === 'crosscheck') { body.quick = card.querySelector('.cc-quick').checked; body.modules = card.querySelector('.cc-mod').value; }
-        if (S.streaming) { toast('채팅의 답이 끝난 뒤 실행할 수 있습니다'); return; }
-        if (S.st.server.state === 'ready' && !(await confirmBox('채팅 모델을 내립니다', h('p', { class: 'muted m0' }, '측정하는 동안 GPU를 혼자 쓰도록 불러온 채팅 모델을 내립니다. 계속할까요?'), '계속'))) return;
+        if (S.streaming) { toast(T('채팅의 답이 끝난 뒤 실행할 수 있습니다')); return; }
+        if (S.st.server.state === 'ready' && !(await confirmBox(T('채팅 모델을 내립니다'), h('p', { class: 'muted m0' }, T('측정하는 동안 GPU를 혼자 쓰도록 불러온 채팅 모델을 내립니다. 계속할까요?')), T('계속')))) return;
         try { await api('/api/bench/' + b.kind, body); resetSig(); refresh(); }
         catch (e) { toast(e.message, 'err'); }
       },
-    }, I('play', 's'), busy ? '다른 작업 실행 중' : '실행')));
+    }, I('play', 's'), busy ? T('다른 작업 실행 중') : T('실행'))));
 }
 async function pollLog() {
   const j = S.st && S.st.job;
@@ -2613,7 +3496,8 @@ async function pollLog() {
     if (r.id !== j.id) return;
     if (r.text) {
       const near = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
-      pre.textContent += r.text;
+      if (EN) { S.log.raw = (S.log.raw || '') + r.text; pre.textContent = TM(S.log.raw); }   // 줄이 조각나 오므로 모은 원문을 통째로 바꾼다
+      else pre.textContent += r.text;
       if (near) pre.scrollTop = pre.scrollHeight;
     }
     S.log.from = r.size;
@@ -2632,9 +3516,9 @@ function stampText(s) { return String(s || '').replace(/^(\d{4})(\d{2})(\d{2})-(
 function headText(t) { return String(t || '').split('\n')[0].replace(/^결과(\([^)]*\))?: /, ''); }
 function resultVerdict(x) {
   const t = x.headline || '';
-  if (/다른 출력이 있거나|끝나지 못한/.test(t)) return ['err', '불일치'];
-  if (isQuick(x) && /앞부분이 같습니다/.test(t)) return ['', '앞부분 일치'];
-  if (/똑같은 출력|앞부분이 같습니다/.test(t)) return ['ok', '일치'];
+  if (/다른 출력이 있거나|끝나지 못한/.test(t)) return ['err', T('불일치')];
+  if (isQuick(x) && /앞부분이 같습니다/.test(t)) return ['', T('앞부분 일치')];
+  if (/똑같은 출력|앞부분이 같습니다/.test(t)) return ['ok', T('일치')];
   return null;
 }
 const resultModel = x => (x.kind === '교차검증' ? labelById(R1_REF) : x.model ? labelById(x.model) : '-');
@@ -2644,15 +3528,15 @@ function resultSummary(x) {
   if (x.kind === '교차검증') {
     const t = headText(x.headline);
     const tail = t.includes(' — ') ? t.split(' — ').pop() : t;
-    return (isQuick(x) ? '빠른 확인' + NB : '') + pathLabel(tail);
+    return (isQuick(x) ? T('빠른 확인') + NB : '') + TM(pathLabel(tail));
   }
-  return headText(x.headline);
+  return TM(headText(x.headline));
 }
 function resultsTable(rs) {
-  if (!rs.length) return h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '아직 결과가 없습니다'), h('div', null, '위에서 측정을 하나 실행하면 여기에 쌓입니다.'));
+  if (!rs.length) return h('div', { class: 'empty-box' }, h('div', { class: 'big' }, T('아직 결과가 없습니다')), h('div', null, T('위에서 측정을 하나 실행하면 여기에 쌓입니다.')));
   // 좁아지면(≤1200) 일시를 종류 밑으로, 휴대폰(≤640)에서는 모델 · 결과까지 종류 밑으로
   return h('div', { class: 'list' }, h('table', { class: 'data results' },
-    h('thead', null, h('tr', null, h('th', null, '종류'), h('th', { class: 'c-model' }, '모델'), h('th', { class: 'c-date' }, '일시'), h('th', { class: 'c-res' }, '결과'), h('th', { class: 'r' }, h('span', { class: 'sr' }, '동작')))),
+    h('thead', null, h('tr', null, h('th', null, T('종류')), h('th', { class: 'c-model' }, T('모델', 'th')), h('th', { class: 'c-date' }, T('일시')), h('th', { class: 'c-res' }, T('결과')), h('th', { class: 'r' }, h('span', { class: 'sr' }, T('동작'))))),
     h('tbody', null, rs.map(x => {
       const k = KIND[x.kind] || ['terminal', x.kind];
       const v = x.kind === '교차검증' ? resultVerdict(x) : null;
@@ -2666,8 +3550,8 @@ function resultsTable(rs) {
         h('td', { class: 'num small muted c-date nw' }, stampText(x.stamp)),
         h('td', { class: 'small c-res' }, h('span', { class: 'row nowrap g8' }, vt, h('span', { class: 'ell', 'data-tip': sum, 'data-tip-pos': 'top' }, sum))),
         h('td', { class: 'r nw' },
-          h('button', { class: 'icon-btn', 'data-tip': '결과 보기', 'data-tip-pos': 'left', 'aria-label': '결과 보기', onclick: () => openResult(x.name) }, I('chevR')),
-          h('a', { class: 'icon-btn', 'data-tip': 'zip 내보내기', 'data-tip-pos': 'left', 'aria-label': 'zip 내보내기', href: '/api/results/zip?name=' + encodeURIComponent(x.name) }, I('download'))));
+          h('button', { class: 'icon-btn', 'data-tip': T('결과 보기'), 'data-tip-pos': 'left', 'aria-label': T('결과 보기'), onclick: () => openResult(x.name) }, I('chevR')),
+          h('a', { class: 'icon-btn', 'data-tip': T('zip 내보내기'), 'data-tip-pos': 'left', 'aria-label': T('zip 내보내기'), href: '/api/results/zip?name=' + encodeURIComponent(x.name) }, I('download'))));
     }))));
 }
 async function getFile(name, file) {
@@ -2681,64 +3565,64 @@ function diagLabel(k) {
   const alt = /\(31단계 후보\)/.test(s);
   s = s.replace(/\s*\(31단계 후보\)/, '');
   let m;
-  if ((m = /^슬롯 (\d+) 걸음 문맥 (\d+)$/.exec(s))) s = `동시 ${m[1]}개 생성 · 문맥 ${m[2]}`;
-  else if ((m = /^(\d+) 줄 문맥 (\d+)$/.exec(s))) s = `${m[1]}행 일괄 처리 · 문맥 ${m[2]}`;
-  else if ((m = /^생성 문맥 (\d+)$/.exec(s))) s = `생성 · 문맥 ${m[1]}`;
-  else if ((m = /^프롬프트 (\d+)$/.exec(s))) s = `프롬프트 ${m[1]}토큰`;
-  return alt ? s + ' · 대체 커널' : s;
+  if ((m = /^슬롯 (\d+) 걸음 문맥 (\d+)$/.exec(s))) s = T`동시 ${m[1]}개 생성 · 문맥 ${m[2]}`;
+  else if ((m = /^(\d+) 줄 문맥 (\d+)$/.exec(s))) s = T`${m[1]}행 일괄 처리 · 문맥 ${m[2]}`;
+  else if ((m = /^생성 문맥 (\d+)$/.exec(s))) s = T`생성 · 문맥 ${m[1]}`;
+  else if ((m = /^프롬프트 (\d+)$/.exec(s))) s = T`프롬프트 ${m[1]}토큰`;
+  return alt ? s + T(' · 대체 커널') : s;
 }
 async function openResult(name) {
-  modal(h('div', { class: 'muted' }, '불러오는 중…'), null, true);
+  modal(h('div', { class: 'muted' }, T('불러오는 중…')), null, true);
   const [txt, summary, speed, diag, env] = await Promise.all([getFile(name, '결과.txt'), getFile(name, 'summary.json'), getFile(name, 'speed.json'), getFile(name, 'diag.json'), getFile(name, 'environment.json')]);
   const kind = name.split('-')[0];
   const k = KIND[kind] || ['terminal', kind];
   const stamp = (name.match(/(\d{8}-\d{6})$/) || [])[1];
   const quick = kind === '교차검증' && (/빠름/.test(name) || /빠른 확인|줄인 판/.test(txt || ''));
   const modelTxt = kind === '교차검증' ? labelById(R1_REF) : (speed && speed.model) ? labelById(speed.model) : (env && env.model) ? labelById(env.model) : '';
-  const extra = speed ? ` · 동시 ${speed.slots}개 · 문맥 ${fmtCtx(speed.context)}` : '';
-  const eyebrow = [k[1] + (quick ? ' · 빠른 확인(문제 2개 · 64토큰)' : ''), modelTxt + extra, stamp ? stampText(stamp) : ''].filter(Boolean).join(' · ');
-  let title = headText(txt) || name;
-  if (kind === '진단') title = '하드웨어 진단 결과';
-  if (kind === '속도') title = '속도 측정 결과';
+  const extra = speed ? T` · 동시 ${speed.slots}개 · 문맥 ${fmtCtx(speed.context)}` : '';
+  const eyebrow = [k[1] + (quick ? T(' · 빠른 확인(문제 2개 · 64토큰)') : ''), modelTxt + extra, stamp ? stampText(stamp) : ''].filter(Boolean).join(' · ');
+  let title = TM(headText(txt)) || name;
+  if (kind === '진단') title = T('하드웨어 진단 결과');
+  if (kind === '속도') title = T('속도 측정 결과');
   const parts = [h('div', { class: 'row g8 muted' }, I(k[0], 's'), h('span', { class: 'eyebrow' }, eyebrow))];
   if (summary && summary.runs) {
     const runs = summary.runs;
     const allSame = runs.every(r => r.same === r.total && r.total > 0);
-    const T = runs[0] ? runs[0].total : 0;
+    const nProb = runs[0] ? runs[0].total : 0;
     const same = runs.reduce((a, r) => a + r.same, 0), tot = runs.reduce((a, r) => a + r.total, 0);
-    title = quick ? (allSame ? '앞 64토큰이 기준 PC와 같습니다 — 전체 검증은 아닙니다' : '앞부분부터 기준 PC와 다릅니다')
-      : (allSame ? `문제 ${T}개 모두 기준 PC와 출력이 같습니다` : '기준 PC와 출력이 다른 문제가 있습니다');
+    title = quick ? (allSame ? T('앞 64토큰이 기준 PC와 같습니다 — 전체 검증은 아닙니다') : T('앞부분부터 기준 PC와 다릅니다'))
+      : (allSame ? T`문제 ${nProb}개 모두 기준 PC와 출력이 같습니다` : T('기준 PC와 출력이 다른 문제가 있습니다'));
     parts.push(h('h2', { class: 'mt8' }, title),
       h('div', { class: 'res-head' },
-        h('span', { class: 'big' }, allSame ? `${T}/${T}` : `${same}/${tot}`),
-        h('span', { class: 'muted' }, quick ? '문제의 앞 64토큰이 같음' : allSame ? (runs.length > 1 ? `문제 · 경로 ${runs.length}개 모두 같음` : '문제가 같은 출력') : `${tot}회 중 ${same}회 일치(문제 ${T} × 경로 ${runs.length})`),
-        h('span', { class: 'grow' }), h('span', { class: 'tag ' + (quick && allSame ? '' : allSame ? 'ok' : 'err') }, allSame ? null : I('alert'), quick && allSame ? '앞부분 일치' : allSame ? '일치' : '불일치')));
+        h('span', { class: 'big' }, allSame ? `${nProb}/${nProb}` : `${same}/${tot}`),
+        h('span', { class: 'muted' }, quick ? T('문제의 앞 64토큰이 같음') : allSame ? (runs.length > 1 ? T`문제 · 경로 ${runs.length}개 모두 같음` : T('문제가 같은 출력')) : T`${tot}회 중 ${same}회 일치(문제 ${nProb} × 경로 ${runs.length})`),
+        h('span', { class: 'grow' }), h('span', { class: 'tag ' + (quick && allSame ? '' : allSame ? 'ok' : 'err') }, allSame ? null : I('alert'), quick && allSame ? T('앞부분 일치') : allSame ? T('일치') : T('불일치'))));
     for (const run of runs) {
       const items = [...(run.items || [])].sort((a, b) => (a.result === 'same') - (b.result === 'same'));
       const bad = items.filter(it => it.result !== 'same');
       const okRun = run.same === run.total;
-      parts.push(h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, pathLabel(run.label)), h('span', { class: 'grow' }),
-        h('span', { class: 'tag ' + (okRun ? (quick ? '' : 'ok') : 'err') }, okRun ? null : I('alert'), `${run.same}/${run.total}`), h('span', { class: 'tag dim' }, `동시 ${run.slots}개 · ${run.generate_minutes < 1 ? '1분 미만' : run.generate_minutes + '분'}`)));
-      if (run.error) parts.push(h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, run.error)));
+      parts.push(h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, TM(pathLabel(run.label))), h('span', { class: 'grow' }),
+        h('span', { class: 'tag ' + (okRun ? (quick ? '' : 'ok') : 'err') }, okRun ? null : I('alert'), `${run.same}/${run.total}`), h('span', { class: 'tag dim' }, T`동시 ${run.slots}개 · ${run.generate_minutes < 1 ? T('1분 미만') : run.generate_minutes + T('분')}`)));
+      if (run.error) parts.push(h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, TM(run.error))));
       const table = rows => h('div', { class: 'list' }, h('table', { class: 'data' },
-        h('thead', null, h('tr', null, h('th', null, '문제'), h('th', null, '판정'), h('th', { class: 'r' }, '토큰'), h('th', { class: 'r' }, '기준'), h('th', { 'data-tip': '토큰마다 로짓(점수)의 SHA-256', 'data-tip-pos': 'top' }, '단계별 해시'))),
-        h('tbody', null, rows.map(it => h('tr', null, h('td', { class: 'num', 'data-tip': `파일 ${String(it.id).padStart(2, '0')}.json`, 'data-tip-pos': 'right' }, Number(it.id) + 1),
-          h('td', null, h('span', { class: 'tag ' + (it.result === 'same' ? (quick ? '' : 'ok') : 'err') }, it.result === 'same' ? null : I('alert'), it.result === 'same' ? '같음' : it.result === 'different' ? `다름 · ${it.first_diff_char}번째 글자부터` : '오류')),
+        h('thead', null, h('tr', null, h('th', null, T('문제')), h('th', null, T('판정')), h('th', { class: 'r' }, T('토큰')), h('th', { class: 'r' }, T('기준')), h('th', { 'data-tip': T('토큰마다 로짓(점수)의 SHA-256'), 'data-tip-pos': 'top' }, T('단계별 해시')))),
+        h('tbody', null, rows.map(it => h('tr', null, h('td', { class: 'num', 'data-tip': T`파일 ${String(it.id).padStart(2, '0')}.json`, 'data-tip-pos': 'right' }, Number(it.id) + 1),
+          h('td', null, h('span', { class: 'tag ' + (it.result === 'same' ? (quick ? '' : 'ok') : 'err') }, it.result === 'same' ? null : I('alert'), it.result === 'same' ? T('같음') : it.result === 'different' ? T`다름 · ${it.first_diff_char}번째 글자부터` : T('오류'))),
           h('td', { class: 'r num' }, fmtNum(it.n)), h('td', { class: 'r num muted' }, fmtNum(it.expected_n)), h('td', { class: 'mono small muted' }, (it.logit_hashes_sha256 || '').slice(0, 16)))))));
       if (bad.length) parts.push(table(bad));
-      parts.push(h('details', { class: 'fold mt12' }, h('summary', null, I('chevR', 's'), bad.length ? `모든 문제 ${items.length}개 보기` : `문제 ${items.length}개 보기`), table(items)));
+      parts.push(h('details', { class: 'fold mt12' }, h('summary', null, I('chevR', 's'), bad.length ? T`모든 문제 ${items.length}개 보기` : T`문제 ${items.length}개 보기`), table(items)));
     }
-    if (summary.build) parts.push(h('details', { class: 'fold mt16' }, h('summary', null, I('chevR', 's'), '빌드 · 커널 해시'),
+    if (summary.build) parts.push(h('details', { class: 'fold mt16' }, h('summary', null, I('chevR', 's'), T('빌드 · 커널 해시')),
       h('div', { class: 'kv' }, Object.entries(summary.build).flatMap(([kk, v]) => [h('div', { class: 'k' }, kk), h('div', { class: 'v mono small break' }, v)]))));
   } else parts.push(h('h2', { class: 'mt8' }, title));
   if (speed && speed.cells) {
     const cells = speed.cells;
     const gen = cells.find(c => c.generate > 1 && c.prompt <= 64) || cells.find(c => c.generate > 1);
     const p512 = cells.find(c => c.generate === 1 && c.prompt === 512), p2048 = cells.find(c => c.generate === 1 && c.prompt === 2048);
-    parts.push(kpis([gen ? [fmtNum(gen.tokens_per_s, 1), '생성 토큰/초'] : null, p512 ? [fmtNum(p512.tokens_per_s), '프롬프트 토큰/초(512토큰)'] : null, p2048 ? [fmtNum(p2048.tokens_per_s), '프롬프트 토큰/초(2048토큰)'] : null]),
-      h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, '측정값'), h('span', { class: 'grow' }), h('span', { class: 'small muted' }, '세 번 측정한 가운데 값')),
-      h('div', { class: 'list' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, h('th', null, '항목'), h('th', { class: 'r' }, '프롬프트 처리'), h('th', { class: 'r' }, '토큰당 생성'), h('th', { class: 'r' }, '토큰/초'))),
-        h('tbody', null, cells.map(c => h('tr', null, h('td', null, c.name),
+    parts.push(kpis([gen ? [fmtNum(gen.tokens_per_s, 1), T('생성 토큰/초')] : null, p512 ? [fmtNum(p512.tokens_per_s), T('프롬프트 토큰/초(512토큰)')] : null, p2048 ? [fmtNum(p2048.tokens_per_s), T('프롬프트 토큰/초(2048토큰)')] : null]),
+      h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, T('측정값')), h('span', { class: 'grow' }), h('span', { class: 'small muted' }, T('세 번 측정한 가운데 값'))),
+      h('div', { class: 'list' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, h('th', null, T('항목')), h('th', { class: 'r' }, T('프롬프트 처리')), h('th', { class: 'r' }, T('토큰당 생성')), h('th', { class: 'r' }, T('토큰/초')))),
+        h('tbody', null, cells.map(c => h('tr', null, h('td', null, TM(c.name)),
           h('td', { class: 'r num' }, c.prompt_ms !== undefined ? fmtNum(c.prompt_ms, 1) + ' ms' : '–'),
           h('td', { class: 'r num' }, c.ms_per_token !== undefined ? fmtNum(c.ms_per_token, 2) + ' ms' : '–'),
           h('td', { class: 'r num ink' }, fmtNum(c.tokens_per_s, c.tokens_per_s < 1000 ? 1 : 0))))))));
@@ -2748,19 +3632,19 @@ async function openResult(name) {
     const tops = floor['협력_TOPS'] > 0 ? floor['협력_TOPS'] : floor['정수텐서_TOPS'];
     const kk = diag['커널'];
     const gen = kk['생성 문맥 1024'], pr = kk['프롬프트 2048'];
-    parts.push(kpis([floor['읽기대역_GBs'] ? [fmtNum(floor['읽기대역_GBs'], 1) + ' GB/s', '메모리 대역폭'] : null, tops ? [fmtNum(tops) + ' TOPS', '정수 텐서'] : null,
-      gen ? [fmtEff(effOf(gen['배'])), '생성 · 하드웨어 한계 대비'] : null, pr ? [fmtEff(effOf(pr['배'])), '프롬프트 · 하드웨어 한계 대비'] : null]),
-      h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, '연산별 시간'), h('span', { class: 'grow' }),
-        h('span', { class: 'small muted' }, '100% = 하드웨어 한계 · 높을수록 좋습니다')),
-      h('div', { class: 'list' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, h('th', null, '연산'), h('th', { class: 'r' }, '합계'), h('th', { class: 'r' }, '한계 대비'))),
-        h('tbody', null, Object.entries(kk).map(([name, v]) => h('tr', null, h('td', { 'data-tip': /대체 커널/.test(diagLabel(name)) ? '같은 계산을 다른 방식으로 하는 후보 커널 — 비교하려고 함께 잽니다' : name !== diagLabel(name) ? '진단 도구의 이름: ' + name : null, 'data-tip-pos': 'top' }, diagLabel(name)), h('td', { class: 'r num' }, fmtNum(v['합_ms'] || 0, 2) + ' ms'),
+    parts.push(kpis([floor['읽기대역_GBs'] ? [fmtNum(floor['읽기대역_GBs'], 1) + ' GB/s', T('메모리 대역폭')] : null, tops ? [fmtNum(tops) + ' TOPS', T('정수 텐서')] : null,
+      gen ? [fmtEff(effOf(gen['배'])), T('생성 · 하드웨어 한계 대비')] : null, pr ? [fmtEff(effOf(pr['배'])), T('프롬프트 · 하드웨어 한계 대비')] : null]),
+      h('div', { class: 'section-head mt24' }, h('span', { class: 'sec' }, T('연산별 시간')), h('span', { class: 'grow' }),
+        h('span', { class: 'small muted' }, T('100% = 하드웨어 한계 · 높을수록 좋습니다'))),
+      h('div', { class: 'list' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, h('th', null, T('연산')), h('th', { class: 'r' }, T('합계')), h('th', { class: 'r' }, T('한계 대비')))),
+        h('tbody', null, Object.entries(kk).map(([name, v]) => h('tr', null, h('td', { 'data-tip': /\(31단계 후보\)/.test(name) ? T('같은 계산을 다른 방식으로 하는 후보 커널 — 비교하려고 함께 잽니다') : name !== diagLabel(name) ? T('진단 도구의 이름: ') + name : null, 'data-tip-pos': 'top' }, TM(diagLabel(name))), h('td', { class: 'r num' }, fmtNum(v['합_ms'] || 0, 2) + ' ms'),
           h('td', { class: 'r num ink nw' }, v['배'] > 0 ? [h('span', { class: 'ratio' }, h('i', { style: `width:${Math.min(100, effOf(v['배']))}%` })), fmtEff(effOf(v['배']))] : '-')))))));
   }
-  if (txt && txt.split('\n').filter(Boolean).length > 1) parts.push(h('details', { class: 'fold mt16' }, h('summary', null, I('chevR', 's'), '결과.txt 원문'), h('pre', { class: 'log' }, txt)));
+  if (txt && txt.split('\n').filter(Boolean).length > 1) parts.push(h('details', { class: 'fold mt16' }, h('summary', null, I('chevR', 's'), T('결과.txt 원문')), h('pre', { class: 'log' }, txt)));
   modal(h('div', null, parts), [
-    h('button', { class: 'btn ghost needs-conn', onclick: () => api('/api/open', { what: 'result', name }).catch(e => toast(e.message, 'err')) }, I('folder', 's'), '폴더 열기'),
-    h('a', { class: 'btn', href: '/api/results/zip?name=' + encodeURIComponent(name) }, I('download', 's'), 'zip 내보내기'),
-    h('button', { class: 'btn', onclick: () => closeModal() }, '닫기')], true, '.foot .btn:last-child');
+    h('button', { class: 'btn ghost needs-conn', onclick: () => api('/api/open', { what: 'result', name }).catch(e => toast(e.message, 'err')) }, I('folder', 's'), T('폴더 열기')),
+    h('a', { class: 'btn', href: '/api/results/zip?name=' + encodeURIComponent(name) }, I('download', 's'), T('zip 내보내기')),
+    h('button', { class: 'btn', onclick: () => closeModal() }, T('닫기'))], true, '.foot .btn:last-child');
 }
 
 // ---------- 하드웨어 ----------
@@ -2771,20 +3655,20 @@ async function renderDevice() {
   const cell = (k, v, s) => h('div', { class: 'cell' }, h('div', { class: 'eyebrow' }, k), h('div', { class: 'v' }, v), s ? h('div', { class: 's' }, s) : null);
   const vk = d.layer === 'vulkan';
   put(page,
-    pageHead(d.layer ? `${LAYER[d.layer]} · ${fmtBytes(d.memory)}` : null, '하드웨어', null,
-      [h('button', { class: 'btn needs-conn', onclick: () => api('/api/device/check', {}).then(() => { resetSig(); refresh(); }).catch(e => toast(e.message, 'err')) }, I('refresh', 's'), '다시 확인')]),
-    !d.checked ? h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '확인하는 중…'))
-      : !d.layer ? h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '쓸 수 있는 GPU를 찾지 못했습니다'), h('div', null, 'NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU가 필요합니다.'),
-        d.reason ? h('details', { class: 'fold mt16 tl' }, h('summary', null, I('chevR', 's'), '확인한 내용'), h('pre', { class: 'log sans' }, d.reason)) : null)
+    pageHead(d.layer ? `${LAYER[d.layer]} · ${fmtBytes(d.memory)}` : null, T('하드웨어'), null,
+      [h('button', { class: 'btn needs-conn', onclick: () => api('/api/device/check', {}).then(() => { resetSig(); refresh(); }).catch(e => toast(e.message, 'err')) }, I('refresh', 's'), T('다시 확인'))]),
+    !d.checked ? h('div', { class: 'empty-box' }, h('div', { class: 'big' }, T('확인하는 중…')))
+      : !d.layer ? h('div', { class: 'empty-box' }, h('div', { class: 'big' }, T('쓸 수 있는 GPU를 찾지 못했습니다')), h('div', null, T('NVIDIA RTX 30 시리즈 이상(CUDA) 또는 Vulkan 1.3을 지원하는 GPU가 필요합니다.')),
+        d.reason ? h('details', { class: 'fold mt16 tl' }, h('summary', null, I('chevR', 's'), T('확인한 내용')), h('pre', { class: 'log sans' }, TM(d.reason))) : null)
         : h('div', { class: 'spec' },
           cell('GPU', d.name || '-', d.vendor || ''),
-          cell('백엔드', LAYER[d.layer], d.layer === 'cuda' ? 'NVIDIA 드라이버(nvcuda.dll)' : 'Vulkan 드라이버(vulkan-1.dll)'),
-          cell('그래픽 메모리', fmtBytes(d.memory), 'VRAM'),
-          cell('드라이버', d.driver || '-', ''),
-          cell('커널', vk ? (d.variant === '공유32' ? '공유 메모리 32 KB용' : '표준') : 'CUDA용', '처음 한 번 이 GPU에 맞춰 만듭니다'),
-          cell('행렬 가속', vk ? (d.coop ? `텐서 코어(${d.coop})` : '없음 — 일반 연산') : '텐서 코어(정수)', vk && !d.coop ? '텐서 코어를 쓸 수 없어 일반 연산으로 대신합니다' : '')),
-    h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, 'Vulkan 장치')), h('div', { id: 'dev-vk', class: 'col' })),
-    h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, 'CUDA 장치')), h('div', { id: 'dev-cu', class: 'col' })));
+          cell(T('백엔드'), LAYER[d.layer], d.layer === 'cuda' ? T('NVIDIA 드라이버(nvcuda.dll)') : T('Vulkan 드라이버(vulkan-1.dll)')),
+          cell(T('그래픽 메모리'), fmtBytes(d.memory), 'VRAM'),
+          cell(T('드라이버'), d.driver || '-', ''),
+          cell(T('커널'), vk ? (d.variant === '공유32' ? T('공유 메모리 32 KB용') : T('표준')) : T('CUDA용'), T('처음 한 번 이 GPU에 맞춰 만듭니다')),
+          cell(T('행렬 가속'), vk ? (d.coop ? T`텐서 코어(${d.coop})` : T('없음 — 일반 연산')) : T('텐서 코어(정수)'), vk && !d.coop ? T('텐서 코어를 쓸 수 없어 일반 연산으로 대신합니다') : '')),
+    h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, T('Vulkan 장치'))), h('div', { id: 'dev-vk', class: 'col' })),
+    h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, T('CUDA 장치'))), h('div', { id: 'dev-cu', class: 'col' })));
   try {
     const raw = await api('/api/device');
     const vl = raw.vulkan && raw.vulkan['장치들'] ? raw.vulkan['장치들'] : [];
@@ -2792,19 +3676,19 @@ async function renderDevice() {
     put($('#dev-vk'), vl.length ? h('div', { class: 'list' }, vl.map(v => {
       const integrated = v['종류'] === 1;
       return h('div', { class: 'item' },
-        h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, v['이름']), integrated ? h('span', { class: 'tag dim' }, '내장') : null),
-          h('div', { class: 'sub' }, `Vulkan ${v['API']}${NB}드라이버 ${v['드라이버'] ? v['드라이버']['정보'] : '-'}${NB}공유 메모리 ${(v['공유메모리'] / 1024) | 0}\u00a0KB${NB}텐서 코어 ${v['권하는_협력'] || '없음'}`),
-          ...(v['막는것'] || []).map(x => h('div', { class: 'sub bad' }, x))),
-        h('div', { class: 'meta' }, v['고름'] && vk ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), '사용 중') : null,
-          v['돌릴수있음'] ? h('span', { class: 'tag' }, I('check'), '지원') : h('span', { class: 'tag err' }, I('alert'), '지원 안 함'),
-          h('span', { class: 'num muted memv', 'data-tip': integrated ? '내장 GPU는 시스템 메모리를 나눠 씁니다' : 'Vulkan이 알려 준 장치 메모리 — 드라이버가 예약한 만큼 작게 보일 수 있습니다', 'data-tip-pos': 'left' }, (integrated ? '공유 ' : '') + fmtBytes(v['장치메모리']))));
-    })) : h('div', { class: 'muted' }, '없음'));
+        h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, v['이름']), integrated ? h('span', { class: 'tag dim' }, T('내장')) : null),
+          h('div', { class: 'sub' }, T`Vulkan ${v['API']}${NB}드라이버 ${v['드라이버'] ? v['드라이버']['정보'] : '-'}${NB}공유 메모리 ${(v['공유메모리'] / 1024) | 0}\u00a0KB${NB}텐서 코어 ${v['권하는_협력'] || T('없음')}`),
+          ...(v['막는것'] || []).map(x => h('div', { class: 'sub bad' }, TM(x)))),
+        h('div', { class: 'meta' }, v['고름'] && vk ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), T('사용 중')) : null,
+          v['돌릴수있음'] ? h('span', { class: 'tag' }, I('check'), T('지원')) : h('span', { class: 'tag err' }, I('alert'), T('지원 안 함')),
+          h('span', { class: 'num muted memv', 'data-tip': integrated ? T('내장 GPU는 시스템 메모리를 나눠 씁니다') : T('Vulkan이 알려 준 장치 메모리 — 드라이버가 예약한 만큼 작게 보일 수 있습니다'), 'data-tip-pos': 'left' }, (integrated ? T('공유 ') : '') + fmtBytes(v['장치메모리']))));
+    })) : h('div', { class: 'muted' }, T('없음', 'empty')));
     const cl = raw.cuda && raw.cuda.devices ? raw.cuda.devices : [];
     put($('#dev-cu'), cl.length ? h('div', { class: 'list' }, cl.map(c => h('div', { class: 'item' },
-      h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, c.name)), h('div', { class: 'sub' }, `Compute Capability ${c.cc_major}.${c.cc_minor}${NB}SM ${c.sm}개${NB}CUDA ${(raw.cuda.driver_version / 1000) | 0}.${(raw.cuda.driver_version % 1000) / 10}`)),
-      h('div', { class: 'meta' }, d.layer === 'cuda' && c.ok ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), '사용 중') : null, c.ok ? h('span', { class: 'tag' }, I('check'), '지원') : h('span', { class: 'tag err' }, I('alert'), '8.0 미만 · 지원 안 함'),
+      h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, c.name)), h('div', { class: 'sub' }, T`Compute Capability ${c.cc_major}.${c.cc_minor}${NB}SM ${c.sm}개${NB}CUDA ${(raw.cuda.driver_version / 1000) | 0}.${(raw.cuda.driver_version % 1000) / 10}`)),
+      h('div', { class: 'meta' }, d.layer === 'cuda' && c.ok ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), T('사용 중')) : null, c.ok ? h('span', { class: 'tag' }, I('check'), T('지원')) : h('span', { class: 'tag err' }, I('alert'), T('8.0 미만 · 지원 안 함')),
         h('span', { class: 'num muted memv' }, fmtBytes(c.memory)))))) :
-      h('div', { class: 'muted' }, raw.cuda && raw.cuda.error ? raw.cuda.error : 'CUDA 없음 — NVIDIA 드라이버(nvcuda.dll)가 필요합니다'));
+      h('div', { class: 'muted' }, raw.cuda && raw.cuda.error ? TM(raw.cuda.error) : T('CUDA 없음 — NVIDIA 드라이버(nvcuda.dll)가 필요합니다')));
   } catch (_) { }
 }
 
@@ -2862,9 +3746,9 @@ function renderSettings(force) {
   if (!changed('settings', [st.settings, st.app.version, st.app.commit, st.app.built, st.app.data_dir, st.app.models_dir, st.app.port, S.update && S.update.tag, S.vk, st.device.layer]) && !force) return;
   const focusV = force && document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.v : null;
   const s = st.settings, a = st.app;
-  const NEXT = '저장했습니다 · 다음에 모델을 불러올 때 적용됩니다';
+  const NEXT = T('저장했습니다 · 다음에 모델을 불러올 때 적용됩니다');
   const seg = h('div', {
-    class: 'seg-ctl', role: 'radiogroup', 'aria-label': 'GPU 백엔드', onkeydown: ev => {
+    class: 'seg-ctl', role: 'radiogroup', 'aria-label': T('GPU 백엔드'), onkeydown: ev => {
       if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
       const bs = [...ev.currentTarget.querySelectorAll('button')];
       const i = bs.findIndex(b => b.classList.contains('on'));
@@ -2873,20 +3757,20 @@ function renderSettings(force) {
       nx.focus();
       nx.click();
     },
-  }, [['auto', '자동'], ['cuda', 'CUDA'], ['vulkan', 'Vulkan']].map(([v, t]) =>
+  }, [['auto', T('자동')], ['cuda', 'CUDA'], ['vulkan', 'Vulkan']].map(([v, t]) =>
     h('button', {
       class: v === s.gpu_layer ? 'on' : '', 'data-v': v, role: 'radio', 'aria-checked': v === s.gpu_layer ? 'true' : 'false', tabindex: v === s.gpu_layer ? '0' : '-1', onclick: ev => {
         const me = ev.currentTarget;
         if (me.classList.contains('on')) return;
         me.parentElement.querySelectorAll('button').forEach(b => { const on = b === me; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
-        saveSettings('저장했습니다 · 하드웨어를 다시 확인합니다', true, 0, false, 'layer');
+        saveSettings(T('저장했습니다 · 하드웨어를 다시 확인합니다'), true, 0, false, 'layer');
       },
     }, t)));
   const names = (S.vk || []).slice();
   if (s.vulkan_device && !names.includes(s.vulkan_device)) names.push(s.vulkan_device);
   const showVk = s.gpu_layer === 'vulkan' || (s.gpu_layer === 'auto' && st.device.layer === 'vulkan');
-  const vkSel = h('select', { class: 'input', id: 'set-vk', 'aria-label': 'Vulkan 장치', onchange: () => saveSettings('저장했습니다 · 하드웨어를 다시 확인합니다', true, 0, false, 'vk') },
-    h('option', { value: '' }, '자동 — 첫 번째 외장 GPU'), names.map(n => h('option', { value: n, selected: n === s.vulkan_device ? true : null }, n)));
+  const vkSel = h('select', { class: 'input', id: 'set-vk', 'aria-label': T('Vulkan 장치', 'one'), onchange: () => saveSettings(T('저장했습니다 · 하드웨어를 다시 확인합니다'), true, 0, false, 'vk') },
+    h('option', { value: '' }, T('자동 — 첫 번째 외장 GPU')), names.map(n => h('option', { value: n, selected: n === s.vulkan_device ? true : null }, n)));
   // 숫자 칸은 다 쓴 뒤(칸을 떠날 때 · Enter)에만 저장한다 — 쓰는 도중의 값(1 → 16 → 163 …)을 저장하지 않게
   const numIn = (id, lo, hi, step, v, label) => {
     const e = h('input', { type: 'number', id, min: String(lo), max: String(hi), step: step ? String(step) : null, value: v, 'aria-label': label });
@@ -2894,41 +3778,44 @@ function renderSettings(force) {
     e.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); e.blur(); } });
     return e;
   };
-  const slots = numIn('set-slots', 1, 8, 0, s.slots, '동시 처리 수');
-  const ctx = numIn('set-ctx', 1024, 131072, 1024, s.context, '채팅마다 문맥 길이');
+  const slots = numIn('set-slots', 1, 8, 0, s.slots, T('동시 처리 수'));
+  const ctx = numIn('set-ctx', 1024, 131072, 1024, s.context, T('채팅마다 문맥 길이'));
   const defDir = (a.data_dir || '') + '모델\\';
-  const mdir = h('input', { type: 'text', id: 'set-mdir', value: s.models_dir || '', placeholder: '기본 폴더 사용', 'aria-label': '모델 폴더' });
-  const commitDir = () => { if (mdir.value.trim() !== (s.models_dir || '')) saveSettings('저장했습니다 · 다음 실행부터 적용됩니다', false, 0, true, 'set-mdir'); };
+  const mdir = h('input', { type: 'text', id: 'set-mdir', value: s.models_dir || '', placeholder: T('기본 폴더 사용'), 'aria-label': T('모델 폴더') });
+  const commitDir = () => { if (mdir.value.trim() !== (s.models_dir || '')) saveSettings(T('저장했습니다 · 다음 실행부터 적용됩니다'), false, 0, true, 'set-mdir'); };
   mdir.addEventListener('change', commitDir);
   mdir.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); mdir.blur(); } });
-  const pickDir = h('button', { class: 'btn needs-conn', 'aria-label': '모델 폴더 찾아보기', onclick: () => browse(mdir.value.trim() || defDir, p => { mdir.value = p; commitDir(); }) }, I('folder', 's'), '찾아보기');
-  const upd = h('input', { type: 'checkbox', id: 'set-upd', 'aria-label': '새 버전 알림', onchange: () => saveSettings('저장했습니다', false, 0, false, 'set-upd') });
+  const pickDir = h('button', { class: 'btn needs-conn', 'aria-label': T('모델 폴더 찾아보기'), onclick: () => browse(mdir.value.trim() || defDir, p => { mdir.value = p; commitDir(); }) }, I('folder', 's'), T('찾아보기'));
+  const upd = h('input', { type: 'checkbox', id: 'set-upd', 'aria-label': T('새 버전 알림'), onchange: () => saveSettings(T('저장했습니다'), false, 0, false, 'set-upd') });
   upd.checked = !!s.update_check;
-  const savedMark = id => h('span', { class: 'saved', 'data-saved': id, hidden: !(SAVED.row === id && Date.now() - SAVED.t < 2400) }, I('check', 's'), '저장됨');
+  const savedMark = id => h('span', { class: 'saved', 'data-saved': id, hidden: !(SAVED.row === id && Date.now() - SAVED.t < 2400) }, I('check', 's'), T('저장됨'));
   const row = (t, d, c, extra, id) => h('div', { class: 'set-row-wrap' }, h('div', { class: 'set-row' }, h('div', { class: 'l' }, h('div', { class: 't' }, t, id ? savedMark(id) : null), d ? h('div', { class: 'd' }, d) : null),
     h('div', { class: 'c' }, c)), extra || null);
-  const upTxt = S.update && S.update.tag ? (newer(S.update.tag, a.version) ? ` · 새 버전 ${S.update.tag} 있음` : ' · 최신 버전') : '';
+  const langSel = h('select', { class: 'input', id: 'set-lang', 'aria-label': EN ? 'Language' : '언어', onchange: ev => { store('geulpu.lang', ev.target.value); location.reload(); } },
+    [['auto', T('자동 — 브라우저 언어')], ['ko', '한국어'], ['en', 'English']].map(([v, t]) => h('option', { value: v, selected: v === LANGPREF ? true : null }, t)));
+  const upTxt = S.update && S.update.tag ? (newer(S.update.tag, a.version) ? T` · 새 버전 ${S.update.tag} 있음` : T(' · 최신 버전')) : '';
   put(page,
-    pageHead(null, '설정', '바꾼 값은 바로 저장됩니다(숫자 · 글 칸은 다 쓰고 칸을 떠날 때).'),
+    pageHead(null, T('설정'), T('바꾼 값은 바로 저장됩니다(숫자 · 글 칸은 다 쓰고 칸을 떠날 때).')),
     h('div', { class: 'settings' },
-      h('div', { class: 'sec' }, '실행'),
+      h('div', { class: 'sec' }, T('실행', 'sec')),
       h('div', { class: 'set-group' },
-        row('GPU 백엔드', '자동은 NVIDIA GPU면 CUDA, 그 밖에는 Vulkan을 씁니다.', seg, null, 'layer'),
-        showVk ? row('Vulkan 장치', 'GPU가 여러 개일 때 Vulkan으로 쓸 장치', vkSel, null, 'vk') : null,
-        row('동시 처리 수', '동시에 답할 수 있는 채팅 수(1~8) · 다음에 모델을 불러올 때 적용', slots, null, 'set-slots'),
-        row('채팅마다 문맥 길이', '토큰 · 그래픽 메모리에 맞지 않으면 엔진이 자동으로 줄입니다. 다음에 모델을 불러올 때 적용', ctx, null, 'set-ctx')),
-      h('div', { class: 'sec mt16' }, '저장 위치'),
+        row(T('GPU 백엔드'), T('자동은 NVIDIA GPU면 CUDA, 그 밖에는 Vulkan을 씁니다.'), seg, null, 'layer'),
+        showVk ? row(T('Vulkan 장치', 'one'), T('GPU가 여러 개일 때 Vulkan으로 쓸 장치'), vkSel, null, 'vk') : null,
+        row(T('동시 처리 수'), T('동시에 답할 수 있는 채팅 수(1~8) · 다음에 모델을 불러올 때 적용'), slots, null, 'set-slots'),
+        row(T('채팅마다 문맥 길이'), T('토큰 · 그래픽 메모리에 맞지 않으면 엔진이 자동으로 줄입니다. 다음에 모델을 불러올 때 적용'), ctx, null, 'set-ctx')),
+      h('div', { class: 'sec mt16' }, T('저장 위치')),
       h('div', { class: 'set-group' },
-        row('모델 폴더', `다음 실행부터 적용됩니다. 기본: ${defDir}`, h('div', { class: 'row nowrap w100' }, mdir, pickDir), h('div', { class: 'set-err', id: 'set-mdir-err', hidden: true }), 'set-mdir'),
-        row('데이터 폴더', h('span', { class: 'break' }, a.data_dir), h('button', { class: 'btn sm needs-conn', onclick: () => api('/api/open', { what: 'data' }).catch(e => toast(e.message, 'err')) }, I('folder', 's'), '열기'))),
-      h('div', { class: 'sec mt16' }, '정보'),
+        row(T('모델 폴더'), T`다음 실행부터 적용됩니다. 기본: ${defDir}`, h('div', { class: 'row nowrap w100' }, mdir, pickDir), h('div', { class: 'set-err', id: 'set-mdir-err', hidden: true }), 'set-mdir'),
+        row(T('데이터 폴더'), h('span', { class: 'break' }, a.data_dir), h('button', { class: 'btn sm needs-conn', onclick: () => api('/api/open', { what: 'data' }).catch(e => toast(e.message, 'err')) }, I('folder', 's'), T('열기')))),
+      h('div', { class: 'sec mt16' }, T('정보', 'about')),
       h('div', { class: 'set-group' },
-        row('새 버전 알림', '앱을 열 때 GitHub에서 최신 버전 번호만 확인합니다.', h('label', { class: 'switch' }, upd, h('i')), null, 'set-upd'),
-        row(`GeulPU v${a.version}`, `${a.commit ? '커밋 ' + a.commit.slice(0, 7) : '개발 빌드'}${a.built ? ' · ' + a.built.replace('T', ' ').replace('Z', ' UTC') : ''}${upTxt}`,
-          h('div', { class: 'row' }, h('a', { class: 'btn sm', href: 'https://github.com/wwoosshh/GeulPU/releases', target: '_blank', rel: 'noopener' }, '릴리스', I('ext', 's')),
-            h('a', { class: 'btn sm', href: 'https://github.com/wwoosshh/GeulPU', target: '_blank', rel: 'noopener' }, '소스', I('ext', 's')))),
-        row('API 주소', '다른 프로그램은 OpenAI 호환 API로 쓸 수 있습니다(이 PC 안에서만).', h('div', { class: 'row nowrap' }, h('span', { class: 'mono small muted' }, `127.0.0.1:${a.port}/v1`),
-          h('button', { class: 'icon-btn', 'data-tip': '주소 복사', 'data-tip-pos': 'left', 'aria-label': 'API 주소 복사', onclick: () => copyText(`http://127.0.0.1:${a.port}/v1`).then(ok => ok && toast('복사했습니다', 'ok')) }, I('copy')))))));
+        row(EN ? 'Language · 언어' : '언어 · Language', T('화면에 쓰는 말입니다. 바꾸면 화면을 다시 불러옵니다.'), langSel),
+        row(T('새 버전 알림'), T('앱을 열 때 GitHub에서 최신 버전 번호만 확인합니다.'), h('label', { class: 'switch' }, upd, h('i')), null, 'set-upd'),
+        row(`GeulPU v${a.version}`, `${a.commit ? T('커밋 ') + a.commit.slice(0, 7) : T('개발 빌드')}${a.built ? ' · ' + a.built.replace('T', ' ').replace('Z', ' UTC') : ''}${upTxt}`,
+          h('div', { class: 'row' }, h('a', { class: 'btn sm', href: 'https://github.com/wwoosshh/GeulPU/releases', target: '_blank', rel: 'noopener' }, T('릴리스'), I('ext', 's')),
+            h('a', { class: 'btn sm', href: 'https://github.com/wwoosshh/GeulPU', target: '_blank', rel: 'noopener' }, T('소스'), I('ext', 's')))),
+        row(T('API 주소'), T('다른 프로그램은 OpenAI 호환 API로 쓸 수 있습니다(이 PC 안에서만).'), h('div', { class: 'row nowrap' }, h('span', { class: 'mono small muted' }, `127.0.0.1:${a.port}/v1`),
+          h('button', { class: 'icon-btn', 'data-tip': T('주소 복사'), 'data-tip-pos': 'left', 'aria-label': T('API 주소 복사'), onclick: () => copyText(`http://127.0.0.1:${a.port}/v1`).then(ok => ok && toast(T('복사했습니다'), 'ok')) }, I('copy')))))));
   if (focusV) { const b = page.querySelector(`.seg-ctl button[data-v="${focusV}"]`); if (b) b.focus(); }
 }
 
