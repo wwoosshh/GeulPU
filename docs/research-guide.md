@@ -236,8 +236,8 @@ Q4_K_M answers **`Vincent van Gogh`** (Vin 45.4 % · Leon 32.8 % · P 21.3 %). O
 **Question**: which part of `The capital of Australia is Sydney.` does the model find odd?
 
 <p>
-<img align="top" src="img/guide/11-score-en.png" width="440" alt="Score — (1) text (2) context: no context (3) total log-prob −20.451, perplexity 30.220 (4) token strip">
-<img align="top" src="img/guide/11b-score-step-en.png" width="440" alt="Score — (1) step 5 ' Sydney' (2) probability 1.92 %, rank 9 (3) top alternative ' Canberra' 26.7 %">
+<img align="top" src="img/guide/11-score-en.png" width="49%" alt="Score — (1) text (2) context: no context (3) total log-prob −20.451, perplexity 30.220 (4) token strip">
+<img align="top" src="img/guide/11b-score-step-en.png" width="49%" alt="Score — (1) step 5 ' Sydney' (2) probability 1.92 %, rank 9 (3) top alternative ' Canberra' 26.7 %">
 </p>
 
 1. In **Score**, paste the text **(1)**, set **(2) Context** to "No context", keep the model at Q8_0 and press **Score**.
@@ -258,8 +258,8 @@ question). The model is then the answer's model.
 **Question**: can someone else see exactly the numbers I saw, on their own PC?
 
 <p>
-<img align="top" src="img/guide/12-repro-en.png" width="440" alt="Reproduce — (1) fingerprints, model file, made on (2) re-run and check: all 5 steps match (3) export capsule">
-<img align="top" src="img/guide/13-repro-capsule-en.png" width="440" alt="Reproduce — (4) load capsule and check (5) bit-identical (6) five engine binaries: matches reference">
+<img align="top" src="img/guide/12-repro-en.png" width="49%" alt="Reproduce — (1) fingerprints, model file, made on (2) re-run and check: all 5 steps match (3) export capsule">
+<img align="top" src="img/guide/13-repro-capsule-en.png" width="49%" alt="Reproduce — (4) load capsule and check (5) bit-identical (6) five engine binaries: matches reference">
 </p>
 
 In **Reproduce**, with the original answer (version 1) selected:
@@ -287,8 +287,8 @@ python -I 도구/캡슐확인.py capsule.json Qwen2.5-7B-Instruct-Q8_0.gguf
 ### Getting the data out
 
 <p>
-<img align="top" src="img/guide/14-export-en.png" width="440" alt="Export — (1) this answer's token table (JSON, CSV) (2) score A's answer under B's prompt (3) scored text">
-<img align="top" src="img/guide/15-export-python-en.png" width="440" alt="Export — (1) Python code that fetches the same values from the API">
+<img align="top" src="img/guide/14-export-en.png" width="49%" alt="Export — (1) this answer's token table (JSON, CSV) (2) score A's answer under B's prompt (3) scored text">
+<img align="top" src="img/guide/15-export-python-en.png" width="49%" alt="Export — (1) Python code that fetches the same values from the API">
 </p>
 
 **Export** gives you every number the panel shows, as files.
