@@ -324,6 +324,18 @@ def 시험_머리정규화(r):
          f"머리 {int(정상.sum())} · 최대 {float(상대.max()):.2e} · 가운데 {float(np.median(상대)):.2e}")
 
 
+def 시험_로그확률(r):
+    """38단계 — 로그확률(계약 5.2): 적힌 exp 의 배열판 대 하나판, 적힌 log 대 바르게 반올림한 ln(1 ulp 안), numpy 판 대 한 칸씩
+    (16 구간의 차례 · 상위 k), Σ exp ≈ 1 — 계약/로그확률.py 의 자체시험."""
+    import 로그확률 as LP          # noqa: E402 — 계약/ 은 위에서 sys.path 에 넣었다
+
+    def 알림(줄):
+        됨 = 줄.startswith("통과")
+        이름, _, 덧 = 줄.partition("  ")[2].partition(" — ")
+        확인(f"로그확률 — {이름}", 됨, 덧)
+    LP.자체시험(r, 알림)
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     r = np.random.default_rng(27)
@@ -332,6 +344,7 @@ def main():
     시험_K(r)
     시험_규칙R(r)
     시험_머리정규화(r)
+    시험_로그확률(r)
     print("계약 자체 시험:", "모두 통과" if not 실패 else f"못 미침 {실패}", flush=True)
     return 0 if not 실패 else 1
 

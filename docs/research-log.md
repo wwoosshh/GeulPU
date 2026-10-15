@@ -1,4 +1,4 @@
-# Research log — how GeulPU came about (stages 0–37, 2026-10-08 to 10-15)
+# Research log — how GeulPU came about (stages 0–38, 2026-10-08 to 10-15)
 
 *English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
 `research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
@@ -100,6 +100,24 @@ same GGUF file: r < 1 means GeulPU is faster.
   the same code before the commit, without an official run. App 0.4.0: Qwen3, a model finder that browses every Hugging Face GGUF repo
   sorted by trending, downloads, likes or recency (runnable models only by default, with a detail pane), and install/usage guides in
   Korean and English ([37단계](../문서/37단계.md)).
+- **Stage 38 — a research panel: noise-free observation, intervention and comparison.** Log-probabilities became contract §5.2
+  (float64, sixteen fixed vocabulary ranges summed in a fixed order, the written exp, and fdlibm's log with bit-defined constants; the
+  Python and geul versions agree bit for bit). The server gained log-probabilities, echo scoring, `max_tokens: 0` and the vLLM-style
+  tokenizer endpoints; the app gained a research panel (Observe · Intervene · Compare · Score · Reproduce · Export, in both languages).
+  Kernels, generator and backends are unchanged. 38a passed (four models × two backends: the top 20 and the entropy equal the Python
+  reference to the float64 bit); 38b passed (generation = scoring, with the cache on and off, concurrent slots, CUDA ↔ Vulkan); 38c passed
+  (lm-evaluation-harness 0.4.13 through the remote tokenizer — per-item results of arc_easy 500 and gsm8k 100 identical across
+  num_concurrent 1 ↔ 8 and CUDA ↔ Vulkan); 38d passed (branches, comparisons, scores and exports produced by clicking the panel equal
+  the API's values, three models); 38e passed (twelve capsules exported on CUDA verify bit for bit on Vulkan, and six verify on the CPU reference without a GPU);
+  38f passed after a fix (without log-probabilities generation is as fast as before, 1.003; R1 cross-check 32/32 and the Vulkan quick
+  check; with top-5 log-probabilities during generation the first measurement was 1.31× and 1.39×, over the limit, and moving the
+  computation behind the next step's GPU work brought it to 1.017× and 1.027×); 38g passed (both languages, phone width, the earlier
+  tests). Record: llama.cpp b11643 returns no prompt log-probabilities for echo, so lm-eval's log-likelihood tasks cannot run on it,
+  and its gsm8k outputs differed in 41 of 100 items between num_concurrent 1 and 8. An independent review (a fresh agent playing a
+  researcher, reading only the README) finished all four tasks; before the release it led to three fixes — capsules rewritten by
+  Python's `json.dump` lost their seed in the panel's check, the chat's tokens/s left out the step that sampled EOS, and small numbers
+  were shown with one significant digit — and its wider requests (distribution-level comparison, a pinned model with provenance in the
+  API, a capsule view) are the next candidates ([38단계](../문서/38단계.md)).
 
 ## What remains (after stage 30)
 

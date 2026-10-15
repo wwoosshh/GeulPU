@@ -794,3 +794,90 @@ details.fold > :not(summary) { margin-top: 12px; }
   .mob-m { display: inline; }
   #chat.empty #composer { padding-bottom: 16px; }
 }
+
+/* ---------- 연구 패널(38단계) — 채팅 오른쪽 칸. 1100px 아래에서는 채팅 위에 덮는 판, 휴대폰 폭에서는 화면 전체 ---------- */
+#lab { width: 460px; flex: none; border-left: 1px solid var(--hairline); display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--canvas); }
+.lab-head { flex: none; display: flex; flex-direction: column; gap: 12px; padding: 12px 12px 12px 20px; border-bottom: 1px solid var(--hairline); }
+.lab-head > .row { min-height: 32px; }
+.lab-title { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 15px; }
+.seg-ctl.lab-tabs { display: flex; margin-right: 8px; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.lab-tabs::-webkit-scrollbar { display: none; }
+.seg-ctl.lab-tabs button { flex: 1 0 auto; height: 28px; padding: 0 8px; font-size: 13px; }
+.lab-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 32px; overscroll-behavior: contain; }
+.lab-busy { display: flex; align-items: center; gap: 8px; color: var(--body); font-size: 13px; line-height: 19px; margin-bottom: 12px; }
+.lab-err { margin-bottom: 12px; }
+.lab-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 32px 12px; }
+.lab-empty svg { color: var(--faint); }
+.lab-ans { display: flex; flex-direction: column; gap: 4px; }
+.sec.lab-sec { font-size: 15px; line-height: 22px; margin-top: 12px; }
+.kpis.lab-kpis { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.kpis.lab-kpis .kpi { padding: 10px 12px; }
+.kpis.lab-kpis .kpi .v { font-size: 17px; line-height: 24px; }
+.kpis.lab-kpis .kpi .l { overflow-wrap: anywhere; }
+#lab input.lab-num { width: 96px; }
+#lab input.lab-seed { width: 100%; font-family: var(--font-mono); font-size: 13px; }
+#lab textarea.lab-ta { resize: vertical; min-height: 96px; font-size: 14px; line-height: 21px; }
+.lab-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.lab-form label { display: contents; }
+.lab-form label > span { color: var(--mute); font-size: 13px; }
+.lab-form input.lab-num { justify-self: start; }
+.lab-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.lab-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.lab-legend .lg { display: inline-block; width: 18px; height: 12px; border-radius: 3px; }
+.lab-legend .lg.b3 { background: rgba(255, 255, 255, 0.24); }
+.lab-legend .lg.frag { border-bottom: 2px dashed var(--body); border-radius: 0; height: 8px; }
+.lab-legend .lg.pick { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* 토큰 띠 — 글의 흐름 그대로(줄바꿈 토큰은 ↵ 뒤에서 줄이 바뀐다). 띠 하나가 Tab 정거장 하나 */
+.tokstrip {
+  max-height: 340px; overflow: auto; padding: 12px; border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--canvas-raise);
+  font: 400 14px/26px var(--font-sans); color: var(--body); white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; overscroll-behavior: contain;
+}
+.tokstrip:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+.tok { border-radius: 3px; padding: 1px 0; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.tokstrip .tok:hover { box-shadow: inset 0 0 0 1px var(--line-pill-hover); }
+.tok.b1 { background: rgba(255, 255, 255, 0.06); }
+.tok.b2 { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
+.tok.b3 { background: rgba(255, 255, 255, 0.24); color: var(--ink); }
+.tok.b4 { background: rgba(255, 255, 255, 0.4); color: var(--ink); }
+.tok.frag { text-decoration: underline dashed var(--body); text-underline-offset: 4px; }
+.tok.pick { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* 앞 토큰과 한 글자인 바이트 조각 — 글 없이 좁은 칸(점선 경계 — 누를 수 있게) */
+.tok.cont { display: inline-block; width: 5px; height: 15px; vertical-align: -2px; padding: 0; border-radius: 0 2px 2px 0; border-left: 1px dotted var(--mute); }
+.tok.sel { background: var(--ink); color: var(--canvas); box-shadow: none; }
+.tokstrip.delta .tok { cursor: default; }
+.tokstrip.delta .tok.d1.pos { background: rgba(127, 214, 164, 0.08); }
+.tokstrip.delta .tok.d2.pos { background: rgba(127, 214, 164, 0.18); }
+.tokstrip.delta .tok.d3.pos { background: rgba(127, 214, 164, 0.3); color: var(--ink); }
+.tokstrip.delta .tok.d4.pos { background: rgba(127, 214, 164, 0.45); color: var(--ink); }
+.tokstrip.delta .tok.d5.pos { background: rgba(127, 214, 164, 0.62); color: var(--canvas); }
+.tokstrip.delta .tok.d1.neg { background: rgba(255, 107, 129, 0.08); }
+.tokstrip.delta .tok.d2.neg { background: rgba(255, 107, 129, 0.18); }
+.tokstrip.delta .tok.d3.neg { background: rgba(255, 107, 129, 0.3); color: var(--ink); }
+.tokstrip.delta .tok.d4.neg { background: rgba(255, 107, 129, 0.45); color: var(--ink); }
+.tokstrip.delta .tok.d5.neg { background: rgba(255, 107, 129, 0.62); color: var(--canvas); }
+.card.lab-detail { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.lab-tokbig { font: 400 20px/28px var(--font-mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.kv.lab-kv { gap: 6px 16px; font-size: 13px; }
+.kv.lab-kv > .v { font-variant-numeric: tabular-nums; }
+.alts { display: flex; flex-direction: column; gap: 2px; }
+.alt { display: grid; grid-template-columns: minmax(0, 1fr) 88px 56px 28px; align-items: center; gap: 8px; min-height: 30px; padding: 0 0 0 8px; border-radius: 4px; }
+.alt.chosen { background: var(--fill); }
+.alt-t { font: 400 13px/20px var(--font-mono); color: var(--ink); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.alt-bar { height: 6px; border-radius: 3px; background: var(--hairline-strong); overflow: hidden; }
+.alt-bar > i { display: block; height: 100%; background: var(--body); }
+.alt-p { text-align: right; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.alt-go { font-size: 11px; color: var(--mute); text-align: center; }
+.icon-btn.sm { width: 28px; height: 28px; }
+.lab-vs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+table.data.lab-table th, table.data.lab-table td { padding: 8px 12px; font-size: 13px; }
+.lab-out { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--canvas-card); }
+pre.log.lab-code { max-height: 220px; white-space: pre; word-break: normal; overflow: auto; font-size: 12px; line-height: 18px; }
+@media (max-width: 1100px) {
+  #lab { position: absolute; z-index: 28; right: 0; top: 0; bottom: 0; width: min(460px, 100%); box-shadow: -16px 0 48px rgba(0, 0, 0, 0.5); }
+}
+@media (max-width: 640px) {
+  #lab { width: 100%; border-left: 0; }
+  .lab-head { padding: 8px 8px 12px 16px; }
+  .lab-body { padding: 12px 16px 24px; }
+  .alt { grid-template-columns: minmax(0, 1fr) 56px 52px 28px; }
+}

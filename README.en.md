@@ -9,7 +9,10 @@ conversations never leave the PC.
 
 The engine is written in **geul (글)**, a Korean programming language — from the GPU kernels to the inference server and the app. It
 runs on the graphics driver alone, without the CUDA toolkit, Python or PyTorch, and its precision is a written contract, so its
-results are **bit-identical** to a CPU reference implementation ([What is different](#what-is-different)).
+results are **bit-identical** to a CPU reference implementation ([What is different](#what-is-different)). So scoring the same text
+again gives the same probabilities on any PC or GPU, and the **research panel** lets you inspect every token's probability, branch
+with one token changed, compare against another model or prompt, and check someone else's result to the bit
+([research panel](#5-research-panel--per-token-probabilities--intervene--compare--reproduce)).
 
 > It loses only what is written down — and it shows what losing less costs.
 
@@ -126,10 +129,43 @@ memory right away; **Browse models** opens Find models, described below.
 GPU backend (Auto · CUDA · Vulkan), Vulkan device, concurrent chats (how many chats can answer at once, 1–8) and context length per
 chat, model folder, language, new-version notice. Changes are saved immediately.
 
+### 5. Research panel — per-token probabilities · intervene · compare · reproduce
+
+GeulPU's arithmetic is fixed by a written contract, so scoring the same text again gives **bit-identical** probabilities to those at
+generation time — whatever the number of concurrent requests, the cache, the GPU or the backend (CUDA · Vulkan). The difference
+between two runs therefore comes only from what you changed. Open the panel with the flask button at the top of the chat, or the
+flask under an answer (answers received in this version onward — research records stay in this browser).
+
+- **Observe** — the answer as tokens: each token's probability, rank, top-10 alternatives, entropy and the gap between the top two
+  (margin). Close calls (margin < δ — places where a slightly different computation or setting could pick another token) and steps
+  where sampling picked a token that wasn't ranked first are marked.
+- **Intervene** — pick an alternative token at any step and **branch here**: generation continues with the same settings, the same
+  seed and the same per-step random numbers, so the chosen token is the only change. You can also regenerate with only the
+  temperature, seed or max length changed. New answers stay as versions.
+- **Compare** — the first diverging step of two answers (versions or branches). For an edited question, score the same answer tokens
+  under the other prompt and see the per-token difference; score the same text with another model (e.g. Q8_0 ↔ Q4_K_M of the same
+  model) to see the effect of the quantization alone.
+- **Score** — paste text and get each token's log-probability and the perplexity.
+- **Reproduce** — fingerprints (SHA-256 — the recipe is in [contract](docs/contract.md) §5.2), re-run without the cache and check, export a **reproduction capsule** (request, result,
+  log-probabilities and logit hashes in one JSON file) and load one to check it, hashes of the engine binaries and kernels.
+- **Export** — every value shown as JSON or CSV, and Python code that fetches the same values.
+
+Probabilities are the model's distribution (temperature 1), not the distribution filtered by the sampling temperature, top-k or
+top-p. The panel computes only when you look, so chat speed is unchanged.
+
+![Research panel — Observe: pick a step in the token strip to see its top-10 alternatives and numbers](docs/img/research-observe-en.png)
+
+![Research panel — Compare: the same answer scored again with the same model's Q4_K_M file — the effect of the quantization alone, token by token](docs/img/research-compare-en.png)
+
+A capsule can be checked without a GPU, too — clone the repository (`pip install numpy`) and run
+`python -I 도구/캡슐확인.py <capsule.json> <model.gguf>`. The contract's CPU reference implementation recomputes the tokens, logit hashes
+and log-probabilities (a few minutes for 7B).
+
 ### Use it from other programs (OpenAI-compatible API)
 
 While a model is loaded in the app (sending one chat message loads it), use `http://127.0.0.1:44544/v1` as an OpenAI-compatible base
-URL. Any `model` name works — the loaded model answers.
+URL. Any `model` name works — the loaded model answers. The response's `model` echoes the name you sent, so check `/v1/models` to see
+which model answered.
 
 Paste this into a PowerShell window (it reads the response as UTF-8 so non-English text is not garbled; to save it as a `.ps1` file,
 use "UTF-8 with BOM"):
@@ -153,6 +189,38 @@ print(r.choices[0].message.content)
 - Only this PC can connect, and there is no authentication. Requests that other websites send through your browser are refused.
 - `/v1/chat/completions` uses the Qwen2.5 and Qwen3 chat templates. For DeepSeek-R1, put R1's template into `/v1/completions` yourself
   for now.
+
+**Log-probabilities · scoring · tokenization (for research)** — every value in the research panel is also available from the API.
+Contract 5.2 ([contract](docs/contract.md)) defines the values, so they are bit-identical on any PC or GPU.
+
+- `/v1/chat/completions`: `"logprobs": true, "top_logprobs": 5` (0–20), in the OpenAI shape (`token` · `logprob` · `bytes` ·
+  `top_logprobs`).
+- `/v1/completions`: `"logprobs": 5`, `"echo": true` (log-probabilities of the prompt tokens too), `"max_tokens": 0` (score only, no
+  generation). `prompt` is text or an array of token ids.
+- The `"geulpu"` extension: `"logit_hash": true` (a 64-bit hash of each step's logit row), `"prompt_tokens": true` (the prompt tokens
+  after the chat template), `"echo_from": n` (echo log-probabilities from the token at index n on — 0-based; earlier ones are null), and `entropy` · `top_ids` · `top_logprobs`
+  (aligned with the ids) · `seed` in the response.
+- `/tokenize` · `/detokenize` · `/tokenizer_info` — in the same shape as vLLM.
+- In `geulpu`, `tokens` and `logit_hashes` include the step that sampled the stop token (EOS), while the log-probability arrays
+  (`logprobs`, `entropy`, `top_ids`, `top_logprobs`) cover only the answer's tokens, as in OpenAI — one shorter when the answer ends with
+  EOS (score `tokens` with echo to get the EOS step's probability). Despite its name, `first_token_ms` is in µs (kept for compatibility).
+- Asking for log-probabilities during generation adds about 2% per token (7B · 8B — the computation hides behind the next step's GPU
+  work). Without them, speed is unchanged.
+
+```python
+# Log-probability of each token of a text (scoring) — the first token has no context, so it is null
+r = client.completions.create(model="geulpu", prompt="The capital of France is Paris.", echo=True, max_tokens=0, logprobs=5)
+print(list(zip(r.choices[0].logprobs.tokens, r.choices[0].logprobs.token_logprobs)))
+```
+
+**lm-evaluation-harness** — it connects as `local-completions`. It uses the server's tokenizer (`tokenizer_backend=remote`), so no
+Hugging Face tokenizer is downloaded. Per-item results are bit-identical whatever `num_concurrent`, the number of concurrent chats or
+CUDA ↔ Vulkan ([stage 38](문서/38단계.md)). Raise the number of concurrent chats in **Settings** (up to 8).
+
+```bash
+pip install "lm-eval[api]"
+lm_eval --model local-completions --tasks arc_easy,gsm8k --model_args model=geulpu,base_url=http://127.0.0.1:44544/v1/completions,tokenizer_backend=remote,tokenized_requests=True,num_concurrent=8
+```
 
 ## Supported models
 
@@ -284,7 +352,9 @@ backends are packaged only after their bytes are checked against the build hashe
   together: llama.cpp's wikitext-2 perplexity varies from 15.8171 to 15.8200 with batch settings, while GeulPU gives the same value to
   the last bit for every way of feeding the text (stage 20). Across GPUs too: an RTX 3080 Ti (Ampere), an RTX 4070 Ti (Ada) and an RTX 5070
   (Blackwell) gave bit-identical outputs and per-step logits (82,673 steps) on 32 math problems with DeepSeek-R1-Distill-Qwen-7B, while llama.cpp's
-  outputs all changed with the number of concurrent requests on one PC ([교차검증](교차검증/)).
+  outputs all changed with the number of concurrent requests on one PC ([교차검증](교차검증/)). Evaluation tools too: lm-evaluation-harness
+  per-item results (arc_easy 500, gsm8k 100) were identical across num_concurrent 1 ↔ 8 and CUDA ↔ Vulkan (with the same setup,
+  llama.cpp b11643 changed the generated text of 41 of 100 gsm8k items between 1 and 8 concurrent requests — [stage 38](문서/38단계.md)).
 - **A small hidden loss — measured on 0.5B.** Qwen2.5-0.5B-Instruct (Q8_0): the hidden loss (KL against an fp64 forward pass of the same
   weights) is 1/615 of llama.cpp's (a 461-token evaluation text) and 1/385 (wikitext-2, 148,920 tokens); its perplexity is
   indistinguishable from fp64 (relative −6.6 × 10⁻⁶), while llama.cpp's is 0.34% higher — the same order as the Q8_0 weight quantization
@@ -326,7 +396,7 @@ The rest is for building the engine from source or reading the research record. 
 | | |
 |---|---|
 | Models | **Qwen3-1.7B / 8B / 14B** (stage 37 — per-head Q/K RMSNorm as contract §4.6 and one appended kernel, bit-identical to the CPU reference; the 14B shape tested on synthetic models) · **Qwen2.5-0.5B / 7B / 14B-Instruct** · DeepSeek-R1-Distill-Qwen (chat; Llama-family blocks — RMSNorm · RoPE · SwiGLU · GQA; head sizes 64 and 128). Head-128 Qwen2 shapes are read from the GGUF config; 32B and 72B shapes were bit-tested on 4-layer synthetic models. GPT-2 small and XL (research engine). |
-| App | Stages 36–37 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's template); self-diagnosis, speed and cross-check runs; result zips; a new-version notice. The release zip (1.3 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
+| App | Stages 36–38 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's template); self-diagnosis, speed and cross-check runs; result zips; a new-version notice; a **research panel** (stage 38 — per-token probabilities, branching, comparison, scoring and reproduction capsules; log-probabilities as contract §5.2) and an English UI. The release zip (1.3 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
 | Weight formats | GGUF **Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K**, including per-tensor mixes as in Q4_K_M · Q5_K_M (stage 26 — tested with files re-quantized on this PC from Q8_0; official Qwen files are not yet tested). |
 | Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: ChatML chat, streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
 | Server | `빌드/글/서버.exe model.gguf` (`서버` = server) — a geul program (stage 28): an OpenAI-compatible HTTP API (chat · completions · SSE streaming) with slots, continuous batching, prompt caching and a sampling contract (the same seed gives the same tokens). A request returns the same bits whatever else runs with it — zero differences over four models × twelve requests × four schedules, while llama-server's greedy answer changed in 11 of 12 cases depending on the concurrent requests. Head-128 Qwen2 (7B · 14B). 7B Q4_0 aggregate throughput: 302 tokens/s with four streams and 508 with eight (llama-server 360 · 632 — a multi-row decode kernel is next); one stream is 4% faster than llama-server. A cached prompt's first token takes 13.8 ms (llama-server 13.0 ms; stage 30 feeds the last rows through the decode step). See [`문서/28단계.md`](문서/28단계.md) · [`문서/30단계.md`](문서/30단계.md) |
@@ -340,7 +410,8 @@ The rest is for building the engine from source or reading the research record. 
 |---|---|
 | [`커널/`](커널/) (kernels) | `커널생성.gl` + `생성*.gl` — the kernel generator written in geul; it emits geul kernel source for every module. `커널생성.py` — the legacy Python generator (GPT-2, reference). |
 | [`호스트/`](호스트/) (host) | geul programs: `실행기.gl` (runner), `엔진.gl` (engine: kernel selection, CUDA graphs, decoding), `가중치*.gl` (GGUF weight layout), `로프.gl` (RoPE tables in double-precision arithmetic), `토크나이저.gl` (Unicode 15.0 tables, NFC, BPE), `조각.gl` (layer split), tests and benchmarks. |
-| [`계약/`](계약/) (contract) | `정수계약.py` — the CPU reference implementation of the contract; every bit comparison is against it. |
+| [`계약/`](계약/) (contract) | `정수계약.py` — the CPU reference implementation of the contract; every bit comparison is against it. `로그확률.py` — log-probabilities (contract §5.2) in Python. |
+| [`도구/캡슐확인.py`](도구/캡슐확인.py) (tools) | Checks a research-panel reproduction capsule without a GPU, on the CPU reference (the rest of `도구/` is downloaded external tools, not in the repository). |
 | [`시험/`](시험/) (tests) | Bit tests (every kernel vs the CPU reference, paths vs each other, end-to-end), the quick check (`빠른점검.py`). |
 | [`재기/`](재기/) (benchmarks) | Speed comparisons with llama.cpp (the latest official release at measurement time — b11496 through stage 29, b11567 from stage 30; CUDA) and PyTorch; result collectors. |
 | [`공식실행/`](공식실행/) (official runs) | The scripts that produced each stage's verdicts, kept as they were run. |

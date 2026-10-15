@@ -617,6 +617,211 @@ const DICT = {
   "작은 Qwen3 모델입니다(1.8 GB). 그래픽 메모리가 적은 PC에서도 실행됩니다. 생각 과정을 쓰며, 생성 설정에서 끌 수 있습니다. 이 파일은 CUDA(RTX 4070 Ti) · Vulkan · 공유 메모리 32 KB 장치의 한도를 흉내 낸 Vulkan에서 실행을 확인했습니다(2026-10-15).": "A small Qwen3 model (1.8 GB). It runs even on PCs with little graphics memory. It writes a thought process, which you can turn off in the generation settings. This file was run and checked on CUDA (RTX 4070 Ti), Vulkan, and Vulkan emulating the limits of a 32 KB shared-memory device (2026-10-15).",
   "14B Qwen3 모델입니다. 이 모양(너비 5120 · 헤드 40/8 · FFN 17408)은 같은 모양의 합성 모델로 출력이 비트 단위로 맞는지 확인했지만, 이 파일로는 아직 실행해 보지 않았습니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다.": "A 14B Qwen3 model. This shape (hidden 5120 · heads 40/8 · FFN 17408) was checked for bit-exact output with a synthetic model of the same shape, but this file has not been run yet. The engine reduces the context length automatically to fit the graphics memory.",
   "Hugging Face에서 고른 파일 — 받기 전에 GGUF 머리로 GeulPU가 받는 모양인지 확인했습니다.": "A file picked from Hugging Face — its GGUF header was checked before downloading to confirm GeulPU accepts its shape.",
+  // 38단계 — 연구 패널
+  "연구 패널의 셈이 끝나면 보낼 수 있습니다": "You can send once the research panel finishes computing",
+  "연구 패널에서 보기 — 토큰마다 확률 · 개입 · 비교 · 재현": "Open in the research panel — per-token probabilities · intervene · compare · reproduce",
+  "이 답을 연구 패널에서 보기": "Open this answer in the research panel",
+  "숨은 버전": "hidden version",
+  "답이 흐르는 동안에는 모델을 바꿔 불러올 수 없습니다 — 끝난 뒤에 다시 누르세요": "Can't switch models while an answer is streaming — try again when it finishes",
+  "벤치마크가 끝나면 셈할 수 있습니다": "You can compute once the benchmark finishes",
+  "이 답을 만든 모델이 설치되어 있지 않습니다": "The model that wrote this answer is not installed",
+  "이 답이 있던 채팅을 찾지 못했습니다": "Couldn't find the chat this answer came from",
+  "숨은 버전의 답입니다 — 채팅에서 그 버전을 연 뒤에 셈하세요": "This answer is in a hidden version — open that version in the chat first",
+  "이 답을 만든 요청을 똑같이 다시 지을 수 없습니다 — 앞 대화가 바뀌었습니다": "Can't rebuild the exact request behind this answer — the earlier conversation changed",
+  "이 답의 연구 기록이 없습니다": "No research record for this answer",
+  "프롬프트를 다시 짓는 중": "Rebuilding the prompt",
+  "토큰마다 확률 셈하기": "Compute per-token probabilities",
+  "연구 패널": "Research panel",
+  "연구 패널 닫기": "Close the research panel",
+  "관찰": "Observe",
+  "개입": "Intervene",
+  "비교": "Compare",
+  "재현": "Reproduce",
+  "내보내기": "Export",
+  "탐욕(온도 0)": "Greedy (temperature 0)",
+  "분석할 답이 없습니다": "No answers to analyze",
+  "이 판에서 받은 답부터 연구 기록이 남습니다. 질문을 보내 답을 받은 뒤 답 아래의 플라스크 단추를 누르세요.": "Research records start with answers received in this version of the app. Send a question, then press the flask button under the answer.",
+  "분석할 답": "Answer to analyze",
+  "거기서 갈래 — 이 토큰을 고른 뒤 같은 설정으로 이어 생성(지금 답은 버전으로 남음)": "Branch here — pick this token and continue with the same settings (the current answer stays as a version)",
+  "고른 토큰": "Chosen token",
+  "확률": "Probability",
+  "로그확률": "log-prob",
+  "순위": "Rank",
+  "엔트로피": "Entropy",
+  "여유": "Margin",
+  "로짓 해시": "Logit hash",
+  "토큰마다 확률 · 순위 · 대안 · 엔트로피를 보려면 이 답을 다시 셈합니다(점수 매기기). 생성할 때와 같은 비트의 값이고, GPU를 잠깐 씁니다.": "To see each token's probability, rank, alternatives and entropy, this answer is recomputed (scoring). The values are bit-identical to those at generation time; it uses the GPU briefly.",
+  "평균 로그확률": "Mean log-prob",
+  "토큰마다 로그확률의 평균(nat)": "Mean of the per-token log-probabilities (nats)",
+  "퍼플렉시티": "Perplexity",
+  "exp(−평균 로그확률)": "exp(−mean log-prob)",
+  "평균 엔트로피": "Mean entropy",
+  "걸음마다 모델 분포의 엔트로피 평균(nat)": "Mean entropy of the model's distribution per step (nats)",
+  "1위와 2위의 로그확률 차가 가장 작은 걸음": "The step with the smallest gap between the top two log-probs",
+  "1위와 2위의 차가 δ보다 작은 걸음 — 셈이나 설정이 조금만 달라도 다른 토큰이 될 자리": "Steps where the top-two gap is below δ — where a slightly different computation or setting could pick another token",
+  "1위가 아닌 토큰": "Non-top tokens",
+  "뽑기(온도 > 0)가 1위가 아닌 토큰을 고른 걸음": "Steps where sampling (temperature > 0) picked a token that wasn't ranked first",
+  "확률은 모델의 분포(온도 1)입니다 — 뽑기에 쓴 온도 · top-k · top-p로 거른 분포가 아닙니다. 값은 계약 5.2로 정해져 어느 PC · GPU에서 셈해도 같습니다.": "Probabilities are the model's distribution (temperature 1), not the distribution filtered by the sampling temperature, top-k or top-p. Contract 5.2 defines the values, so they are the same on any PC or GPU.",
+  "아슬아슬의 기준 δ(nat)": "Close-call threshold δ (nats)",
+  "토큰을 누르면 그 걸음의 대안과 수가 보입니다. 띠에서 화살표 키로 걸음을 옮깁니다.": "Click a token to see that step's alternatives and numbers. In the strip, the arrow keys move between steps.",
+  "답의 토큰": "Answer tokens",
+  "아슬아슬의 기준 δ": "Close-call threshold δ",
+  "앞의 아슬아슬한 걸음": "Previous close call",
+  "다음 아슬아슬한 걸음": "Next close call",
+  "짙을수록 확률이 낮음": "Darker = less likely",
+  "밑줄 = 아슬아슬": "Underline = close call",
+  "테두리 = 1위가 아닌 토큰": "Outline = non-top token",
+  "이 답은 지금 보이지 않는 버전에 있습니다 — 채팅에서 그 버전을 연 뒤에 개입할 수 있습니다.": "This answer is in a version that isn't shown — open that version in the chat to intervene.",
+  "거기서 갈래": "Branch here",
+  "어느 걸음에서 다른 토큰을 고르고 같은 설정으로 이어 생성합니다. 뽑기(온도 > 0)면 같은 씨앗 · 같은 걸음 번호의 난수를 써서 바뀐 것은 고른 토큰 하나뿐입니다. 새 답은 그 질문의 새 버전으로 남고, 지금 답은 앞 버전으로 남습니다.": "Pick a different token at any step and continue generating with the same settings. When sampling (temperature > 0), the same seed and the same per-step random numbers are used, so the chosen token is the only change. The new answer becomes a new version of that question; the current answer stays as the previous version.",
+  "관찰에서 걸음을 고르거나": "Pick a step in Observe, or",
+  "설정을 바꿔 다시 생성": "Regenerate with different settings",
+  "같은 질문 · 같은 대화 · 같은 모델로 온도 · 씨앗 · 최대 길이만 바꿔 새 버전을 만듭니다. 그다음 비교에서 처음 갈린 걸음을 봅니다. 씨앗을 비우면 서버가 고릅니다(기록에 남음).": "Makes a new version with the same question, conversation and model, changing only the temperature, seed and max length. Then see the first diverging step in Compare. Leave the seed empty to let the server choose one (it is recorded).",
+  "씨앗": "Seed",
+  "무작위": "random",
+  "최대 길이": "Max length",
+  "새 버전 생성": "Generate a new version",
+  "질문을 바꿔": "Change the question",
+  "채팅에서 질문의 연필 단추로 고쳐 보내면 새 버전이 생깁니다. 비교의 'A의 답을 B의 프롬프트로 점수'가 바꾼 곳 하나의 효과를 토큰마다 잽니다 — 같은 답 토큰의 확률이 어떻게 바뀌는가.": "Edit the question with its pencil button in the chat and send it to make a new version. 'Score A's answer under B's prompt' in Compare measures the effect of that one change token by token — how the probabilities of the same answer tokens move.",
+  "갈래의 답이 끝났습니다": "The branch's answer is finished",
+  "온도는 0 ~ 2 사이의 수여야 합니다": "Temperature must be a number from 0 to 2",
+  "최대 길이는 1 ~ 32768 사이의 정수여야 합니다": "Max length must be an integer from 1 to 32768",
+  "씨앗은 0 ~ 2⁶⁴−1 사이의 정수여야 합니다": "The seed must be an integer from 0 to 2⁶⁴−1",
+  "비교하려면 먼저 이 답(A)을 셈합니다.": "To compare, first compute this answer (A).",
+  "두 답 맞대기": "Two answers side by side",
+  "버전 · 갈래끼리 견줍니다. 프롬프트가 같으면 처음 갈린 걸음을, 다르면(질문을 고친 버전) 한쪽 답을 다른 쪽 프롬프트 뒤에서 점수 매겨 바꾼 곳 하나의 효과를 토큰마다 잽니다.": "Compares versions and branches. With the same prompt it finds the first diverging step; with different prompts (an edited question) it scores one answer after the other prompt to measure the effect of that one change token by token.",
+  "견줄 다른 답이 없습니다 — 개입에서 갈래를 내거나 설정을 바꿔 다시 생성하면 버전이 생깁니다.": "No other answer to compare — branch in Intervene or regenerate with different settings to create versions.",
+  "견줄 답(B)": "Answer to compare (B)",
+  "견줄 답(B) 고르기": "Choose answer B",
+  "B도 셈하기": "Compute B too",
+  "같은 글을 다른 모델로 점수": "Score the same text with another model",
+  "이 답의 토큰을 다른 모델(예: 같은 모델의 다른 양자화)로 다시 셈합니다. 셈의 잡음이 없으므로 토큰마다의 차이는 모델 파일 하나의 효과입니다. 모델을 바꿔 불러옵니다(수십 초).": "Recomputes this answer's tokens with another model (e.g., another quantization of the same model). With no computational noise, the per-token differences are the effect of the model file alone. Switches the loaded model (tens of seconds).",
+  "어휘와 채팅 틀이 같은 다른 모델이 설치되어 있지 않습니다.": "No other installed model shares this vocabulary and chat template.",
+  "견줄 모델": "Model to compare",
+  "모델 고르기": "Choose a model",
+  "점수": "Score",
+  "(끝)": "(end)",
+  "A의 이 걸음 보기": "View this step of A",
+  "프롬프트와 앞 토큰이 모두 같으므로 이 걸음의 분포는 두 답에서 같은 비트입니다 — 고른 토큰만 다릅니다.": "The prompt and all earlier tokens are the same, so this step's distribution is bit-identical in both answers — only the chosen token differs.",
+  "두 답의 프롬프트가 다릅니다(질문 · 앞 대화 · 시스템 프롬프트 · 생각 켬끔).": "The two answers have different prompts (question, earlier conversation, system prompt or thinking on/off).",
+  "A의 답을 B의 프롬프트로 점수": "Score A's answer under B's prompt",
+  "B의 프롬프트에서": "under B's prompt",
+  "두 답의 모델이 다릅니다 — 아래 '같은 글을 다른 모델로 점수'로 같은 토큰을 견주세요.": "The two answers come from different models — use 'Score the same text with another model' below to compare the same tokens.",
+  "합 Δ로그확률": "Total Δ log-prob",
+  "답 전체의 로그 확률비 — log P(그쪽) − log P(이 답)": "Log probability ratio of the whole answer — log P(other) − log P(this answer)",
+  "평균 Δ로그확률": "Mean Δ log-prob",
+  "1위가 바뀐 걸음": "Steps with a new top token",
+  "두 조건에서 가장 그럴듯한 토큰이 다른 걸음 수": "Number of steps where the most likely token differs between the two conditions",
+  "점수 매길 글을 붙여 넣으세요": "Paste the text to score",
+  "점수 매길 글": "Text to score",
+  "맥락": "Context",
+  "고른 답의 자리에(같은 질문 · 대화 뒤 — 그 답의 모델)": "In place of the selected answer (after the same question and conversation — that answer's model)",
+  "고른 답의 자리에(먼저 관찰에서 셈하세요)": "In place of the selected answer (compute it in Observe first)",
+  "맥락 없이(글만 — 첫 토큰은 확률 없음)": "No context (text only — the first token has no probability)",
+  "점수 매길 모델": "Model to score with",
+  "글의 토큰마다 로그확률과 퍼플렉시티를 셉니다 — 모델이 이 글을 얼마나 그럴듯하게 보는가. 같은 글 · 같은 모델이면 어느 PC에서든 같은 값입니다.": "Computes each token's log-probability and the perplexity — how plausible the model finds this text. The same text with the same model gives the same values on any PC.",
+  "점수 매길 글을 넣으세요": "Enter the text to score",
+  "토큰이 둘 이상인 글을 넣으세요(맥락 없이는 첫 토큰의 확률이 없습니다)": "Enter text with at least two tokens (without context, the first token has no probability)",
+  "고른 답의 자리에": "in place of the selected answer",
+  "맥락 없이": "no context",
+  "합 로그확률": "Total log-prob",
+  "점수 매긴 글의 토큰": "Tokens of the scored text",
+  "지문": "Fingerprints",
+  "같은 모델 파일 · 같은 프롬프트 · 같은 결과면 어느 GPU · 백엔드에서 셈해도 같은 지문입니다(계약). 장치는 지문에 넣지 않고 만든 곳으로 따로 적습니다.": "The same model file, prompt and result give the same fingerprint on any GPU or backend (contract). The device isn't part of the fingerprint; it is recorded separately as where the answer was made.",
+  "토큰 지문": "Token fingerprint",
+  "셈하면 보입니다": "Shown after computing",
+  "로짓 지문": "Logit fingerprint",
+  "모델 파일": "Model file",
+  "SHA-256 모름": "SHA-256 unknown",
+  "만든 곳": "Made on",
+  "직접 추가한 모델 파일은 SHA-256을 아직 모릅니다 — 지문 · 캡슐에는 모델 파일의 해시가 필요합니다.": "The SHA-256 of a model file you added yourself isn't known yet — fingerprints and capsules need the model file's hash.",
+  "SHA-256 셈하는 중": "Computing SHA-256",
+  "SHA-256 셈하기": "Compute SHA-256",
+  "셈하기": "Compute",
+  "다시 돌려 확인": "Re-run and check",
+  "같은 요청(같은 프롬프트 토큰 · 매개변수 · 씨앗)을 캐시 없이 다시 생성하고 걸음마다 토큰과 로짓 해시를 견줍니다.": "Regenerates the same request (same prompt tokens, parameters and seed) without the cache and compares the token and the logit hash at every step.",
+  "재현 캡슐": "Reproduction capsule",
+  "요청 · 결과 · 로그확률 · 로짓 해시 · 만든 곳을 JSON 파일 하나로. 받은 사람이 자기 GPU에서(아래 '캡슐 불러와 확인') 또는 GPU 없이 파이썬(도구/캡슐확인.py)으로 비트까지 같은지 확인합니다.": "The request, result, log-probabilities, logit hashes and where it was made, in one JSON file. The recipient checks that it is bit-identical on their own GPU ('Load capsule and check' below) or without a GPU in Python (도구/캡슐확인.py).",
+  "캡슐 내보내기": "Export capsule",
+  "캡슐 파일": "Capsule file",
+  "캡슐 불러와 확인": "Load capsule and check",
+  "해시를 셈하는 중": "Computing hashes",
+  "엔진 · 커널 해시 보기": "Show engine and kernel hashes",
+  "같은 요청을 캐시 없이 다시 생성하는 중": "Regenerating the same request without the cache",
+  "JSON 파일이 아닙니다": "Not a JSON file",
+  "GeulPU 재현 캡슐이 아닙니다": "Not a GeulPU reproduction capsule",
+  "캡슐의 토큰을 이 PC에서 다시 셈하는 중": "Recomputing the capsule's tokens on this PC",
+  "캡슐의 요청으로 다시 생성하는 중": "Regenerating from the capsule's request",
+  "다시 생성한 토큰 · 로짓 해시가 다름": "regenerated tokens or logit hashes differ",
+  "지문이 다름": "fingerprints differ",
+  "기준과 같음": "Matches reference",
+  "기준과 다름": "Differs from reference",
+  "기준 없음": "No reference",
+  "엔진 바이너리의 SHA-256을 재현성 검증의 기준 빌드와 견줍니다. 직접 빌드한 판은 다를 수 있습니다.": "Compares the SHA-256 of the engine binaries with the reference build of the reproducibility check. A build you made yourself may differ.",
+  "커널 모듈": "Kernel module",
+  "커밋": "commit",
+  "계약": "contract",
+  "기준 PC · 하드웨어": "Reference PC · hardware",
+  "재현성 검증을 아직 하지 않았습니다 — 이 PC의 출력이 기준 PC와 비트까지 같은지 벤치마크에서 확인합니다.": "No reproducibility check yet — the benchmark checks whether this PC's output is bit-identical to the reference PC's.",
+  "이 모델의 하드웨어 진단이 없습니다 — 생성이 하드웨어 한계에 얼마나 가까운지 벤치마크에서 잽니다.": "No hardware diagnosis for this model — the benchmark measures how close generation is to the hardware limit.",
+  "벤치마크로": "Go to Benchmark",
+  "이 답의 토큰 표": "This answer's token table",
+  "요청 · 결과 · 만든 곳 — 재현에서 확인하는 파일": "Request, result and where it was made — the file checked in Reproduce",
+  "같은 토큰의 두 모델 로그확률과 차(Δ = 그 모델 − 이 답)": "Both models' log-probs for the same tokens and their difference (Δ = that model − this answer)",
+  "같은 답 토큰의 두 프롬프트 로그확률과 차(Δ = B의 프롬프트 − A)": "Log-probs of the same answer tokens under both prompts and their difference (Δ = B's prompt − A)",
+  "이 답을 셈하면 토큰 표 · 캡슐을 내보낼 수 있습니다.": "Compute this answer to export its token table and capsule.",
+  "점수 매긴 글": "Scored text",
+  "앱에서 모델을 불러온 상태에서": "with a model loaded in the app",
+  "이 패널의 값과 비트까지 같다": "bit-identical to this panel's values",
+  "하늘은 왜 파란가?": "Why is the sky blue?",
+  "파이썬": "Python",
+  "패널의 값은 모두 OpenAI 꼴 API로도 받습니다 — 어느 PC · GPU에서든 같은 비트입니다.": "Every value in the panel is also available through the OpenAI-style API — bit-identical on any PC or GPU.",
+  "이 답을 점수 매기기(echo)": "Score this answer (echo)",
+  "생성하며 로그확률 받기": "Get log-probs while generating",
+  "버전 {}/{}": "version {}/{}",
+  "질문 {}": "Question {}",
+  "갈래 — 걸음 {}": "branch — step {}",
+  "토큰 {}개를 다시 셈하는 중(점수 매기기)": "Recomputing {0} {0|token|tokens} (scoring)",
+  "온도 {} · 씨앗 {}": "temperature {} · seed {}",
+  "토큰 {}개": "{0} {0|token|tokens}",
+  "{}토큰/초": "{} tokens/s",
+  "갈래 — 걸음 {}부터": "branch from step {}",
+  "걸음 {} · 확률 {} · 여유 {}": "step {} · probability {} · margin {}",
+  "이 토큰으로 갈래: {}": "Branch with this token: {}",
+  "걸음 {}": "Step {}",
+  "{}위 밖": "outside the top {}",
+  "{}위": "#{}",
+  "대안 상위 {}개": "Top {} alternatives",
+  "이 답의 모델({})을 불러옵니다.": "This loads the answer's model ({}).",
+  "가장 작은 여유 (걸음 {})": "Smallest margin (step {})",
+  "아슬아슬 (여유 < {})": "Close calls (margin < {})",
+  "가장 아슬아슬한 걸음 {} 고르기": "Pick the closest call (step {})",
+  "{}에서": "with {}",
+  "프롬프트가 같고 두 답의 토큰 {}개가 모두 같습니다.": "Same prompt, and all {0} {0|token is|tokens are} the same in both answers.",
+  "확률 {} · {}위": "probability {} · rank {}",
+  "처음 갈린 걸음 {}": "First diverging step: {}",
+  "토큰마다 Δ로그확률 — {}": "Per-token Δ log-prob — {}",
+  "걸음 {} · Δ로그확률 {}": "step {} · Δ log-prob {}",
+  "같은 토큰 {}개 — {}": "Same {0} {0|token|tokens} — {1}",
+  "가장 큰 |Δ| (걸음 {})": "Largest |Δ| (step {})",
+  "초록 = 그쪽에서 더 높은 확률, 분홍 = 더 낮은 확률, 짙을수록 큰 차이. 차이 0(비트까지 같음) {}걸음.": "Green = more likely there, pink = less likely; darker = bigger difference. Zero difference (bit-identical): {0} {0|step|steps}.",
+  "토큰 {}개를 셈하는 중": "Computing {0} {0|token|tokens}",
+  "가장 낮은 확률 (걸음 {})": "Lowest probability (step {})",
+  "{}걸음 모두 같음 — 토큰 · 로짓 해시(슬롯 {} · 캐시 없이)": "All {0} {0|step matches|steps match} — tokens and logit hashes (slot {1}, no cache)",
+  "걸음 {}에서 다름 — 같은 토큰 {}/{} · 같은 로짓 해시 {}/{}": "Differs at step {} — matching tokens {}/{} · matching logit hashes {}/{}",
+  "크기가 같은 모델({})이 있지만 SHA-256을 모릅니다 — 모델 화면에서 무결성을 확인한 뒤 다시 불러오세요": "A model of the same size ({}) is installed, but its SHA-256 isn't known — verify its integrity on the Models screen, then load the capsule again",
+  "같은 모델 파일(SHA-256 {}…)이 설치되어 있지 않습니다 — {} {}": "The same model file (SHA-256 {}…) is not installed — {} {}",
+  " (캡슐에 적힌 만든 곳 {} · {} → 여기 {})": " (made on {} · {} as the capsule states → here {})",
+  "캡슐의 씨앗(seed)을 정수로 읽지 못했습니다 — 정밀도를 잃은 사본일 수 있습니다": "Couldn't read the capsule's seed as an integer — this may be a copy that lost precision",
+  "점수는 같으니 씨앗을 확인하세요 — 다른 도구로 다시 쓴 캡슐은 씨앗(64비트 정수)이 자리를 잃었을 수 있습니다": "scoring matches, so check the seed — a capsule rewritten by another tool may have lost digits of the seed (a 64-bit integer)",
+  "비트까지 같음 — {}걸음의 로그확률 · 엔트로피 · 상위 {} · 로짓 해시, 다시 생성한 토큰, 지문": "Bit-identical — log-probs, entropy, top {1} and logit hashes for {0} {0|step|steps}, the regenerated tokens and the fingerprints",
+  "점수 매기기가 걸음 {}에서 다름": "scoring differs at step {}",
+  "재현성 검증 {}: {} — {}": "Reproducibility check {}: {} — {}",
+  "하드웨어 진단 {}: {}": "Hardware diagnosis {}: {}",
+  "걸음마다 토큰 · 로그확률 · 확률 · 순위 · 엔트로피 · 여유 · 로짓 해시 · 상위 {}": "Per step: token, log-prob, probability, rank, entropy, margin, logit hash, top {}",
+  "다른 모델로 점수 — {}": "Scored with another model — {}",
+  "UTF-8 바이트 조각인 토큰입니다 — 이웃 토큰과 합쳐 한 글자가 됩니다.": "A UTF-8 byte-fragment token — it forms one character together with its neighbors.",
+  "토큰 {}개(끝 토큰 포함)": "{0} {0|token|tokens} (including the end token)",
 };
 function T(s, ...v) {
   if (typeof s === 'string') {
@@ -923,6 +1128,7 @@ const IC = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
   heart: '<path d="M12 19.6s-7.6-4.5-7.6-9.8A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.6 2.4c0 5.3-7.6 9.8-7.6 9.8z"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  flask: '<path d="M9.5 3.5h5M10.5 3.5v5.4l-5.3 9.2a1.6 1.6 0 0 0 1.4 2.4h10.8a1.6 1.6 0 0 0 1.4-2.4l-5.3-9.2V3.5"/><path d="M7.6 14.5h8.8"/>',
 };
 const svg = (n, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
 
@@ -995,7 +1201,10 @@ const announce = t => { const e = $('#sr-live'); if (e) { e.textContent = ''; se
 let storeWarned = false;
 function store(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); }
-  catch (_) { if (key === 'geulpu.rooms' && !storeWarned) { storeWarned = true; toast(T('브라우저 저장 공간이 부족해 채팅을 저장하지 못했습니다 — 오래된 채팅을 삭제하세요'), 'err'); } }
+  catch (_) {
+    // 채팅이 먼저다 — 자리가 모자라면 연구 기록(38단계)을 비우고 한 번 더
+    if (key === 'geulpu.rooms') { try { if (localStorage.getItem('geulpu.traces')) { localStorage.removeItem('geulpu.traces'); localStorage.setItem(key, JSON.stringify(val)); return; } } catch (_) { } }
+    if (key === 'geulpu.rooms' && !storeWarned) { storeWarned = true; toast(T('브라우저 저장 공간이 부족해 채팅을 저장하지 못했습니다 — 오래된 채팅을 삭제하세요'), 'err'); } }
 }
 function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (_) { return dflt; } }
 const SIG = {};
@@ -1096,6 +1305,7 @@ document.addEventListener('keydown', e => {
     if (POP) { const a = POPANCHOR; closePop(); if (a) a.focus(); }
     else if (!$('#modal').hidden) closeModal();
     else if (overlayConvos() && !$('#convos').classList.contains('closed')) setConvos(false);
+    else if (LAB.open && labOverlay() && S.view === 'chat') labToggle(false);
     else if (streamingHere() && S.view === 'chat') stopStream();
   }
   // 메뉴: 위아래 화살표로 고르고, Tab 은 메뉴를 닫고 다음 요소로(메뉴 항목은 Tab 정거장이 아니다)
@@ -1184,7 +1394,7 @@ function setOffline(off) {
 function renderAll() {
   if (!S.st) return;
   renderStatus();
-  if (S.view === 'chat') { renderChatTop(); if (!curRoom() || !curRoom().messages.length) renderMsgsIfChanged(); }
+  if (S.view === 'chat') { renderChatTop(); if (!curRoom() || !curRoom().messages.length) renderMsgsIfChanged(); labSync(); }
   else if (S.view === 'models') renderModels();
   else if (S.view === 'bench') renderBench();
   else if (S.view === 'device') renderDevice();
@@ -1504,10 +1714,11 @@ function updateSend() {
   if (b.dataset.icon !== icon) { b.innerHTML = svg(icon, 's'); b.dataset.icon = icon; }
   b.setAttribute('aria-label', here ? T('중지') : T('보내기'));
   const bench = !here && !other && benchBusy();   // 벤치마크 중에도 미리 써 둘 수는 있다
-  b.dataset.tip = here ? T('중지(Esc)') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : T('보내기(Enter)');
+  const lab = !here && !other && !bench && !!LAB.busy;   // 연구 패널이 셈하는 동안(모델을 바꿔 불러올 수 있다)
+  b.dataset.tip = here ? T('중지(Esc)') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : lab ? T('연구 패널의 셈이 끝나면 보낼 수 있습니다') : T('보내기(Enter)');
   b.dataset.tipPos = 'top';
-  b.disabled = here ? false : (other || bench || !inp.value.trim() || !S.conn || inp.disabled);
-  hint.textContent = here ? T('답이 끝나면 보낼 수 있습니다 · Esc 중지') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : HINT;
+  b.disabled = here ? false : (other || bench || lab || !inp.value.trim() || !S.conn || inp.disabled);
+  hint.textContent = here ? T('답이 끝나면 보낼 수 있습니다 · Esc 중지') : other ? T('다른 채팅의 답이 끝나면 보낼 수 있습니다') : bench ? T('벤치마크가 끝나면 보낼 수 있습니다') : lab ? T('연구 패널의 셈이 끝나면 보낼 수 있습니다') : HINT;
   hint.hidden = inp.disabled || (!S.streaming && !bench && !!load('geulpu.hinted', false));
 }
 function renderChatTop(force) {
@@ -1979,6 +2190,7 @@ function fillMsg(e, m, room, done) {
       },
     }, I('copy', 's')) : null,
     done && e._last && !S.streaming ? h('button', { class: 'icon-btn needs-conn', 'data-tip': T('다시 생성 — 지금 답은 버전으로 남습니다'), 'data-tip-pos': 'top', 'aria-label': T('다시 생성'), onclick: () => retryLast() }, I('refresh', 's')) : null,
+    done && m.tid && TRACES[m.tid] ? h('button', { class: 'icon-btn', 'data-tip': T('연구 패널에서 보기 — 토큰마다 확률 · 개입 · 비교 · 재현'), 'data-tip-pos': 'top', 'aria-label': T('이 답을 연구 패널에서 보기'), onclick: () => labOpen(m.tid) }, I('flask', 's')) : null,
     m.stats ? h('span', { class: 'stats' }, statsText(m.stats)) : null);
 }
 // 지난 기록의 통계 글도 지금 꼴로(“412 토큰” → “412토큰”)
@@ -2120,6 +2332,7 @@ function renderMsgs() {
     put(box, h('div', { class: 'hello' }, head, h('h1', null, title), lede ? h('p', null, lede) : null, actions));
     updateDlBars();
     updateComposer();
+    labSync();
     return;
   }
   chat.classList.remove('empty');
@@ -2151,6 +2364,7 @@ function renderMsgs() {
   box.dataset.room = room.id;
   $('#tobottom').hidden = box.scrollHeight - box.scrollTop - box.clientHeight < 240;
   updateComposer();
+  labSync();
 }
 $('#tobottom').innerHTML = svg('down', 's');
 $('#tobottom').addEventListener('click', () => { const b = $('#msgs'); b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' }); });
@@ -2210,6 +2424,7 @@ function sendBlock(room) {
   if (S.streaming) return T('다른 채팅의 답이 끝나면 보낼 수 있습니다');
   if (!S.conn) return T('GeulPU.exe와 연결이 끊겨 보낼 수 없습니다');
   if (benchBusy()) return T('벤치마크가 끝나면 보낼 수 있습니다');
+  if (LAB.busy) return T('연구 패널의 셈이 끝나면 보낼 수 있습니다');
   const m = room && modelOf(room.model);
   if (!m) return S.st && S.st.models.length ? T('위의 모델 선택에서 모델을 고르세요') : T('먼저 모델 화면에서 모델을 다운로드하거나 추가하세요');
   if (!runnable(m)) return T('이 모델은 이 PC에서 실행할 수 없습니다 — ') + TM(m.device_reason || (m.shape && m.shape.reason) || '');
@@ -2289,13 +2504,18 @@ function submitEdit(room, k, text) {
   replyTo(room);
 }
 // 흘림 하나를 받아 asst 에 붙인다(보내기 · 이어서 생성이 함께 쓴다). 그릴 요소는 늘 S.streaming.el(다시 그려도 이어진다)
-async function streamReply(asst, room, url, body) {
+// 38단계 — 돌려주는 것: { stats(통계 글), gp(geulpu 덧붙임), seed(씨앗의 원문 숫자 — JSON 수로 읽으면 2⁵³ 위에서 바뀐다), bodyStr, finish }.
+// text: 완성 꼴의 조각(c.text)을 읽는다(R1 · 연구 패널의 갈래). bodyStr 를 주면 그 글을 그대로 보낸다(씨앗 숫자를 그대로 — 갈래)
+async function streamReply(asst, room, url, body, opt) {
+  opt = opt || {};
   const tpl = asst.template;
+  const textChunks = tpl === 'deepseek-r1' || !!opt.text;
   const ctrl = new AbortController();
   S.streaming.ctrl = ctrl;
   const t0 = performance.now();
-  let tFirst = 0, usage = null, gp = null, finish = null;
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+  let tFirst = 0, usage = null, gp = null, finish = null, seed = '';
+  const bodyStr = opt.bodyStr || JSON.stringify(body);
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyStr, signal: ctrl.signal });
   if (!res.ok) {
     let msg = 'HTTP ' + res.status;
     try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch (_) { }
@@ -2318,8 +2538,9 @@ async function streamReply(asst, room, url, body) {
         if (data === '[DONE]') continue;
         let j;
         try { j = JSON.parse(data); } catch (_) { continue; }
+        if (j.geulpu) { const sm = /"seed":(\d+)/.exec(data); if (sm) seed = sm[1]; }
         const c = j.choices && j.choices[0];
-        const piece = c ? (tpl === 'deepseek-r1' ? (c.text || '') : ((c.delta && c.delta.content) || '')) : '';
+        const piece = c ? (textChunks ? (c.text || '') : ((c.delta && c.delta.content) || '')) : '';
         if (piece) {
           if (!tFirst) tFirst = performance.now();
           asst.content += piece;
@@ -2347,11 +2568,15 @@ async function streamReply(asst, room, url, body) {
   asst.finish = finish;
   if (tpl === 'deepseek-r1' && gp && Array.isArray(gp.tokens) && gp.tokens.includes(THINK_END_ID)) asst.thinkEnded = true;
   const n = (usage && usage.completion_tokens) || (gp && gp.tokens && gp.tokens.length) || 0;
-  if (gp && gp.generate_us > 0 && n > 1) {
-    const tps = (n - 1) / (gp.generate_us / 1e6);
-    return `${fmtNum(n)}토큰 · ${tps.toFixed(1)}토큰/초 · 첫 토큰 ${(gp.first_token_ms / 1000).toFixed(0)} ms`;   // 서버의 이 칸은 µs(이름만 ms)
+  // 서버의 generate_us 는 첫 토큰 뒤의 모든 걸음 — 멈춘 EOS 를 뽑은 걸음까지(gp.tokens 에는 있고 completion_tokens 에는 없다). 연구 패널과 같은 셈
+  const steps = (gp && Array.isArray(gp.tokens) ? gp.tokens.length : n) - 1;
+  let stats = '';
+  if (gp && gp.generate_us > 0 && steps > 0) {
+    const tps = steps / (gp.generate_us / 1e6);
+    stats = `${fmtNum(n)}토큰 · ${tps.toFixed(1)}토큰/초 · 첫 토큰 ${(gp.first_token_ms / 1000).toFixed(0)} ms`;   // 서버의 이 칸은 µs(이름만 ms)
   }
-  return tFirst ? `${fmtNum(n)}토큰 · ${((performance.now() - t0) / 1000).toFixed(1)}초` : '';
+  else if (tFirst) stats = `${fmtNum(n)}토큰 · ${((performance.now() - t0) / 1000).toFixed(1)}초`;
+  return { stats, gp, seed, bodyStr, finish };
 }
 async function send(textOverride) {
   if (S.streaming) { if (!streamingHere()) toast(T('다른 채팅의 답이 끝나면 보낼 수 있습니다')); return; }
@@ -2367,44 +2592,55 @@ async function send(textOverride) {
   room.messages.push({ role: 'user', content: text });
   await replyTo(room);
 }
-// 방의 마지막 사용자 메시지에 답한다(보내기 · 다시 생성 · 고쳐 보내기가 함께 쓴다)
-async function replyTo(room, maxOverride) {
-  const m = modelOf(room.model);
+// 답 하나의 요청 몸 — 보낼 때와 연구 패널이 다시 지을 때 같은 함수다(같은 글 → 같은 해시). upto = 이 답 앞까지의 메시지 수.
+// geulpu.prompt_tokens — 서버가 채팅 틀을 씌운 프롬프트 토큰을 돌려준다(연구 기록에 남겨, 숨은 버전 · 고친 대화의 답도 셈할 수 있게)
+function replyBody(room, upto, p) {
+  if (p.tpl === 'deepseek-r1') {
+    const hist = Object.assign({}, room, { messages: room.messages.slice(0, upto) });
+    return { url: '/v1/completions', body: { prompt: buildR1Prompt(hist, p.system), max_tokens: p.max, temperature: p.temp, stream: true, geulpu: { prompt_tokens: true } } };
+  }
+  const msgs = [];
+  if (p.system) msgs.push({ role: 'system', content: p.system });
+  for (const x of room.messages.slice(0, upto)) if (x.role === 'user' || (x.role === 'assistant' && !x.partial)) msgs.push({ role: x.role, content: x.content });
+  const body = { messages: msgs, max_tokens: p.max, temperature: p.temp, stream: true, stream_options: { include_usage: true }, geulpu: { prompt_tokens: true } };
+  if (p.tpl === 'qwen3') {                 // 서버의 Qwen3 틀 — 앞 답의 생각은 서버가 뗀다, <think> 는 글로 받아 접는다
+    body.geulpu.special = true;
+    body.chat_template_kwargs = { enable_thinking: p.think !== false };
+  }
+  return { url: '/v1/chat/completions', body };
+}
+// 방의 마지막 사용자 메시지에 답한다(보내기 · 다시 생성 · 고쳐 보내기가 함께 쓴다).
+// ov — 연구 패널의 '설정을 바꿔 다시'(38단계): { model, temp, seed(원문 숫자), system, think } 가운데 준 것만 바꾼다
+async function replyTo(room, maxOverride, ov) {
+  ov = ov || {};
+  const mid = ov.model || room.model;
+  const m = modelOf(mid);
   const max = maxOverride || OPT.max;
   room.updated = Date.now();
   stickNext = true;
   S.streaming = { aborted: false, ctrl: null, loading: false, roomId: room.id, msg: null, el: null, notice: null };
   saveRooms(); renderRooms(); renderMsgs(); renderChatTop(true);
   try {
-    if (!(S.st.server.state === 'ready' && S.st.server.model === room.model)) {
-      const notice = { role: 'notice', text: T`${labelById(room.model)} 불러오는 중`, pct: 0, kernel: false, el: null };
+    if (!(S.st.server.state === 'ready' && S.st.server.model === mid)) {
+      const notice = { role: 'notice', text: T`${labelById(mid)} 불러오는 중`, pct: 0, kernel: false, el: null };
       S.streaming.notice = notice;
       if (S.roomId === room.id) renderMsgs();
-      await ensureServer(room.model, notice);
+      await ensureServer(mid, notice);
       S.streaming.notice = null;
       if (notice.el) notice.el.remove();
     }
     const tpl = m.template;
-    const asst = { role: 'assistant', content: '', template: tpl, model: room.model, max, partial: true };
-    let url, body;
-    if (tpl === 'deepseek-r1') {
-      url = '/v1/completions';
-      body = { prompt: buildR1Prompt(room, OPT.system), max_tokens: max, temperature: OPT.temp, stream: true, geulpu: {} };
-    } else {
-      url = '/v1/chat/completions';
-      const msgs = [];
-      if (OPT.system) msgs.push({ role: 'system', content: OPT.system });
-      for (const x of room.messages) if (x.role === 'user' || (x.role === 'assistant' && !x.partial)) msgs.push({ role: x.role, content: x.content });
-      body = { messages: msgs, max_tokens: max, temperature: OPT.temp, stream: true, stream_options: { include_usage: true }, geulpu: {} };
-      if (tpl === 'qwen3') {                 // 서버의 Qwen3 틀 — 앞 답의 생각은 서버가 뗀다, <think> 는 글로 받아 접는다
-        body.geulpu.special = true;
-        body.chat_template_kwargs = { enable_thinking: OPT.think !== false };
-      }
-    }
+    const asst = { role: 'assistant', content: '', template: tpl, model: mid, max, partial: true };
+    const rp = {
+      tpl, max, temp: ov.temp ?? OPT.temp, system: ov.system ?? (OPT.system || ''), think: ov.think ?? (OPT.think !== false), model: mid,
+    };
+    const { url, body } = replyBody(room, room.messages.length, rp);
     room.messages.push(asst);
     S.streaming.msg = asst;
     if (S.roomId === room.id) renderMsgs();
-    asst.stats = await streamReply(asst, room, url, body);
+    const rr = await streamReply(asst, room, url, body, ov.seed ? { bodyStr: seedBody(body, ov.seed) } : undefined);
+    asst.stats = rr.stats;
+    traceAfter(asst, rp, rr, body);     // 38단계 — 연구 기록(토큰 · 씨앗 원문 · 요청 몸의 해시 — 씨앗은 빼고)
     room.updated = Date.now();
     store('geulpu.hinted', true);
     saveRooms();
@@ -2447,8 +2683,9 @@ async function continueLast() {
     if (!(S.st.server.state === 'ready' && S.st.server.model === mm.id)) await ensureServer(mm.id, null);
     const hist = Object.assign({}, room, { messages: room.messages.slice(0, k) });
     const prompt = buildR1Prompt(hist, OPT.system) + '<think>' + m.content;
-    const stat = await streamReply(m, room, '/v1/completions', { prompt, max_tokens: OPT.max, temperature: OPT.temp, stream: true, geulpu: {} });
+    const stat = (await streamReply(m, room, '/v1/completions', { prompt, max_tokens: OPT.max, temperature: OPT.temp, stream: true, geulpu: {} })).stats;
     m.stats = stat ? '이어서 ' + stat : m.stats;
+    delete m.tid;                     // 38단계 — 이어서 생성한 답은 한 요청이 아니라 연구 기록을 떼어 둔다
     room.updated = Date.now();
     saveRooms();
     announce(T('답변이 끝났습니다'));
@@ -3818,6 +4055,960 @@ function renderSettings(force) {
           h('button', { class: 'icon-btn', 'data-tip': T('주소 복사'), 'data-tip-pos': 'left', 'aria-label': T('API 주소 복사'), onclick: () => copyText(`http://127.0.0.1:${a.port}/v1`).then(ok => ok && toast(T('복사했습니다'), 'ok')) }, I('copy')))))));
   if (focusV) { const b = page.querySelector(`.seg-ctl button[data-v="${focusV}"]`); if (b) b.focus(); }
 }
+
+// ---------- 연구 패널(38단계) — 잡음 없는 관찰 · 개입 · 비교 · 기록 ----------
+// 같은 글을 다시 셈하면 생성할 때와 같은 확률이 나온다(계약 5.2 — 생성 길과 프롬프트 길이 같은 비트, 38b). 그래서 채팅 중에는 아무것도
+// 더 셈하지 않고, 들여다볼 때만 그 답을 점수 매기기(echo)로 다시 셈한다. 두 실행의 차이는 바꾼 것에서만 나온다(배치 · 캐시 · GPU ·
+// 백엔드와 상관없다). 연구 기록(답마다 토큰 · 씨앗의 원문 · 요청의 해시)은 이 브라우저에만 — 최근 60 개 · 1.5 MB 까지
+const TRACE_KEY = 'geulpu.traces';
+let TRACES = load(TRACE_KEY, {});
+if (!TRACES || typeof TRACES !== 'object' || Array.isArray(TRACES)) TRACES = {};
+const newTid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function saveTraces() {
+  const ids = Object.keys(TRACES).sort((a, b) => TRACES[a].at - TRACES[b].at);
+  let txt = JSON.stringify(TRACES);
+  while (ids.length > 1 && (ids.length > 60 || txt.length > 1.5e6)) { delete TRACES[ids.shift()]; txt = JSON.stringify(TRACES); }
+  try { localStorage.setItem(TRACE_KEY, txt); }
+  catch (_) {                                          // 자리가 모자라면 오래된 반을 지운다 — 채팅 기록이 먼저다
+    ids.splice(0, Math.ceil(ids.length / 2)).forEach(i => delete TRACES[i]);
+    try { localStorage.setItem(TRACE_KEY, JSON.stringify(TRACES)); } catch (_) { }
+  }
+}
+async function sha256Hex(s) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// 씨앗을 원문 숫자 그대로 넣은 JSON(2⁵³ 위의 정수는 JS 의 수로 오가면 바뀐다) — 객체의 끝에 붙인다
+function seedBody(obj, seed) {
+  const s = JSON.stringify(obj);
+  return seed ? s.slice(0, -1) + (s.length > 2 ? ',' : '') + '"seed":' + seed + '}' : s;
+}
+// 답이 끝나면 — 연구 기록: 요청을 다시 지을 매개변수와 그 몸의 해시(씨앗은 빼고), 뽑은 토큰, 씨앗의 원문
+function traceAfter(asst, rp, rr, body) {
+  if (!rr || !rr.gp || !Array.isArray(rr.gp.tokens) || !rr.gp.tokens.length) return;
+  const m = modelOf(rp.model);
+  const tid = newTid();
+  const tr = {
+    v: 1, at: Date.now(), model: rp.model, sha256: (m && m.sha256) || '', name: m ? displayName(m) : rp.model, quant: m ? quantOf(m) : '',
+    tpl: rp.tpl, req: { max: rp.max, temp: rp.temp, system: rp.system, think: rp.think }, seed: rr.seed || '', tokens: rr.gp.tokens,
+    slot: rr.gp.slot, cached: rr.gp.prompt_tokens_cached || 0, first_us: rr.gp.first_token_ms, gen_us: rr.gp.generate_us, finish: rr.finish || '',
+    layer: (S.st && S.st.server.layer) || '', device: (S.st && S.st.device.name) || '', bodyHash: '',
+  };
+  if (Array.isArray(rr.gp.prompt_tokens) && rr.gp.prompt_tokens.length) tr.promptIds = rr.gp.prompt_tokens;   // 서버가 쓴 그대로
+  TRACES[tid] = tr;
+  asst.tid = tid;
+  saveTraces();
+  sha256Hex(JSON.stringify(body)).then(x => { tr.bodyHash = x; saveTraces(); }).catch(() => { });
+}
+
+const LAB_TABS = [['obs', '관찰'], ['act', '개입'], ['cmp', '비교'], ['score', '점수'], ['repro', '재현'], ['out', '내보내기']];
+const LAB = {
+  open: false, tab: 'obs', tid: null, an: {}, fpc: {}, busy: '', err: '', sel: -1, delta: load('geulpu.lab.delta', 0.05),
+  cmpTid: '', cmpModel: '', cmpRes: {}, cross: {}, scoreText: '', scoreCtx: 'answer', scoreModel: '', scoreRes: null, scoreSel: -1,
+  prov: null, replay: {}, capsule: null, texts: {}, regen: null,
+};
+{ const t = load('geulpu.lab.tab', 'obs'); if (LAB_TABS.some(x => x[0] === t)) LAB.tab = t; }
+const LAB_K = 10;                                   // 걸음마다 상위 몇 개를 셈하나
+const labCur = () => (LAB.tid && TRACES[LAB.tid]) || null;
+const trSha = tr => tr.sha256 || ((modelOf(tr.model) || {}).sha256) || '';
+const labOverlay = () => innerWidth <= 1100;
+// 확률은 늘 % — 0.1 % 아래는 지수(3.5e-2%). nat 은 유효 숫자 셋 이상(0.01 아래는 지수, 1 아래는 세 자리, 그 위는 소수 셋째 자리)
+const pct = lp => { const p = Math.exp(lp); return p >= 0.9995 ? '100%' : p >= 0.001 ? (p * 100).toFixed(p >= 0.1 ? 1 : 2) + '%' : (p * 100).toExponential(1) + '%'; };
+const nat = x => (x === null || x === undefined || !isFinite(x) ? '-' : x === 0 ? '0' : Math.abs(x) < 0.01 ? x.toExponential(2) : Math.abs(x) < 1 ? x.toPrecision(3) : x.toFixed(3));
+const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '') + nat(Math.abs(x));
+const fpShort = x => (x ? x.slice(0, 16).replace(/(.{4})(?=.)/g, '$1 ') : '-');
+// 토큰 글 보이기 — 줄바꿈 · 탭은 기호로, 빈 토큰은 ∅. 앞 토큰과 한 글자인 바이트 조각(null)은 글 없이 좁은 칸(.cont)
+const tokShow = s => (s === null ? '' : s === '' ? '∅' : String(s).replace(/\n/g, '↵\n').replace(/\t/g, '→'));
+
+// 이 답을 만든 대화 찾기 — 지금 보이는 대화(live), 아니면 버전에 숨은 곳
+function labFind(tid) {
+  const deep = msgs => {
+    for (const u of msgs) for (const v of u.vers || []) {
+      if (!v.rest) continue;
+      const x = v.rest.find(m => m.tid === tid) || deep(v.rest);
+      if (x) return x;
+    }
+    return null;
+  };
+  for (const room of S.rooms) {
+    const i = room.messages.findIndex(m => m.tid === tid);
+    if (i >= 0) return { room, idx: i, msg: room.messages[i], live: true };
+    const x = deep(room.messages);
+    if (x) return { room, idx: -1, msg: x, live: false };
+  }
+  return null;
+}
+// 이 채팅에서 연구 기록이 있는 답(숨은 버전까지) — 질문 차례, 같은 차례는 만든 때의 차례로
+function labAnswers(room) {
+  const out = [];
+  if (!room) return out;
+  const prev = s => String(s || '').replace(/<\/?think>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+  const walk = (msgs, n0, ver, hidden) => {
+    let n = n0, u = null;
+    for (const m of msgs) {
+      if (m.role === 'user') {
+        n++;
+        u = m;
+        (m.vers || []).forEach((v, vi) => { if (vi !== m.vi && v.rest) walk(v.rest, n, T`버전 ${vi + 1}/${m.vers.length}`, true); });
+      } else if (m.role === 'assistant' && m.tid && TRACES[m.tid]) {
+        const vl = u ? (u.vers && u.vers.length > 1 ? T`버전 ${u.vi + 1}/${u.vers.length}` : '') : ver;
+        const tr = TRACES[m.tid];
+        out.push({ tid: m.tid, n, at: tr.at, label: [T`질문 ${n}`, vl, tr.branch ? T`갈래 — 걸음 ${tr.branch.k + 1}` : '', hidden ? T('숨은 버전') : ''].filter(Boolean).join(' · ') + ' — ' + prev(m.content) });
+      }
+    }
+  };
+  walk(room.messages, 0, '', false);
+  return out.sort((a, b) => a.n - b.n || a.at - b.at);
+}
+async function labApi(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });
+  let j = null;
+  try { j = await r.json(); } catch (_) { }
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || ('HTTP ' + r.status));
+  return j;
+}
+// 셈은 그 답의 모델로 — 다른 모델이 올라 있으면 바꿔 불러온다(답이 흐르는 동안 · 벤치마크 중에는 하지 않는다)
+async function labEnsureModel(id) {
+  if (S.st && S.st.server.state === 'ready' && S.st.server.model === id) return;
+  if (S.streaming) throw new Error(T('답이 흐르는 동안에는 모델을 바꿔 불러올 수 없습니다 — 끝난 뒤에 다시 누르세요'));
+  if (benchBusy()) throw new Error(T('벤치마크가 끝나면 셈할 수 있습니다'));
+  const m = modelOf(id);
+  if (!m) throw new Error(T('이 답을 만든 모델이 설치되어 있지 않습니다'));
+  if (!runnable(m)) throw new Error(T('이 모델은 이 PC에서 실행할 수 없습니다 — ') + TM(m.device_reason || (m.shape && m.shape.reason) || ''));
+  LAB.busy = T`${labelById(id)} 불러오는 중`;
+  labRender();
+  await ensureServer(id, null);
+}
+// 이 답을 만든 프롬프트의 토큰 — 요청을 보낼 때와 같은 함수로 다시 지어 해시로 확인하고, 서버의 채팅 틀로 나눈다(한 번 지으면 기록에 둔다)
+async function labPrompt(tid) {
+  const tr = TRACES[tid];
+  if (tr.promptIds) return tr.promptIds;
+  const f = labFind(tid);
+  if (!f) throw new Error(T('이 답이 있던 채팅을 찾지 못했습니다'));
+  if (!f.live) throw new Error(T('숨은 버전의 답입니다 — 채팅에서 그 버전을 연 뒤에 셈하세요'));
+  const { body } = replyBody(f.room, f.idx, { tpl: tr.tpl, max: tr.req.max, temp: tr.req.temp, system: tr.req.system, think: tr.req.think });
+  if (tr.bodyHash && (await sha256Hex(JSON.stringify(body))) !== tr.bodyHash) throw new Error(T('이 답을 만든 요청을 똑같이 다시 지을 수 없습니다 — 앞 대화가 바뀌었습니다'));
+  const tk = tr.tpl === 'deepseek-r1' ? { prompt: body.prompt } : { messages: body.messages, chat_template_kwargs: body.chat_template_kwargs };
+  tr.promptIds = (await labApi('/tokenize', tk)).tokens;
+  saveTraces();
+  return tr.promptIds;
+}
+// 토큰마다 보이는 글 — 한 글자의 UTF-8 이 토큰 둘 이상에 걸치면(드문 한글 · 이모지) 첫 토큰에 그 글자를, 뒤 토큰은 null(이어짐)로.
+// text_offset 은 돌려준 글의 바이트 자리다. 어긋나 보이면(틀린 바이트가 U+FFFD 로 바뀐 글) 서버가 준 토큰마다의 글을 그대로 쓴다
+function tokTexts(text, offs, strs) {
+  const enc = new TextEncoder().encode(text || '');
+  const dec = new TextDecoder('utf-8', { fatal: true });
+  const n = offs.length, out = new Array(n);
+  const end = i => (i < n ? offs[i] : enc.length);
+  for (let i = 0; i < n;) {
+    let j = i + 1, t = null;
+    for (; j <= n && j - i <= 4; j++) {
+      if (!(offs[i] <= end(j) && end(j) <= enc.length)) break;
+      try { t = dec.decode(enc.subarray(offs[i], end(j))); break; } catch (_) { }
+    }
+    if (t === null || (j === i + 1 && !String(strs[i]).includes('�') && t !== strs[i])) return strs.slice();
+    out[i] = t;
+    for (let q = i + 1; q < j; q++) out[q] = null;
+    i = j;
+  }
+  return out;
+}
+// 점수 매기기 — prompt 뒤의 tokens 를 echo 로 다시 셈한다: 걸음마다 로그확률 · 상위 k · 엔트로피 · 로짓 해시(생성할 때와 같은 비트)
+async function labScore(modelId, prompt, tokens, k) {
+  await labEnsureModel(modelId);
+  const P = prompt.length;
+  const j = await labApi('/v1/completions', {
+    prompt: prompt.concat(tokens), echo: true, max_tokens: 0, logprobs: k, temperature: 0, geulpu: { echo_from: P, logit_hash: true },
+  });
+  const c = j.choices[0], lp = c.logprobs, g = j.geulpu;
+  return {
+    raw: lp.tokens.slice(P), strs: tokTexts(c.text, lp.text_offset.slice(P), lp.tokens.slice(P)), lp: lp.token_logprobs.slice(P),
+    ent: g.prompt_entropy.slice(P), topIds: g.prompt_top_ids.slice(P), topLp: g.prompt_top_logprobs.slice(P), hashes: g.prompt_logit_hashes, k,
+  };
+}
+// 답 하나의 분석(한 번 셈해 둔다)
+async function labAnalyze(tid, quiet) {
+  if (LAB.an[tid]) return LAB.an[tid];
+  const tr = TRACES[tid];
+  if (!tr) throw new Error(T('이 답의 연구 기록이 없습니다'));
+  await labEnsureModel(tr.model);
+  if (!quiet) { LAB.busy = T('프롬프트를 다시 짓는 중'); labRender(); }
+  const prompt = await labPrompt(tid);
+  if (!quiet) { LAB.busy = T`토큰 ${fmtNum(tr.tokens.length)}개를 다시 셈하는 중(점수 매기기)`; labRender(); }
+  const sc = await labScore(tr.model, prompt, tr.tokens, LAB_K);
+  LAB.an[tid] = Object.assign({ prompt }, sc);
+  return LAB.an[tid];
+}
+// 갈래의 답은 '프롬프트 + 앞 토큰'을 프롬프트로, 이어 생성한 토큰을 결과로 적는다(그 요청 하나로 다시 만들어지는 꼴)
+function labParts(tr, prompt) {
+  const off = tr.branch ? tr.branch.k + 1 : 0;
+  return { off, prompt: prompt.concat(tr.tokens.slice(0, off)), tokens: tr.tokens.slice(off) };
+}
+const labMax = tr => (tr.branch ? tr.branch.max : tr.req.max);
+// 지문(문서/38단계.md): 토큰 지문 = SHA-256("geulpu-fp/1\nmodel <모델 파일 SHA-256>\nprompt <번호,…>\ntokens <번호,…>\n"),
+// 로짓 지문 = SHA-256("<토큰 지문>\n<걸음마다 로짓 해시,…>\n"). 장치 · 백엔드는 넣지 않는다 — 어디서 셈해도 같아야 하므로
+async function labFp(sha, prompt, tokens, hashes) {
+  const fp = await sha256Hex(`geulpu-fp/1\nmodel ${sha}\nprompt ${prompt.join(',')}\ntokens ${tokens.join(',')}\n`);
+  return { fp, fpLogit: await sha256Hex(`${fp}\n${hashes.join(',')}\n`) };
+}
+function labFpOf(tid) {
+  const tr = TRACES[tid], an = LAB.an[tid];
+  if (!tr || !an) return null;
+  const sha = trSha(tr), c = LAB.fpc[tid];
+  if (c && c.sha === sha) return c.fp ? c : null;
+  const cp = labParts(tr, an.prompt);
+  LAB.fpc[tid] = { sha };
+  labFp(sha, cp.prompt, cp.tokens, an.hashes.slice(cp.off)).then(v => { LAB.fpc[tid] = Object.assign({ sha }, v); labRender(); }).catch(() => { });
+  return null;
+}
+// 걸음 i 의 여유(1위와 2위의 로그확률 차)와 고른 토큰의 순위(상위 k 밖이면 k + 1)
+function labStep(an, toks, i) {
+  const top = an.topLp[i] || [], ids = an.topIds[i] || [];
+  const r = ids.indexOf(toks[i]);
+  return { margin: top.length > 1 ? top[0] - top[1] : Infinity, rank: r >= 0 ? r + 1 : ids.length + 1 };
+}
+function labSummary(an, toks) {
+  const n = an.lp.length;
+  let sum = 0, ent = 0, minM = Infinity, minAt = 0, frag = 0, notTop = 0;
+  for (let i = 0; i < n; i++) {
+    sum += an.lp[i];
+    ent += an.ent[i] || 0;
+    const st = labStep(an, toks, i);
+    if (st.margin < minM) { minM = st.margin; minAt = i; }
+    if (st.margin < LAB.delta) frag++;
+    if (st.rank > 1) notTop++;
+  }
+  return { n, sum, mean: n ? sum / n : 0, ppl: n ? Math.exp(-sum / n) : 0, ent: n ? ent / n : 0, minM, minAt, frag, notTop };
+}
+// 토큰 번호의 글(대안 토큰 — 한 번 물어 둔다)
+async function labTexts(ids) {
+  const need = [...new Set(ids)].filter(id => id >= 0 && LAB.texts[id] === undefined);
+  await Promise.all(need.map(id => labApi('/detokenize', { tokens: [id] }).then(j => { LAB.texts[id] = j.prompt; }).catch(() => { LAB.texts[id] = '?'; })));
+}
+const labKpi = (v, l, tip) => h('div', { class: 'kpi', 'data-tip': tip || null, 'data-tip-pos': 'top' }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l));
+const labSec = t => h('div', { class: 'sec lab-sec' }, t);
+const labNote = t => h('p', { class: 'small muted m0' }, t);
+const labCol = (...k) => h('div', { class: 'col g12' }, ...k);
+function labRun(fn) {
+  LAB.err = '';
+  Promise.resolve().then(fn).catch(e => { LAB.err = e.message; }).finally(() => { LAB.busy = ''; labRender(); updateSend(); });
+}
+const labAnalyzeBtn = (tid, label) => h('button', {
+  class: 'btn primary needs-conn', disabled: (LAB.busy || S.streaming) ? true : null, onclick: () => labRun(() => labAnalyze(tid)),
+}, I('play', 's'), label || T('토큰마다 확률 셈하기'));
+
+// ---- 틀 ----
+$('#labbtn').innerHTML = svg('flask', 's');
+$('#labbtn').addEventListener('click', () => labToggle());
+function labToggle(open) {
+  LAB.open = open === undefined ? !LAB.open : open;
+  $('#lab').hidden = !LAB.open;
+  $('#labbtn').setAttribute('aria-expanded', LAB.open ? 'true' : 'false');
+  if (!labOverlay()) store('geulpu.lab.open', LAB.open);
+  if (LAB.open) {
+    labSync(true);
+    if (labOverlay()) setTimeout(() => { const t = $('#lab .lab-tabs button.on'); if (t) t.focus(); }, 0);
+  } else if (labOverlay()) $('#labbtn').focus();
+}
+function labPick(tid) {
+  if (LAB.tid !== tid) { LAB.tid = tid; LAB.sel = -1; LAB.regen = null; LAB.err = ''; LAB.scoreModel = ''; }
+}
+// 답 아래의 플라스크 — 그 답을 패널에서. 모델이 올라 있으면 바로 셈한다
+function labOpen(tid) {
+  labPick(tid);
+  if (LAB.tab === 'score' || LAB.tab === 'out') LAB.tab = 'obs';
+  if (!LAB.open) labToggle(true); else labRender();
+  const tr = TRACES[tid];
+  if (tr && !LAB.an[tid] && !LAB.busy && !S.streaming && S.st && S.st.server.state === 'ready' && S.st.server.model === tr.model) labRun(() => labAnalyze(tid));
+}
+// 채팅을 바꾸거나 답 · 상태가 바뀌면 — 고른 답이 이 채팅에 없으면 이 채팅의 마지막 답으로. 바뀐 것이 있을 때만 다시 그린다
+function labSync(force) {
+  if (!LAB.open) return;
+  const list = labAnswers(curRoom());
+  if (!LAB.tid || !list.some(x => x.tid === LAB.tid)) labPick(list.length ? list[list.length - 1].tid : null);
+  const tr = labCur();
+  const st = S.st ? [S.st.server.state, S.st.server.model, S.conn, tr ? trSha(tr) : '', tr && modelOf(tr.model) ? !!modelOf(tr.model).verifying : false] : null;
+  if (changed('lab-list', [S.roomId, LAB.tid, list.map(x => x.label), st, !!S.streaming]) || force) labRender();
+}
+function labRender() {
+  const box = $('#lab');
+  if (!box || !LAB.open) return;
+  const tabs = h('div', { class: 'seg-ctl lab-tabs', role: 'tablist', 'aria-label': T('연구 패널') }, LAB_TABS.map(([k, t]) => h('button', {
+    role: 'tab', class: LAB.tab === k ? 'on' : '', 'aria-selected': LAB.tab === k ? 'true' : 'false', 'data-fk': 'lab:' + k,
+    onclick: () => { LAB.tab = k; LAB.err = ''; store('geulpu.lab.tab', k); labRender(); },
+  }, T(t))));
+  const head = h('div', { class: 'lab-head' },
+    h('div', { class: 'row g8 nowrap' }, h('span', { class: 'lab-title' }, I('flask', 's'), T('연구 패널')), h('span', { class: 'grow' }),
+      h('button', { class: 'icon-btn', 'aria-label': T('연구 패널 닫기'), 'data-tip': T('닫기'), 'data-tip-pos': 'left', 'data-fk': 'lab:close', onclick: () => labToggle(false) }, I('x', 's'))),
+    tabs);
+  const body = h('div', { class: 'lab-body', role: 'tabpanel', 'aria-label': T(LAB_TABS.find(x => x[0] === LAB.tab)[1]) });
+  if (LAB.busy) body.append(h('div', { class: 'lab-busy', role: 'status' }, h('i', { class: 'dot busy' }), h('span', null, LAB.busy)));
+  if (LAB.err) body.append(h('div', { class: 'note-line err lab-err', role: 'alert' }, I('alert', 's'), h('span', null, TM(LAB.err))));
+  const fn = { obs: labObs, act: labAct, cmp: labCmp, score: labScoreView, repro: labRepro, out: labOut }[LAB.tab] || labObs;
+  try { body.append(fn()); }
+  catch (e) { body.append(h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, String(e && e.message)))); console.error(e); }
+  // 같은 탭 · 같은 답을 다시 그리면 스크롤 · 입력 칸의 커서는 그 자리에(탭이나 답을 바꾸면 맨 위부터)
+  const same = box.dataset.tab === LAB.tab && box.dataset.tid === String(LAB.tid);
+  const ob = box.querySelector('.lab-body'), os = box.querySelector('.tokstrip');
+  const y = same && ob ? ob.scrollTop : 0, sy = same && os ? os.scrollTop : 0;
+  const a = document.activeElement, sel = a && box.contains(a) && 'selectionStart' in a && a.type !== 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  rebuild(box, head, body);
+  const on = box.querySelector('.lab-tabs button.on');             // 좁은 폭(휴대폰 · 영어)에서는 탭 줄이 옆으로 흐른다 — 고른 탭이 보이게
+  if (on) { const tl = on.parentElement, d = on.getBoundingClientRect().right - tl.getBoundingClientRect().right; if (d > 0) tl.scrollLeft += d + 8; }
+  box.dataset.tab = LAB.tab;
+  box.dataset.tid = String(LAB.tid);
+  body.scrollTop = y;
+  const ns = box.querySelector('.tokstrip');
+  if (ns) ns.scrollTop = sy;
+  const b = document.activeElement;
+  if (sel && b && box.contains(b) && 'setSelectionRange' in b) { try { b.setSelectionRange(sel[0], sel[1]); } catch (_) { } }
+}
+// 고른 답의 머리 — 모델 · 매개변수 · 시간
+function labAnswerHead(tr) {
+  const tps = tr.gen_us > 0 && tr.tokens.length > 1 ? (tr.tokens.length - 1) / (tr.gen_us / 1e6) : 0;
+  return h('div', { class: 'lab-ans' },
+    h('div', { class: 'row g8' }, h('span', { class: 'ink' }, tr.name), tr.quant ? h('span', { class: 'qlab' }, tr.quant) : null),
+    h('div', { class: 'small muted' }, [
+      tr.req.temp > 0 ? T`온도 ${tr.req.temp} · 씨앗 ${tr.seed || '?'}` : T('탐욕(온도 0)'),
+      tr.finish === 'stop' ? T`토큰 ${fmtNum(tr.tokens.length)}개(끝 토큰 포함)` : T`토큰 ${fmtNum(tr.tokens.length)}개`,
+      tps ? T`${tps.toFixed(1)}토큰/초` : null, tr.branch ? T`갈래 — 걸음 ${tr.branch.k + 1}부터` : null,
+      `${tr.device || ''}${tr.layer ? ' · ' + (LAYER[tr.layer] || tr.layer) : ''}`,
+    ].filter(Boolean).join(NB)));
+}
+function labPicker() {
+  const list = labAnswers(curRoom());
+  if (!list.length) return h('div', { class: 'lab-empty' }, I('flask', 'l'), h('div', { class: 'ink' }, T('분석할 답이 없습니다')),
+    h('div', { class: 'small muted' }, T('이 판에서 받은 답부터 연구 기록이 남습니다. 질문을 보내 답을 받은 뒤 답 아래의 플라스크 단추를 누르세요.')));
+  return h('select', { class: 'input w100', 'aria-label': T('분석할 답'), 'data-fk': 'lab:pick', onchange: ev => { labPick(ev.target.value); labRender(); } },
+    list.map(x => h('option', { value: x.tid, selected: x.tid === LAB.tid ? true : null }, x.label)));
+}
+
+// ---- 토큰 띠 — 확률이 낮을수록 짙게, 아슬아슬한 걸음(여유 < δ)은 밑줄, 1위가 아닌 토큰을 뽑은 걸음은 테두리.
+//      띠 하나가 Tab 정거장 하나 — 화살표 · Home · End 로 걸음을 옮긴다 ----
+function labStrip(an, toks, sel, onSel, label) {
+  const box = h('div', { class: 'tokstrip', role: 'listbox', tabindex: '0', 'aria-label': label });
+  const els = an.lp.map((lp, i) => {
+    const p = Math.exp(lp), st = labStep(an, toks, i), s = an.strs[i];
+    const b = p >= 0.9 ? 0 : p >= 0.5 ? 1 : p >= 0.2 ? 2 : p >= 0.05 ? 3 : 4;
+    return h('span', {
+      id: 'tk' + i, role: 'option', 'aria-selected': sel === i ? 'true' : 'false', 'data-i': i,
+      class: `tok b${b}${st.margin < LAB.delta ? ' frag' : ''}${st.rank > 1 ? ' pick' : ''}${s === null ? ' cont' : ''}${sel === i ? ' sel' : ''}`,
+      'data-tip': T`걸음 ${i + 1} · 확률 ${pct(lp)} · 여유 ${nat(st.margin)}`, 'data-tip-pos': 'top',
+    }, tokShow(s));
+  });
+  box.append(...els);
+  if (sel >= 0 && sel < els.length) box.setAttribute('aria-activedescendant', 'tk' + sel);
+  const go = i => {
+    if (!(i >= 0 && i < els.length)) return;
+    const old = box.querySelector('.tok.sel');
+    if (old) { old.classList.remove('sel'); old.setAttribute('aria-selected', 'false'); }
+    els[i].classList.add('sel');
+    els[i].setAttribute('aria-selected', 'true');
+    box.setAttribute('aria-activedescendant', els[i].id);
+    els[i].scrollIntoView({ block: 'nearest' });
+    onSel(i);
+  };
+  box.addEventListener('click', ev => { const t = ev.target.closest('[data-i]'); if (t) go(+t.dataset.i); });
+  box.addEventListener('keydown', ev => {
+    const cur = box.querySelector('.tok.sel'), c = cur ? +cur.dataset.i : -1, k = ev.key;
+    const n = k === 'ArrowRight' || k === 'ArrowDown' ? c + 1 : k === 'ArrowLeft' || k === 'ArrowUp' ? Math.max(0, c - 1) : k === 'Home' ? 0 : k === 'End' ? els.length - 1 : null;
+    if (n === null) return;
+    ev.preventDefault();
+    go(Math.min(els.length - 1, n));
+  });
+  box._go = go;
+  return box;
+}
+// 걸음 하나 — 확률 · 순위 · 엔트로피 · 여유 · 로짓 해시, 대안 상위 k(막대). 갈래를 낼 수 있으면 대안마다 '거기서 갈래'
+function labDetail(an, toks, i, canBranch) {
+  const ids = an.topIds[i] || [], lps = an.topLp[i] || [];
+  if (ids.some(id => LAB.texts[id] === undefined)) labTexts(ids).then(() => document.querySelectorAll('#lab .lab-detail-holder').forEach(x => x._render && x._render()));
+  const st = labStep(an, toks, i);
+  const txt = id => (LAB.texts[id] === undefined ? '…' : tokShow(LAB.texts[id]));
+  const rows = ids.map((id, q) => h('div', { class: 'alt' + (id === toks[i] ? ' chosen' : '') },
+    h('span', { class: 'alt-t' }, txt(id)),
+    h('span', { class: 'alt-bar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(1, Math.round(Math.exp(lps[q]) * 100))}%` })),
+    h('span', { class: 'alt-p' }, pct(lps[q])),
+    canBranch && id !== toks[i] ? h('button', {
+      class: 'icon-btn sm needs-conn', 'aria-label': T`이 토큰으로 갈래: ${LAB.texts[id] === undefined ? id : LAB.texts[id]}`,
+      'data-tip': T('거기서 갈래 — 이 토큰을 고른 뒤 같은 설정으로 이어 생성(지금 답은 버전으로 남음)'), 'data-tip-pos': 'left',
+      disabled: (S.streaming || LAB.busy) ? true : null, onclick: () => labBranch(i, id),
+    }, I('forward', 's')) : h('span', { class: 'alt-go' }, id === toks[i] ? h('span', { role: 'img', 'aria-label': T('고른 토큰'), 'data-tip': T('고른 토큰'), 'data-tip-pos': 'left' }, I('check', 's')) : '')));
+  return h('div', { class: 'card lab-detail' },
+    h('div', { class: 'row g8 nowrap' }, h('span', { class: 'eyebrow' }, T`걸음 ${i + 1}`), h('span', { class: 'grow' }), h('span', { class: 'eyebrow mono' }, `#${toks[i]}`)),
+    h('div', { class: 'lab-tokbig' }, tokShow(an.raw[i])),
+    an.strs[i] === null || String(an.raw[i]).includes('�') ? labNote(T('UTF-8 바이트 조각인 토큰입니다 — 이웃 토큰과 합쳐 한 글자가 됩니다.')) : null,
+    h('div', { class: 'kv lab-kv' },
+      h('div', { class: 'k' }, T('확률')), h('div', { class: 'v' }, `${pct(an.lp[i])}${NB}${T('로그확률')} ${nat(an.lp[i])}`),
+      h('div', { class: 'k' }, T('순위')), h('div', { class: 'v' }, st.rank > ids.length ? T`${ids.length}위 밖` : T`${st.rank}위`),
+      h('div', { class: 'k' }, T('엔트로피')), h('div', { class: 'v' }, nat(an.ent[i]) + ' nat'),
+      h('div', { class: 'k' }, T('여유')), h('div', { class: 'v' }, isFinite(st.margin) ? nat(st.margin) + ' nat' : '-'),
+      h('div', { class: 'k' }, T('로짓 해시')), h('div', { class: 'v mono small' }, an.hashes[i] || '-')),
+    h('div', { class: 'eyebrow' }, T`대안 상위 ${ids.length}개`),
+    h('div', { class: 'alts' }, rows));
+}
+function labDetailHolder(get) {
+  const holder = h('div', { class: 'lab-detail-holder' });
+  holder._render = () => put(holder, get());
+  holder._render();
+  return holder;
+}
+
+// ---- 관찰 ----
+function labObs() {
+  const tr = labCur();
+  const out = [labPicker()];
+  if (!tr) return labCol(out);
+  out.push(labAnswerHead(tr));
+  const an = LAB.an[LAB.tid];
+  if (!an) {
+    out.push(labNote(T('토큰마다 확률 · 순위 · 대안 · 엔트로피를 보려면 이 답을 다시 셈합니다(점수 매기기). 생성할 때와 같은 비트의 값이고, GPU를 잠깐 씁니다.')),
+      S.st && S.st.server.model !== tr.model ? labNote(T`이 답의 모델(${labelById(tr.model)})을 불러옵니다.`) : null,
+      h('div', null, labAnalyzeBtn(LAB.tid)));
+    return labCol(out);
+  }
+  const toks = tr.tokens, sm = labSummary(an, toks);
+  out.push(h('div', { class: 'kpis sm lab-kpis' },
+    labKpi(nat(sm.mean), T('평균 로그확률'), T('토큰마다 로그확률의 평균(nat)')),
+    labKpi(sm.ppl.toFixed(3), T('퍼플렉시티'), T('exp(−평균 로그확률)')),
+    labKpi(nat(sm.ent), T('평균 엔트로피'), T('걸음마다 모델 분포의 엔트로피 평균(nat)')),
+    labKpi(nat(sm.minM), T`가장 작은 여유 (걸음 ${sm.minAt + 1})`, T('1위와 2위의 로그확률 차가 가장 작은 걸음')),
+    labKpi(fmtNum(sm.frag), T`아슬아슬 (여유 < ${LAB.delta})`, T('1위와 2위의 차가 δ보다 작은 걸음 — 셈이나 설정이 조금만 달라도 다른 토큰이 될 자리')),
+    labKpi(fmtNum(sm.notTop), T('1위가 아닌 토큰'), T('뽑기(온도 > 0)가 1위가 아닌 토큰을 고른 걸음'))));
+  out.push(labNote(T('확률은 모델의 분포(온도 1)입니다 — 뽑기에 쓴 온도 · top-k · top-p로 거른 분포가 아닙니다. 값은 계약 5.2로 정해져 어느 PC · GPU에서 셈해도 같습니다.')));
+  const dIn = h('input', { type: 'number', min: '0.001', max: '5', step: '0.01', value: LAB.delta, class: 'lab-num', 'aria-label': T('아슬아슬의 기준 δ(nat)'), 'data-fk': 'lab:delta' });
+  dIn.addEventListener('change', () => { const v = parseFloat(dIn.value); if (v > 0 && v <= 5) { LAB.delta = v; store('geulpu.lab.delta', v); labRender(); } });
+  const fragAt = [];
+  for (let i = 0; i < an.lp.length; i++) if (labStep(an, toks, i).margin < LAB.delta) fragAt.push(i);
+  const f = labFind(LAB.tid);
+  const holder = labDetailHolder(() => (LAB.sel >= 0 && LAB.sel < an.lp.length ? labDetail(an, toks, LAB.sel, !!(f && f.live))
+    : labNote(T('토큰을 누르면 그 걸음의 대안과 수가 보입니다. 띠에서 화살표 키로 걸음을 옮깁니다.'))));
+  const strip = labStrip(an, toks, LAB.sel, i => { LAB.sel = i; holder._render(); }, T('답의 토큰'));
+  const jump = dir => {
+    const c = LAB.sel;
+    const n = dir > 0 ? fragAt.find(x => x > c) : [...fragAt].reverse().find(x => x < c);
+    if (n !== undefined) strip._go(n);
+  };
+  out.push(h('div', { class: 'row g8 small muted' },
+    h('label', { class: 'row g8' }, h('span', null, T('아슬아슬의 기준 δ')), dIn, h('span', null, 'nat')), h('span', { class: 'grow' }),
+    h('span', { class: 'row g0' },
+      h('button', { class: 'icon-btn sm', 'aria-label': T('앞의 아슬아슬한 걸음'), 'data-tip': T('앞의 아슬아슬한 걸음'), 'data-tip-pos': 'top', disabled: fragAt.length ? null : true, onclick: () => jump(-1) }, I('chevL', 's')),
+      h('button', { class: 'icon-btn sm', 'aria-label': T('다음 아슬아슬한 걸음'), 'data-tip': T('다음 아슬아슬한 걸음'), 'data-tip-pos': 'top', disabled: fragAt.length ? null : true, onclick: () => jump(1) }, I('chevR', 's')))));
+  out.push(strip, h('div', { class: 'lab-legend small muted' },
+    h('span', null, h('i', { class: 'lg b3' }), T('짙을수록 확률이 낮음')), h('span', null, h('i', { class: 'lg frag' }), T('밑줄 = 아슬아슬')), h('span', null, h('i', { class: 'lg pick' }), T('테두리 = 1위가 아닌 토큰'))));
+  out.push(holder);
+  return labCol(out);
+}
+
+// ---- 개입 ----
+function labAct() {
+  const tr = labCur();
+  const out = [labPicker()];
+  if (!tr) return labCol(out);
+  const f = labFind(LAB.tid), live = !!(f && f.live), an = LAB.an[LAB.tid];
+  out.push(labAnswerHead(tr));
+  if (!live) out.push(h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('이 답은 지금 보이지 않는 버전에 있습니다 — 채팅에서 그 버전을 연 뒤에 개입할 수 있습니다.'))));
+  // 거기서 갈래
+  out.push(labSec(T('거기서 갈래')), labNote(T('어느 걸음에서 다른 토큰을 고르고 같은 설정으로 이어 생성합니다. 뽑기(온도 > 0)면 같은 씨앗 · 같은 걸음 번호의 난수를 써서 바뀐 것은 고른 토큰 하나뿐입니다. 새 답은 그 질문의 새 버전으로 남고, 지금 답은 앞 버전으로 남습니다.')));
+  if (!an) out.push(h('div', null, labAnalyzeBtn(LAB.tid)));
+  else if (live) {
+    const sm = labSummary(an, tr.tokens);
+    if (LAB.sel < 0 || LAB.sel >= an.lp.length) out.push(h('div', { class: 'row g8' }, labNote(T('관찰에서 걸음을 고르거나')),
+      h('button', { class: 'btn sm', onclick: () => { LAB.sel = sm.minAt; labRender(); } }, I('target', 's'), T`가장 아슬아슬한 걸음 ${sm.minAt + 1} 고르기`)));
+    else out.push(labDetailHolder(() => labDetail(an, tr.tokens, LAB.sel, true)));
+  }
+  // 설정을 바꿔 다시
+  if (!LAB.regen) LAB.regen = { temp: String(tr.req.temp), seed: tr.req.temp > 0 ? tr.seed : '', max: String(labMax(tr)) };
+  const rg = LAB.regen;
+  const inp = (k, attrs) => { const e = h('input', Object.assign({ value: rg[k], 'data-fk': 'lab:rg:' + k }, attrs)); e.addEventListener('input', () => { rg[k] = e.value; }); return e; };
+  out.push(labSec(T('설정을 바꿔 다시 생성')), labNote(T('같은 질문 · 같은 대화 · 같은 모델로 온도 · 씨앗 · 최대 길이만 바꿔 새 버전을 만듭니다. 그다음 비교에서 처음 갈린 걸음을 봅니다. 씨앗을 비우면 서버가 고릅니다(기록에 남음).')),
+    h('div', { class: 'lab-form' },
+      h('label', null, h('span', null, T('온도')), inp('temp', { type: 'number', min: '0', max: '2', step: '0.05', class: 'lab-num' })),
+      h('label', null, h('span', null, T('씨앗')), inp('seed', { type: 'text', inputmode: 'numeric', placeholder: T('무작위'), class: 'lab-seed', spellcheck: 'false' })),
+      h('label', null, h('span', null, T('최대 길이')), inp('max', { type: 'number', min: '1', max: '32768', step: '1', class: 'lab-num' }))),
+    h('div', null, h('button', { class: 'btn needs-conn', disabled: (!live || S.streaming || LAB.busy) ? true : null, onclick: () => labRun(labRegen) }, I('refresh', 's'), T('새 버전 생성'))));
+  // 질문을 바꿔
+  out.push(labSec(T('질문을 바꿔')), labNote(T('채팅에서 질문의 연필 단추로 고쳐 보내면 새 버전이 생깁니다. 비교의 \'A의 답을 B의 프롬프트로 점수\'가 바꾼 곳 하나의 효과를 토큰마다 잽니다 — 같은 답 토큰의 확률이 어떻게 바뀌는가.')));
+  return labCol(out);
+}
+// 같은 차례의 사용자 메시지 자리
+function labTurn(room, idx) {
+  let uk = idx - 1;
+  while (uk >= 0 && room.messages[uk].role !== 'user') uk--;
+  return uk;
+}
+// 거기서 갈래 — 같은 차례의 새 버전: 프롬프트 + 앞 i 토큰 + 고른 대안으로 이어 생성. 뽑기면 같은 씨앗 · 걸음 i + 1 부터(원래 답과 같은 난수)
+async function labBranch(i, alt) {
+  const tid = LAB.tid, f = labFind(tid), tr = TRACES[tid], an = LAB.an[tid];
+  if (!f || !f.live || !tr || !an || S.streaming || LAB.busy) return;
+  const { room, idx } = f;
+  const uk = labTurn(room, idx);
+  if (uk < 0) return;
+  const pre = tr.tokens.slice(0, i).concat([alt]);
+  const max = Math.max(1, tr.req.max - pre.length);
+  let preText = '';
+  try {
+    await labEnsureModel(tr.model);
+    preText = (await labApi('/detokenize', { tokens: pre })).prompt;
+  } catch (e) { LAB.err = e.message; LAB.busy = ''; labRender(); return; }
+  LAB.busy = '';
+  LAB.err = '';
+  if (S.roomId !== room.id) pickRoom(room.id);
+  branch(room, uk, room.messages[uk].content);
+  const asst = { role: 'assistant', content: preText, template: tr.tpl, model: tr.model, max: tr.req.max, partial: true };
+  room.messages.push(asst);
+  room.updated = Date.now();
+  stickNext = true;
+  S.streaming = { aborted: false, ctrl: null, loading: false, roomId: room.id, msg: asst, el: null, notice: null };
+  saveRooms(); renderRooms(); renderMsgs(); renderChatTop(true);
+  labRender();
+  try {
+    const body = { prompt: an.prompt.concat(pre), max_tokens: max, temperature: tr.req.temp, stream: true, geulpu: { step_offset: pre.length } };
+    if (tr.tpl === 'qwen3') body.geulpu.special = true;
+    const rr = await streamReply(asst, room, '/v1/completions', body, { text: true, bodyStr: seedBody(body, tr.req.temp > 0 ? tr.seed : '') });
+    asst.stats = rr.stats;
+    if (rr.gp && Array.isArray(rr.gp.tokens)) {
+      const nt = newTid();
+      TRACES[nt] = Object.assign({}, tr, {
+        at: Date.now(), tokens: pre.concat(rr.gp.tokens), promptIds: an.prompt, branch: { from: tid, k: i, alt, max }, seed: tr.req.temp > 0 ? tr.seed : (rr.seed || ''),
+        slot: rr.gp.slot, cached: rr.gp.prompt_tokens_cached || 0, first_us: rr.gp.first_token_ms, gen_us: rr.gp.generate_us, finish: rr.finish || '', bodyHash: '',
+        layer: (S.st && S.st.server.layer) || '', device: (S.st && S.st.device.name) || '',
+      });
+      asst.tid = nt;
+      saveTraces();
+      labPick(nt);
+      LAB.sel = i;
+    }
+    room.updated = Date.now();
+    saveRooms();
+    announce(T('갈래의 답이 끝났습니다'));
+  } catch (e) {
+    const aborted = S.streaming && S.streaming.aborted;
+    delete asst.partial;
+    if (aborted) { asst.stats = '중지됨'; asst.stopped = true; }
+    else { asst.stats = '오류'; const em = { role: 'error', content: e.message }; FRESH.add(em); room.messages.push(em); }
+    saveRooms();
+  } finally {
+    S.streaming = null;
+    renderRooms(); renderMsgs(); renderChatTop(true);
+    if (LAB.tid && TRACES[LAB.tid] && !LAB.an[LAB.tid]) labRun(() => labAnalyze(LAB.tid, true));
+    else labRender();
+  }
+}
+// 설정을 바꿔 다시 — 같은 차례의 새 버전(같은 모델 · 대화 · 시스템 프롬프트 · 생각 켬끔, 온도 · 씨앗 · 최대 길이만 바꿈)
+async function labRegen() {
+  const tid = LAB.tid, f = labFind(tid), tr = TRACES[tid];
+  if (!f || !f.live || !tr || S.streaming) return;
+  const rg = LAB.regen || {};
+  const temp = parseFloat(rg.temp), max = parseInt(rg.max, 10), seed = String(rg.seed || '').trim();
+  if (!(temp >= 0 && temp <= 2)) throw new Error(T('온도는 0 ~ 2 사이의 수여야 합니다'));
+  if (!(max >= 1 && max <= 32768)) throw new Error(T('최대 길이는 1 ~ 32768 사이의 정수여야 합니다'));
+  if (seed && !(/^\d{1,20}$/.test(seed) && BigInt(seed) < 2n ** 64n)) throw new Error(T('씨앗은 0 ~ 2⁶⁴−1 사이의 정수여야 합니다'));
+  if (!S.conn) throw new Error(T('GeulPU.exe와 연결이 끊겨 보낼 수 없습니다'));
+  if (benchBusy()) throw new Error(T('벤치마크가 끝나면 보낼 수 있습니다'));
+  if (!runnable(modelOf(tr.model))) throw new Error(T('이 답을 만든 모델이 설치되어 있지 않습니다'));
+  const { room, idx } = f;
+  const uk = labTurn(room, idx);
+  if (uk < 0) return;
+  if (S.roomId !== room.id) pickRoom(room.id);
+  branch(room, uk, room.messages[uk].content);
+  await replyTo(room, max, { temp, seed, model: tr.model, system: tr.req.system, think: tr.req.think });
+  const last = room.messages[room.messages.length - 1];
+  if (last && last.tid) { labPick(last.tid); LAB.regen = null; }
+}
+
+// ---- 비교 ----
+function labCmp() {
+  const tr = labCur();
+  const out = [labPicker()];
+  if (!tr) return labCol(out);
+  const an = LAB.an[LAB.tid];
+  if (!an) { out.push(labNote(T('비교하려면 먼저 이 답(A)을 셈합니다.')), h('div', null, labAnalyzeBtn(LAB.tid))); return labCol(out); }
+  // 두 답
+  out.push(labSec(T('두 답 맞대기')), labNote(T('버전 · 갈래끼리 견줍니다. 프롬프트가 같으면 처음 갈린 걸음을, 다르면(질문을 고친 버전) 한쪽 답을 다른 쪽 프롬프트 뒤에서 점수 매겨 바꾼 곳 하나의 효과를 토큰마다 잽니다.')));
+  const others = labAnswers(curRoom()).filter(x => x.tid !== LAB.tid);
+  if (LAB.cmpTid && !others.some(x => x.tid === LAB.cmpTid)) LAB.cmpTid = '';
+  if (!others.length) out.push(labNote(T('견줄 다른 답이 없습니다 — 개입에서 갈래를 내거나 설정을 바꿔 다시 생성하면 버전이 생깁니다.')));
+  else {
+    out.push(h('select', { class: 'input w100', 'aria-label': T('견줄 답(B)'), 'data-fk': 'lab:cmpB', onchange: ev => { LAB.cmpTid = ev.target.value; labRender(); } },
+      h('option', { value: '' }, T('견줄 답(B) 고르기')), others.map(x => h('option', { value: x.tid, selected: x.tid === LAB.cmpTid ? true : null }, x.label))));
+    const trB = LAB.cmpTid && TRACES[LAB.cmpTid], anB = trB && LAB.an[LAB.cmpTid];
+    if (trB && !anB) out.push(h('div', null, labAnalyzeBtn(LAB.cmpTid, T('B도 셈하기'))));
+    if (trB && anB) out.push(labPair(an, tr, anB, trB));
+  }
+  // 다른 모델로
+  out.push(labSec(T('같은 글을 다른 모델로 점수')), labNote(T('이 답의 토큰을 다른 모델(예: 같은 모델의 다른 양자화)로 다시 셈합니다. 셈의 잡음이 없으므로 토큰마다의 차이는 모델 파일 하나의 효과입니다. 모델을 바꿔 불러옵니다(수십 초).')));
+  const mA = modelOf(tr.model) || {};
+  const cand = S.st ? sortedModels().filter(m => m.id !== tr.model && runnable(m) && m.shape && mA.shape && m.shape.vocab === mA.shape.vocab && m.template === mA.template) : [];
+  if (!cand.length) out.push(labNote(T('어휘와 채팅 틀이 같은 다른 모델이 설치되어 있지 않습니다.')));
+  else {
+    if (LAB.cmpModel && !cand.some(m => m.id === LAB.cmpModel)) LAB.cmpModel = '';
+    out.push(h('div', { class: 'row g8 nowrap' },
+      h('select', { class: 'input grow', 'aria-label': T('견줄 모델'), 'data-fk': 'lab:cmpM', onchange: ev => { LAB.cmpModel = ev.target.value; labRender(); } },
+        h('option', { value: '' }, T('모델 고르기')), cand.map(m => h('option', { value: m.id, selected: m.id === LAB.cmpModel ? true : null }, `${displayName(m)} · ${quantOf(m)}`))),
+      h('button', {
+        class: 'btn needs-conn', disabled: (!LAB.cmpModel || LAB.busy || S.streaming) ? true : null, onclick: () => labRun(async () => {
+          const mid = LAB.cmpModel;
+          LAB.cmpRes[LAB.tid + '|' + mid] = Object.assign({ model: mid }, await labScore(mid, an.prompt, tr.tokens, LAB_K));
+        }),
+      }, I('play', 's'), T('점수'))));
+    const res = LAB.cmpModel && LAB.cmpRes[LAB.tid + '|' + LAB.cmpModel];
+    if (res) out.push(labDelta(an, tr.tokens, res, T`${labelById(res.model)}에서`));
+  }
+  return labCol(out);
+}
+function labPair(an, tr, anB, trB) {
+  const sameModel = tr.model === trB.model;
+  const same = sameModel && an.prompt.length === anB.prompt.length && an.prompt.every((x, i) => x === anB.prompt[i]);
+  const sA = labSummary(an, tr.tokens), sB = labSummary(anB, trB.tokens);
+  const out = [];
+  if (same) {
+    let d = 0;
+    while (d < tr.tokens.length && d < trB.tokens.length && tr.tokens[d] === trB.tokens[d]) d++;
+    if (d === tr.tokens.length && d === trB.tokens.length) out.push(h('div', { class: 'note-line' }, I('check', 's'), h('span', null, T`프롬프트가 같고 두 답의 토큰 ${fmtNum(d)}개가 모두 같습니다.`)));
+    else {
+      const side = (x, a, s) => h('div', null, h('div', { class: 'eyebrow' }, x), h('div', { class: 'lab-tokbig' }, d < a.lp.length ? tokShow(a.strs[d] === null ? a.raw[d] : a.strs[d]) : T('(끝)')),
+        h('div', { class: 'small muted' }, d < a.lp.length ? T`확률 ${pct(a.lp[d])} · ${labStep(a, s, d).rank}위` : ''));
+      out.push(h('div', { class: 'card lab-detail' },
+        h('div', { class: 'row g8' }, h('span', { class: 'eyebrow' }, T`처음 갈린 걸음 ${d + 1}`), h('span', { class: 'grow' }),
+          d < an.lp.length ? h('button', { class: 'btn sm ghost', onclick: () => { LAB.tab = 'obs'; LAB.sel = d; labRender(); } }, T('A의 이 걸음 보기')) : null),
+        labNote(T('프롬프트와 앞 토큰이 모두 같으므로 이 걸음의 분포는 두 답에서 같은 비트입니다 — 고른 토큰만 다릅니다.')),
+        h('div', { class: 'lab-vs' }, side('A', an, tr.tokens), side('B', anB, trB.tokens))));
+    }
+  } else if (sameModel) {
+    const key = LAB.tid + '|' + LAB.cmpTid;
+    out.push(h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('두 답의 프롬프트가 다릅니다(질문 · 앞 대화 · 시스템 프롬프트 · 생각 켬끔).'))),
+      h('div', null, h('button', {
+        class: 'btn needs-conn', disabled: (LAB.busy || S.streaming) ? true : null, onclick: () => labRun(async () => { LAB.cross[key] = await labScore(tr.model, anB.prompt, tr.tokens, LAB_K); }),
+      }, I('play', 's'), T('A의 답을 B의 프롬프트로 점수'))));
+    if (LAB.cross[key]) out.push(labDelta(an, tr.tokens, LAB.cross[key], T('B의 프롬프트에서')));
+  } else out.push(h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('두 답의 모델이 다릅니다 — 아래 \'같은 글을 다른 모델로 점수\'로 같은 토큰을 견주세요.'))));
+  const row = (l, x, y) => h('tr', null, h('td', null, l), h('td', { class: 'r num' }, x), h('td', { class: 'r num' }, y));
+  out.push(h('div', { class: 'list' }, h('table', { class: 'data lab-table' },
+    h('thead', null, h('tr', null, h('th', null, ''), h('th', { class: 'r' }, 'A'), h('th', { class: 'r' }, 'B'))),
+    h('tbody', null, row(T('토큰'), fmtNum(sA.n), fmtNum(sB.n)), row(T('평균 로그확률'), nat(sA.mean), nat(sB.mean)), row(T('퍼플렉시티'), sA.ppl.toFixed(3), sB.ppl.toFixed(3)),
+      row(T`아슬아슬 (여유 < ${LAB.delta})`, fmtNum(sA.frag), fmtNum(sB.frag)), row(T('1위가 아닌 토큰'), fmtNum(sA.notTop), fmtNum(sB.notTop))))));
+  return labCol(out);
+}
+// 같은 토큰을 다른 조건(모델 · 프롬프트)에서 점수 매긴 값과 견준다 — Δ = 그쪽 − 이 답. 셈의 잡음이 없으므로 Δ 는 바꾼 것 하나의 효과다
+function labDelta(an, toks, res, where) {
+  const n = Math.min(an.lp.length, res.lp.length);
+  let sum = 0, maxAbs = -1, maxAt = 0, top1 = 0, zero = 0;
+  const box = h('div', { class: 'tokstrip delta', role: 'img', 'aria-label': T`토큰마다 Δ로그확률 — ${where}` });
+  for (let i = 0; i < n; i++) {
+    const d = res.lp[i] - an.lp[i], a = Math.abs(d);
+    sum += d;
+    if (a > maxAbs) { maxAbs = a; maxAt = i; }
+    if ((res.topIds[i] || [])[0] !== (an.topIds[i] || [])[0]) top1++;
+    if (d === 0) zero++;
+    const b = a === 0 ? 0 : a < 0.01 ? 1 : a < 0.1 ? 2 : a < 0.5 ? 3 : a < 2 ? 4 : 5;
+    box.append(h('span', { class: `tok d${b}${d < 0 ? ' neg' : d > 0 ? ' pos' : ''}${an.strs[i] === null ? ' cont' : ''}`, 'data-tip': T`걸음 ${i + 1} · Δ로그확률 ${sgn(d)}`, 'data-tip-pos': 'top' }, tokShow(an.strs[i])));
+  }
+  return h('div', { class: 'col g8' },
+    h('div', { class: 'eyebrow' }, T`같은 토큰 ${fmtNum(n)}개 — ${where}`),
+    h('div', { class: 'kpis sm lab-kpis' },
+      labKpi(sgn(sum), T('합 Δ로그확률'), T('답 전체의 로그 확률비 — log P(그쪽) − log P(이 답)')),
+      labKpi(sgn(n ? sum / n : 0), T('평균 Δ로그확률')),
+      labKpi(nat(maxAbs), T`가장 큰 |Δ| (걸음 ${maxAt + 1})`),
+      labKpi(fmtNum(top1), T('1위가 바뀐 걸음'), T('두 조건에서 가장 그럴듯한 토큰이 다른 걸음 수'))),
+    labNote(T`초록 = 그쪽에서 더 높은 확률, 분홍 = 더 낮은 확률, 짙을수록 큰 차이. 차이 0(비트까지 같음) ${fmtNum(zero)}걸음.`),
+    box);
+}
+
+// ---- 점수 ----
+function labScoreView() {
+  const tr = labCur(), an = tr && LAB.an[LAB.tid];
+  const ta = h('textarea', { class: 'w100 lab-ta', rows: '5', placeholder: T('점수 매길 글을 붙여 넣으세요'), 'aria-label': T('점수 매길 글'), 'data-fk': 'lab:text' });
+  ta.value = LAB.scoreText;
+  ta.addEventListener('input', () => { LAB.scoreText = ta.value; });
+  if (!an && LAB.scoreCtx === 'answer') LAB.scoreCtx = 'none';
+  const ctx = h('select', { class: 'input w100', 'aria-label': T('맥락'), 'data-fk': 'lab:ctx', onchange: ev => { LAB.scoreCtx = ev.target.value; labRender(); } },
+    h('option', { value: 'answer', selected: LAB.scoreCtx === 'answer' ? true : null, disabled: an ? null : true }, an ? T('고른 답의 자리에(같은 질문 · 대화 뒤 — 그 답의 모델)') : T('고른 답의 자리에(먼저 관찰에서 셈하세요)')),
+    h('option', { value: 'none', selected: LAB.scoreCtx === 'none' ? true : null }, T('맥락 없이(글만 — 첫 토큰은 확률 없음)')));
+  const runs = S.st ? sortedModels().filter(runnable) : [];
+  if (!LAB.scoreModel || !runs.some(m => m.id === LAB.scoreModel)) LAB.scoreModel = (tr && runs.some(m => m.id === tr.model) && tr.model) || defaultModel();
+  const useAns = !!(LAB.scoreCtx === 'answer' && an);
+  const model = useAns ? tr.model : LAB.scoreModel;
+  const msel = h('select', { class: 'input w100', 'aria-label': T('점수 매길 모델'), 'data-fk': 'lab:smodel', disabled: useAns ? true : null, onchange: ev => { LAB.scoreModel = ev.target.value; } },
+    runs.map(m => h('option', { value: m.id, selected: m.id === model ? true : null }, `${displayName(m)} · ${quantOf(m)}`)));
+  const out = [labNote(T('글의 토큰마다 로그확률과 퍼플렉시티를 셉니다 — 모델이 이 글을 얼마나 그럴듯하게 보는가. 같은 글 · 같은 모델이면 어느 PC에서든 같은 값입니다.')),
+    ta, ctx, msel,
+    h('div', null, h('button', {
+      class: 'btn primary needs-conn', disabled: (LAB.busy || S.streaming || !model) ? true : null, onclick: () => labRun(async () => {
+        const text = LAB.scoreText;
+        if (!text.trim()) throw new Error(T('점수 매길 글을 넣으세요'));
+        await labEnsureModel(model);
+        const ids = (await labApi('/tokenize', { prompt: text })).tokens;
+        const pre = useAns ? an.prompt : ids.slice(0, 1), rest = useAns ? ids : ids.slice(1);
+        if (!rest.length) throw new Error(T('토큰이 둘 이상인 글을 넣으세요(맥락 없이는 첫 토큰의 확률이 없습니다)'));
+        LAB.busy = T`토큰 ${fmtNum(rest.length)}개를 셈하는 중`;
+        labRender();
+        const sc = await labScore(model, pre, rest, LAB_K);
+        LAB.scoreRes = { model, ids: rest, pre, sc, ctx: useAns, text };
+        LAB.scoreSel = -1;
+      }),
+    }, I('play', 's'), T('점수')))];
+  const r = LAB.scoreRes;
+  if (r) {
+    const sm = labSummary(r.sc, r.ids);
+    let lo = 0;
+    r.sc.lp.forEach((x, i) => { if (x < r.sc.lp[lo]) lo = i; });
+    const holder = labDetailHolder(() => (LAB.scoreSel >= 0 ? labDetail(r.sc, r.ids, LAB.scoreSel, false) : null));
+    out.push(h('div', { class: 'eyebrow mt8' }, `${labelById(r.model)}${NB}${r.ctx ? T('고른 답의 자리에') : T('맥락 없이')}${NB}${T`토큰 ${fmtNum(sm.n)}개`}`),
+      h('div', { class: 'kpis sm lab-kpis' }, labKpi(nat(sm.sum), T('합 로그확률')), labKpi(nat(sm.mean), T('평균 로그확률')), labKpi(sm.ppl.toFixed(3), T('퍼플렉시티')),
+        labKpi(pct(r.sc.lp[lo]), T`가장 낮은 확률 (걸음 ${lo + 1})`)),
+      labStrip(r.sc, r.ids, LAB.scoreSel, i => { LAB.scoreSel = i; holder._render(); }, T('점수 매긴 글의 토큰')), holder);
+  }
+  return labCol(out);
+}
+
+// ---- 재현 ----
+function labRepro() {
+  const tr = labCur();
+  const out = [labPicker()];
+  if (tr) {
+    const an = LAB.an[LAB.tid], sha = trSha(tr), fx = an ? labFpOf(LAB.tid) : null, f = labFind(LAB.tid);
+    out.push(labAnswerHead(tr), labSec(T('지문')),
+      labNote(T('같은 모델 파일 · 같은 프롬프트 · 같은 결과면 어느 GPU · 백엔드에서 셈해도 같은 지문입니다(계약). 장치는 지문에 넣지 않고 만든 곳으로 따로 적습니다.')),
+      h('div', { class: 'kv' },
+        h('div', { class: 'k' }, T('토큰 지문')), h('div', { class: 'v mono small' }, !an ? T('셈하면 보입니다') : fx ? fpShort(fx.fp) : '…'),
+        h('div', { class: 'k' }, T('로짓 지문')), h('div', { class: 'v mono small' }, !an ? T('셈하면 보입니다') : fx ? fpShort(fx.fpLogit) : '…'),
+        h('div', { class: 'k' }, T('모델 파일')), h('div', { class: 'v mono small break' }, sha ? 'SHA-256 ' + sha.slice(0, 16) + '…' : T('SHA-256 모름')),
+        h('div', { class: 'k' }, T('만든 곳')), h('div', { class: 'v small' }, `${tr.device || '-'}${NB}${LAYER[tr.layer] || tr.layer || '-'}`)));
+    if (!sha) {
+      const m = modelOf(tr.model);
+      out.push(h('div', { class: 'note-line' }, I('info', 's'), h('span', null, T('직접 추가한 모델 파일은 SHA-256을 아직 모릅니다 — 지문 · 캡슐에는 모델 파일의 해시가 필요합니다.'))),
+        m ? h('div', null, h('button', { class: 'btn sm needs-conn', disabled: m.verifying ? true : null, onclick: () => verifyModel(m.id) }, I('hash', 's'), m.verifying ? T('SHA-256 셈하는 중') : T('SHA-256 셈하기'))) : null);
+    }
+    if (!an) out.push(h('div', null, labAnalyzeBtn(LAB.tid, T('셈하기'))));
+    // 다시 돌려 확인
+    const rp = LAB.replay[LAB.tid];
+    out.push(labSec(T('다시 돌려 확인')), labNote(T('같은 요청(같은 프롬프트 토큰 · 매개변수 · 씨앗)을 캐시 없이 다시 생성하고 걸음마다 토큰과 로짓 해시를 견줍니다.')),
+      h('div', null, h('button', {
+        class: 'btn needs-conn', disabled: (LAB.busy || S.streaming || (!tr.promptIds && !(f && f.live))) ? true : null, onclick: () => labRun(() => labReplay(LAB.tid)),
+      }, I('refresh', 's'), T('다시 돌려 확인'))));
+    if (rp) out.push(h('div', { class: 'note-line' + (rp.ok ? '' : ' err') }, I(rp.ok ? 'check' : 'alert', 's'), h('span', null, rp.text)));
+    // 캡슐 내보내기
+    out.push(labSec(T('재현 캡슐')), labNote(T('요청 · 결과 · 로그확률 · 로짓 해시 · 만든 곳을 JSON 파일 하나로. 받은 사람이 자기 GPU에서(아래 \'캡슐 불러와 확인\') 또는 GPU 없이 파이썬(도구/캡슐확인.py)으로 비트까지 같은지 확인합니다.')),
+      h('div', null, h('button', { class: 'btn needs-conn', disabled: (!an || !sha || LAB.busy) ? true : null, onclick: () => labCapsuleSave(LAB.tid) }, I('download', 's'), T('캡슐 내보내기'))));
+  }
+  const file = h('input', { type: 'file', accept: '.json,application/json', class: 'sr', 'aria-label': T('캡슐 파일'), tabindex: '-1' });
+  file.addEventListener('change', () => { const fl = file.files && file.files[0]; if (fl) labRun(() => labCapsuleCheck(fl)); });
+  out.push(h('div', null, h('button', { class: 'btn needs-conn', 'data-fk': 'lab:capin', disabled: (LAB.busy || S.streaming) ? true : null, onclick: () => file.click() }, I('file', 's'), T('캡슐 불러와 확인')), file));
+  if (LAB.capsule) out.push(h('div', { class: 'note-line' + (LAB.capsule.ok ? '' : ' err') }, I(LAB.capsule.ok ? 'check' : 'alert', 's'), h('span', null, LAB.capsule.text)));
+  // 출처 · 기준 PC · 하드웨어
+  out.push(labSec(T('출처')));
+  if (!LAB.prov) out.push(h('div', null, h('button', { class: 'btn sm needs-conn', disabled: LAB.busy ? true : null, onclick: () => labRun(async () => { LAB.busy = T('해시를 셈하는 중'); labRender(); LAB.prov = await api('/api/provenance'); }) }, I('hash', 's'), T('엔진 · 커널 해시 보기'))));
+  else out.push(labProvView(LAB.prov));
+  out.push(labRefView(tr));
+  return labCol(out);
+}
+async function labReplay(tid) {
+  const tr = TRACES[tid];
+  const an = await labAnalyze(tid);
+  const cp = labParts(tr, an.prompt);
+  LAB.busy = T('같은 요청을 캐시 없이 다시 생성하는 중');
+  labRender();
+  const body = { prompt: cp.prompt, max_tokens: labMax(tr), temperature: tr.req.temp, cache_prompt: false, geulpu: { logit_hash: true } };
+  if (cp.off) body.geulpu.step_offset = cp.off;
+  const j = await labApi('/v1/completions', seedBody(body, tr.req.temp > 0 ? tr.seed : ''));
+  const toks = j.geulpu.tokens || [], hs = j.geulpu.logit_hashes || [], want = cp.tokens, wh = an.hashes.slice(cp.off);
+  let d = 0, hd = 0;
+  while (d < toks.length && d < want.length && toks[d] === want[d]) d++;
+  while (hd < hs.length && hd < wh.length && hs[hd] === wh[hd]) hd++;
+  const ok = d === toks.length && d === want.length && hd === hs.length && hd === wh.length;
+  LAB.replay[tid] = {
+    ok, text: ok ? T`${fmtNum(d)}걸음 모두 같음 — 토큰 · 로짓 해시(슬롯 ${j.geulpu.slot} · 캐시 없이)`
+      : T`걸음 ${Math.min(d, hd) + 1}에서 다름 — 같은 토큰 ${d}/${want.length} · 같은 로짓 해시 ${hd}/${wh.length}`,
+  };
+}
+function labCapsuleText(tid) {
+  const tr = TRACES[tid], an = LAB.an[tid], m = modelOf(tr.model), cp = labParts(tr, an.prompt), o = cp.off, fx = LAB.fpc[tid];
+  const req = { prompt_tokens: cp.prompt, max_tokens: labMax(tr), temperature: tr.req.temp };
+  if (tr.req.temp > 0) Object.assign(req, { top_k: 40, top_p: 0.95, min_p: 0.05, seed: '__SEED__' });
+  if (o) req.step_offset = o;
+  const cap = {
+    format: 'geulpu-capsule/1', created: new Date().toISOString(), contract: '5.2',
+    app: { version: S.st ? S.st.app.version : '', commit: S.st ? S.st.app.commit : '' },
+    model: { name: tr.name, quant: tr.quant, file: m ? String(m.path || '').split(/[\\/]/).pop() : '', size: m ? m.size : null, sha256: trSha(tr) },
+    made_on: { device: tr.device, layer: tr.layer },
+    request: req,
+    result: {
+      tokens: cp.tokens, token_logprobs: an.lp.slice(o), entropy: an.ent.slice(o), top_ids: an.topIds.slice(o), top_logprobs: an.topLp.slice(o),
+      logit_hashes: an.hashes.slice(o),
+    },
+    fingerprint: fx && fx.fp ? { token: fx.fp, logit: fx.fpLogit } : null,
+  };
+  const txt = '{\n' + Object.keys(cap).map(k => JSON.stringify(k) + ':' + JSON.stringify(cap[k])).join(',\n') + '\n}\n';
+  return tr.req.temp > 0 ? txt.replace('"seed":"__SEED__"', '"seed":' + (tr.seed || '0')) : txt;
+}
+function labDownload(name, text, type) {
+  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function labCapsuleSave(tid) {
+  if (!LAB.an[tid]) return;
+  const fx = LAB.fpc[tid];
+  labDownload(`geulpu-capsule-${fx && fx.fp ? fx.fp.slice(0, 12) : tid}.json`, labCapsuleText(tid), 'application/json');
+}
+// 캡슐 확인 — 같은 모델 파일(SHA-256)로 이 PC 에서 점수 매기기와 다시 생성. 모든 수가 비트까지 같아야 한다
+async function labCapsuleCheck(file) {
+  LAB.capsule = null;
+  const raw = await file.text();
+  let cap;
+  try { cap = JSON.parse(raw); } catch (_) { throw new Error(T('JSON 파일이 아닙니다')); }
+  if (!cap || cap.format !== 'geulpu-capsule/1' || !cap.request || !cap.result || !cap.model) throw new Error(T('GeulPU 재현 캡슐이 아닙니다'));
+  const rq = cap.request, rs = cap.result;
+  // 씨앗은 64비트 정수라 JSON.parse 가 자리를 잃는다 — 원문에서 읽는다(파이썬 json.dump 처럼 ':' 뒤에 빈칸이 있어도). 못 읽으면 다른 씨앗으로
+  // 다시 생성해 '다름'이 되므로 멈춘다
+  const ri = raw.indexOf('"request"');
+  const sm = ri >= 0 ? /"seed"\s*:\s*(\d+)\s*[,}]/.exec(raw.slice(ri)) : null;
+  if (rq.temperature > 0 && !sm) throw new Error(T('캡슐의 씨앗(seed)을 정수로 읽지 못했습니다 — 정밀도를 잃은 사본일 수 있습니다'));
+  const models = S.st ? S.st.models : [];
+  const m = models.find(x => x.sha256 && x.sha256 === cap.model.sha256);
+  if (!m) {
+    const same = models.find(x => !x.sha256 && cap.model.size && x.size === cap.model.size);
+    throw new Error(same ? T`크기가 같은 모델(${displayName(same)})이 있지만 SHA-256을 모릅니다 — 모델 화면에서 무결성을 확인한 뒤 다시 불러오세요`
+      : T`같은 모델 파일(SHA-256 ${String(cap.model.sha256 || '').slice(0, 12)}…)이 설치되어 있지 않습니다 — ${cap.model.name || ''} ${cap.model.quant || ''}`);
+  }
+  LAB.busy = T('캡슐의 토큰을 이 PC에서 다시 셈하는 중');
+  labRender();
+  const k = (rs.top_ids[0] || []).length || 1;
+  const sc = await labScore(m.id, rq.prompt_tokens, rs.tokens, k);
+  const n = rs.tokens.length;
+  const eqA = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+  let d = 0;
+  for (; d < n; d++) {
+    if (sc.lp[d] !== rs.token_logprobs[d] || sc.hashes[d] !== rs.logit_hashes[d] || sc.ent[d] !== rs.entropy[d]
+      || !eqA(sc.topIds[d] || [], rs.top_ids[d] || []) || !eqA(sc.topLp[d] || [], rs.top_logprobs[d] || [])) break;
+  }
+  const scoreOk = d === n && sc.lp.length === n;
+  LAB.busy = T('캡슐의 요청으로 다시 생성하는 중');
+  labRender();
+  const body = { prompt: rq.prompt_tokens, max_tokens: rq.max_tokens, temperature: rq.temperature, cache_prompt: false, geulpu: { logit_hash: true } };
+  if (rq.temperature > 0) Object.assign(body, { top_k: rq.top_k, top_p: rq.top_p, min_p: rq.min_p });
+  if (rq.step_offset) body.geulpu.step_offset = rq.step_offset;
+  const j = await labApi('/v1/completions', seedBody(body, rq.temperature > 0 && sm ? sm[1] : ''));
+  const genOk = eqA(j.geulpu.tokens || [], rs.tokens) && eqA(j.geulpu.logit_hashes || [], rs.logit_hashes);
+  let fpOk = true;
+  if (cap.fingerprint) {
+    const v = await labFp(cap.model.sha256, rq.prompt_tokens, rs.tokens, rs.logit_hashes);
+    fpOk = v.fp === cap.fingerprint.token && v.fpLogit === cap.fingerprint.logit;
+  }
+  const md = cap.made_on || {};
+  const here = `${(S.st && S.st.device.name) || '-'} · ${LAYER[S.st && S.st.server.layer] || '-'}`;
+  const where = T` (캡슐에 적힌 만든 곳 ${md.device || '-'} · ${LAYER[md.layer] || md.layer || '-'} → 여기 ${here})`;
+  const ok = scoreOk && genOk && fpOk;
+  LAB.capsule = {
+    ok, text: ok ? T`비트까지 같음 — ${fmtNum(n)}걸음의 로그확률 · 엔트로피 · 상위 ${k} · 로짓 해시, 다시 생성한 토큰, 지문` + where
+      : [scoreOk ? null : T`점수 매기기가 걸음 ${d + 1}에서 다름`, genOk ? null : T('다시 생성한 토큰 · 로짓 해시가 다름'),
+        !genOk && scoreOk && rq.temperature > 0 ? T('점수는 같으니 씨앗을 확인하세요 — 다른 도구로 다시 쓴 캡슐은 씨앗(64비트 정수)이 자리를 잃었을 수 있습니다') : null,
+        fpOk ? null : T('지문이 다름')].filter(Boolean).join(NB) + where,
+  };
+}
+function labProvView(p) {
+  const rows = (p.binaries || []).map(b => h('tr', null, h('td', { class: 'small' }, String(b.file).replace(/^bin[\\/]/, '')),
+    h('td', { class: 'mono small' }, b.sha256 ? b.sha256.slice(0, 12) + '…' : '-'),
+    h('td', null, b.reference ? (b.same ? h('span', { class: 'tag ok' }, I('check'), T('기준과 같음')) : h('span', { class: 'tag err' }, I('alert'), T('기준과 다름'))) : h('span', { class: 'tag dim' }, T('기준 없음')))));
+  return h('div', { class: 'col g8' },
+    labNote(T('엔진 바이너리의 SHA-256을 재현성 검증의 기준 빌드와 견줍니다. 직접 빌드한 판은 다를 수 있습니다.')),
+    h('div', { class: 'list' }, h('table', { class: 'data lab-table' }, h('tbody', null, rows))),
+    p.module ? h('div', { class: 'kv' }, h('div', { class: 'k' }, T('커널 모듈')), h('div', { class: 'v mono small break' }, `${p.module.file}${NB}${LAYER[p.module.layer] || p.module.layer}${NB}${p.module.sha256 ? p.module.sha256.slice(0, 16) + '…' : '-'}`)) : null,
+    h('div', { class: 'small muted' }, `GeulPU v${p.app.version}${p.app.commit ? NB + T('커밋') + ' ' + p.app.commit.slice(0, 7) : ''}${NB}${T('계약')} ${p.contract}`));
+}
+// 기준 PC 대조 · 하드웨어 한계 — 지난 결과에서(벤치마크 화면)
+function labRefView(tr) {
+  if (!S.results && Date.now() - S.resultsAt > 30000) loadResults(false).then(() => { if (LAB.open && LAB.tab === 'repro') labRender(); });
+  const rs = S.results || [];
+  const cc = rs.find(x => x.kind === '교차검증');
+  const dg = tr && rs.find(x => x.kind === '진단' && x.model === tr.model);
+  const out = [labSec(T('기준 PC · 하드웨어'))];
+  if (cc) {
+    const v = resultVerdict(cc);
+    out.push(h('div', { class: 'note-line' + (v && v[0] === 'err' ? ' err' : '') }, I(v && v[0] === 'err' ? 'alert' : 'shield', 's'),
+      h('span', null, T`재현성 검증 ${stampText(cc.stamp)}: ${v ? v[1] : '-'} — ${resultSummary(cc)}`)));
+  } else out.push(h('div', { class: 'note-line' }, I('shield', 's'), h('span', null, T('재현성 검증을 아직 하지 않았습니다 — 이 PC의 출력이 기준 PC와 비트까지 같은지 벤치마크에서 확인합니다.'))));
+  if (dg) out.push(h('div', { class: 'note-line' }, I('pulse', 's'), h('span', null, T`하드웨어 진단 ${stampText(dg.stamp)}: ${resultSummary(dg)}`)));
+  else if (tr) out.push(h('div', { class: 'note-line' }, I('pulse', 's'), h('span', null, T('이 모델의 하드웨어 진단이 없습니다 — 생성이 하드웨어 한계에 얼마나 가까운지 벤치마크에서 잽니다.'))));
+  out.push(h('div', null, h('button', { class: 'btn sm ghost', onclick: () => show('bench') }, I('gauge', 's'), T('벤치마크로'))));
+  return h('div', { class: 'col g8' }, out);
+}
+
+// ---- 내보내기 — 보이는 것 모두 JSON · CSV, 같은 값을 받는 파이썬 코드 ----
+function labRows(an, toks) {
+  return an.lp.map((lp, i) => {
+    const st = labStep(an, toks, i);
+    return {
+      step: i + 1, id: toks[i], text: an.raw[i], logprob: lp, prob: Math.exp(lp), rank: st.rank > (an.topIds[i] || []).length ? null : st.rank, entropy: an.ent[i],
+      margin: isFinite(st.margin) ? st.margin : null, logit_hash: an.hashes[i] || null, top: (an.topIds[i] || []).map((id, q) => ({ id, logprob: an.topLp[i][q] })),
+    };
+  });
+}
+const CSV_HEAD = 'step,id,text,logprob,prob,rank,entropy,margin,logit_hash';
+const csvLine = r => [r.step, r.id, JSON.stringify(r.text), r.logprob, r.prob, r.rank === null ? '' : r.rank, r.entropy, r.margin === null ? '' : r.margin, r.logit_hash || ''].join(',');
+const csvRows = (rows, extra) => [CSV_HEAD + (extra ? ',' + extra.join(',') : '')].concat(rows.map(r => csvLine(r) + (extra ? ',' + extra.map(k => r[k]).join(',') : ''))).join('\n') + '\n';
+function labOut() {
+  const tr = labCur(), an = tr && LAB.an[LAB.tid];
+  const out = [labPicker()];
+  const stamp = () => new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+  const base = tr ? `geulpu-${String(tr.name || 'model').replace(/[^\w.-]+/g, '_')}-${tr.quant || ''}` : 'geulpu';
+  const item = (title, desc, btns) => h('div', { class: 'lab-out' }, h('div', { class: 'ink' }, title), desc ? h('div', { class: 'small muted' }, desc) : null, h('div', { class: 'row g8' }, btns));
+  const dl = (label, fn) => h('button', { class: 'btn sm', onclick: () => { const [n, t, ty] = fn(); labDownload(n, t, ty); } }, I('download', 's'), label);
+  const head = (what, extra) => Object.assign({ format: 'geulpu-tokens/1', contract: '5.2', what, logprob: 'natural log, model distribution (temperature 1), contract 5.2' }, extra);
+  const json = o => JSON.stringify(o) + '\n';
+  if (tr && an) {
+    const fx = labFpOf(LAB.tid);
+    const meta = {
+      model: { name: tr.name, quant: tr.quant, sha256: trSha(tr) }, params: { temperature: tr.req.temp, max_tokens: labMax(tr), seed: tr.req.temp > 0 ? tr.seed : null, branch: tr.branch || null },
+      prompt_tokens: an.prompt, fingerprint: fx && fx.fp ? { token: fx.fp, logit: fx.fpLogit } : null, made_on: { device: tr.device, layer: tr.layer },
+    };
+    out.push(item(T('이 답의 토큰 표'), T`걸음마다 토큰 · 로그확률 · 확률 · 순위 · 엔트로피 · 여유 · 로짓 해시 · 상위 ${LAB_K}`, [
+      dl('JSON', () => [base + '-answer-' + stamp() + '.json', json(head('answer', Object.assign({}, meta, { steps: labRows(an, tr.tokens) }))), 'application/json']),
+      dl('CSV', () => [base + '-answer-' + stamp() + '.csv', csvRows(labRows(an, tr.tokens)), 'text/csv'])]));
+    out.push(item(T('재현 캡슐'), T('요청 · 결과 · 만든 곳 — 재현에서 확인하는 파일'), [h('button', { class: 'btn sm', disabled: trSha(tr) ? null : true, onclick: () => labCapsuleSave(LAB.tid) }, I('download', 's'), 'JSON')]));
+    const cm = LAB.cmpModel && LAB.cmpRes[LAB.tid + '|' + LAB.cmpModel];
+    if (cm) {
+      const rows = () => labRows(an, tr.tokens).map((r, i) => Object.assign(r, { other_logprob: cm.lp[i], delta: cm.lp[i] - r.logprob }));
+      out.push(item(T`다른 모델로 점수 — ${labelById(cm.model)}`, T('같은 토큰의 두 모델 로그확률과 차(Δ = 그 모델 − 이 답)'), [
+        dl('JSON', () => [base + '-vs-model-' + stamp() + '.json', json(head('other-model', Object.assign({}, meta, { other_model: labelById(cm.model), other_sha256: (modelOf(cm.model) || {}).sha256 || '', steps: rows() }))), 'application/json']),
+        dl('CSV', () => [base + '-vs-model-' + stamp() + '.csv', csvRows(rows(), ['other_logprob', 'delta']), 'text/csv'])]));
+    }
+    const cr = LAB.cmpTid && LAB.cross[LAB.tid + '|' + LAB.cmpTid];
+    if (cr) {
+      const anB = LAB.an[LAB.cmpTid];
+      const rows = () => labRows(an, tr.tokens).map((r, i) => Object.assign(r, { other_logprob: cr.lp[i], delta: cr.lp[i] - r.logprob }));
+      out.push(item(T('A의 답을 B의 프롬프트로 점수'), T('같은 답 토큰의 두 프롬프트 로그확률과 차(Δ = B의 프롬프트 − A)'), [
+        dl('JSON', () => [base + '-vs-prompt-' + stamp() + '.json', json(head('other-prompt', Object.assign({}, meta, { other_prompt_tokens: anB ? anB.prompt : null, steps: rows() }))), 'application/json']),
+        dl('CSV', () => [base + '-vs-prompt-' + stamp() + '.csv', csvRows(rows(), ['other_logprob', 'delta']), 'text/csv'])]));
+    }
+  } else if (tr) out.push(labNote(T('이 답을 셈하면 토큰 표 · 캡슐을 내보낼 수 있습니다.')), h('div', null, labAnalyzeBtn(LAB.tid)));
+  const r = LAB.scoreRes;
+  if (r) out.push(item(T('점수 매긴 글'), `${labelById(r.model)}${NB}${r.ctx ? T('고른 답의 자리에') : T('맥락 없이')}`, [
+    dl('JSON', () => ['geulpu-score-' + stamp() + '.json', json(head('score', { model: { name: labelById(r.model), sha256: (modelOf(r.model) || {}).sha256 || '' }, context_tokens: r.pre, text: r.text, steps: labRows(r.sc, r.ids) })), 'application/json']),
+    dl('CSV', () => ['geulpu-score-' + stamp() + '.csv', csvRows(labRows(r.sc, r.ids)), 'text/csv'])]));
+  // 파이썬
+  const port = (S.st && S.st.app.port) || 44544;
+  const pre = `from openai import OpenAI   # pip install openai — ${T('앱에서 모델을 불러온 상태에서')}\nc = OpenAI(base_url="http://127.0.0.1:${port}/v1", api_key="geulpu")\n`;
+  const pyScore = an ? pre
+    + `prompt = ${JSON.stringify(an.prompt)}\nanswer = ${JSON.stringify(tr.tokens)}\n`
+    + `r = c.completions.create(model="geulpu", prompt=prompt + answer, echo=True, max_tokens=0, logprobs=${LAB_K}, temperature=0,\n`
+    + `                         extra_body={"geulpu": {"echo_from": len(prompt), "logit_hash": True}})\n`
+    + `lp = r.choices[0].logprobs.token_logprobs[len(prompt):]   # ${T('이 패널의 값과 비트까지 같다')}\n` : null;
+  const pyGen = pre
+    + `r = c.chat.completions.create(model="geulpu", messages=[{"role": "user", "content": "${T('하늘은 왜 파란가?')}"}], max_tokens=128,\n`
+    + `                              temperature=0, logprobs=True, top_logprobs=5, extra_body={"geulpu": {"logit_hash": True}})\n`
+    + `for t in r.choices[0].logprobs.content: print(t.token, t.logprob)\n`;
+  const code = (title, py) => h('div', { class: 'lab-out' }, h('div', { class: 'row g8 nowrap' }, h('span', { class: 'ink grow' }, title),
+    h('button', { class: 'btn sm ghost', onclick: () => copyText(py).then(ok => { if (ok) toast(T('복사했습니다'), 'ok'); }) }, I('copy', 's'), T('복사'))),
+    h('pre', { class: 'log lab-code' }, py));
+  out.push(labSec(T('파이썬')), labNote(T('패널의 값은 모두 OpenAI 꼴 API로도 받습니다 — 어느 PC · GPU에서든 같은 비트입니다.')));
+  if (pyScore) out.push(code(T('이 답을 점수 매기기(echo)'), pyScore));
+  out.push(code(T('생성하며 로그확률 받기'), pyGen));
+  return labCol(out);
+}
+if (load('geulpu.lab.open', false) && !labOverlay()) setTimeout(() => labToggle(true), 0);
 
 // ---------- 시작 ----------
 (async function start() {

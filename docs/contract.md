@@ -175,6 +175,48 @@ Defaults when a request omits a field are those of llama-server: T 0.8, K 40, P 
 returns it in `geulpu.seed`, so the response can be reproduced. The order differs from llama.cpp, which applies top-k, top-p and min-p
 to the temperature-1 distribution and the temperature last. This contract applies the temperature first (the Hugging Face order).
 
+### 5.2 Log-probabilities (stage 38 — the server, [`문서/38단계.md`](../문서/38단계.md))
+
+Log-probabilities (`logprobs`, `top_logprobs` and the scores of `echo`) are computed from one row of logits z (the V float32 values the
+engine produced) by this contract. All arithmetic is float64, rounded once per operation in the written order, with no fused
+multiply-add. The distribution is **the model's** (temperature 1, no filtering) — not the sampling distribution of section 5. The
+geul-language version is [`호스트/로그확률.gl`](../호스트/로그확률.gl); the Python version is [`계약/로그확률.py`](../계약/로그확률.py).
+Because the logits do not depend on the batch, the slot or the path (generation step or prompt path), neither do the log-probabilities:
+the values received while generating are bit-identical to the values from scoring the same text with `echo`.
+
+1. j₁ = the smallest index whose z is the maximum, m = f64(z_{j₁}). a_j = f64(z_j) − m.
+2. w_j = exp_w(a_j) (section 5's exp) for a_j ≥ −40, else 0. This is a declared loss (terms below e⁻⁴⁰ of the largest leave the sum).
+3. Split the vocabulary into 16 ranges: B = ⌈V / 16⌉, range r = [rB, min(V, (r + 1)B)). In each range, starting from 0.0 and in index
+   order, S_r ← S_r + w_j and T_r ← T_r + w_j · a_j (the product is rounded once). S = (…((S₀ + S₁) + S₂) + …) + S₁₅, and T likewise.
+   The ranges exist so the work can be split across worker threads — the order inside and across ranges is fixed, so the result does
+   not depend on the number of threads.
+4. L = log_w(S), **logprob_j = a_j − L**, entropy **H = L − T / S**.
+5. Top k (≤ 20): the first k indices in (z descending, then index ascending — −0 and +0 are equal) order, with their logprobs.
+
+- **log_w(x)** follows fdlibm's `e_log.c` step by step (S is a normal number between 1 and V): the exponent k and the mantissa are taken
+  from the bits, the mantissa is brought into [√2/2, √2) and f = xn − 1; |f| < 2⁻²⁰ has its own short path; otherwise s = f / (2 + f),
+  z = s·s, w = z·z, t1 = w·(Lg2 + w·(Lg4 + w·Lg6)), t2 = z·(Lg1 + w·(Lg3 + w·(Lg5 + w·Lg7))), R = t2 + t1, and the two fdlibm forms
+  combine f, s, R and k·ln2 (high and low parts). Constants as float64 bits: Lg1 0x3FE5555555555593, Lg2 0x3FD999999997FA04,
+  Lg3 0x3FD2492494229359, Lg4 0x3FCC71C51D8E78AF, Lg5 0x3FC7466496CB03DE, Lg6 0x3FC39A09D078C69F, Lg7 0x3FC2F112DF3E5244,
+  1/3 = 0x3FD5555555555555, ln 2 high and low as in section 5. The contract self-test (quick check) keeps it within 1 ulp of the
+  correctly rounded ln (6,021 values — at most 1 ulp).
+
+Responses: chat uses the OpenAI form `logprobs.content` (token, logprob, bytes, top_logprobs); completions use `logprobs` (tokens,
+token_logprobs, top_logprobs, text_offset — with echo the prompt tokens come first, null before `geulpu.echo_from`). The `geulpu`
+object carries the ids and values of the top k (`top_ids`, `top_logprobs` — the completions dictionary form merges tokens with the
+same text), the entropy (`entropy`, `prompt_entropy`), the prompt tokens (`prompt_tokens`) and the logit hashes of the echo rows
+(`prompt_logit_hashes`). Numbers are written with 17 significant digits, so the float64 values come back unchanged.
+
+- **Logit hash** (`logit_hashes`, `prompt_logit_hashes`): for each 32-bit value w of a logit row (V float32 values),
+  h ← (h ^ w) × 1099511628211 (mod 2⁶⁴), starting from h = 0xcbf29ce484222325 (FNV-1a 64). Written as 16 hex digits.
+- **Fingerprints and reproduction capsules** (research panel — a record format, not part of the arithmetic contract): token fingerprint
+  = SHA-256(`geulpu-fp/1\nmodel <model file SHA-256>\nprompt <ids,…>\ntokens <ids,…>\n`), logit fingerprint = SHA-256(`<token
+  fingerprint>\n<per-step logit hashes,…>\n`) — the device and backend are not included. A capsule (`geulpu-capsule/1`) holds the request
+  (prompt tokens, temperature, top-k, top-p, min-p, seed as the raw integer, `step_offset`, `max_tokens`), the result (tokens,
+  log-probabilities, entropy, top k, logit hashes), the model (name, file, size, SHA-256) and where it was made (device, backend — a
+  record written by the maker, not used in checking). [`도구/캡슐확인.py`](../도구/캡슐확인.py) checks it without a GPU, with this
+  contract's CPU reference (sections 1–5): the same tokens, logit hashes, log-probabilities and fingerprints.
+
 ## 6. What the tests check ([`시험/`](../시험/))
 
 | Test | What |
@@ -190,4 +232,5 @@ to the temperature-1 distribution and the temperature last. This contract applie
 | Qwen2 decode megakernel ([`시험/메가15.py`](../시험/메가15.py)) | megakernel vs the stage-14 decode graph — logits and tokens at each of 64 steps for three chat prompts and contexts 1024 · 2100 · 8192, then the KV cache bytes; three turns of the runner's conversation (stopping inside the kernel at the end token) — tokens and cache; GPT-2 module source unchanged |
 | k-quants (stage 26) | every k-quant kernel (243 cases: 11 tile shapes × epilogues × formats, row kernels, embeddings) on real weights of three GGUF files; full forward passes of Q4_K_M · Q5_K_M · Q6_K against the CPU reference |
 | Qwen3 (stage 37 — [`시험/머리정규화37.py`](../시험/머리정규화37.py) · [`시험/참조7B.py`](../시험/참조7B.py) · [`시험/참조생성.py`](../시험/참조생성.py)) | the head-norm kernel (rows 1 · 4 · 64 · 2048 × the weights of every layer of 8B, random and extreme values) against the CPU reference — v untouched; every row's logits of three chat prompts + 16 generated tokens for 1.7B · 8B (Q8_0 · Q4_K_M) · two synthetic 14B-shape models against the CPU reference's full forward pass; five-path, Vulkan and shared32-emulation summaries equal to CUDA; greedy generation with the CPU reference (not a criterion — compared with llama.cpp) |
+| Log-probabilities (stage 38 — [`시험/로그확률38.py`](../시험/로그확률38.py) · [`시험/로그확률서버38.py`](../시험/로그확률서버38.py)) | the geul version (many rows at once and one at a time) against the Python reference — target logprob, entropy and top 20 of synthetic and real logit rows; the reference computed from the logit rows the server recorded (generation steps and echo rows) against the response values, and the rows' FNV hashes; the same tokens scored with echo (cache on and off) against the values from generation; concurrent against one at a time; CUDA against Vulkan |
 | Quick check (CI) | without a GPU: the CPU reference against exact rational arithmetic and against an independent per-value dequantizer; byte-identical regeneration of every module; register spills in SASS — see [reproduce.md](reproduce.md) |
