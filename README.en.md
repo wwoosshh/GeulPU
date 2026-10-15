@@ -136,6 +136,10 @@ generation time — whatever the number of concurrent requests, the cache, the G
 between two runs therefore comes only from what you changed. Open the panel with the flask button at the top of the chat, or the
 flask under an answer (answers received in this version onward — research records stay in this browser).
 
+**New to it? Start with the [research panel guide](docs/research-guide.md)** — seven experiments (where the model hesitated, branching,
+comparing two answers, the effect of quantization, the effect of one word, scoring text, reproduction capsules) with screenshots, how to
+read the numbers, and API examples.
+
 - **Observe** — the answer as tokens: each token's probability, rank, top-10 alternatives, entropy and the gap between the top two
   (margin). Close calls (margin < δ — places where a slightly different computation or setting could pick another token) and steps
   where sampling picked a token that wasn't ranked first are marked.
