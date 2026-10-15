@@ -1,0 +1,65 @@
+[
+ {
+  "모델": "mistral-7b-instruct-v0.3-q4_k_m",
+  "올림 초": 0.0,
+  "finish_reason": "stop",
+  "답": "Paris",
+  "생성 토큰": 1
+ },
+ {
+  "모델": "mistral-7b-instruct-v0.3-q4_k_m",
+  "올림 초": 0.0,
+  "finish_reason": "stop",
+  "답": "Blue.",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "mistral-7b-instruct-v0.3-q4_k_m",
+  "올림 초": 0.0,
+  "finish_reason": "stop",
+  "답": "Seoul",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "llama-3.2-3b-instruct-q8_0",
+  "올림 초": 18.1,
+  "finish_reason": "stop",
+  "답": "Paris.",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "llama-3.2-3b-instruct-q8_0",
+  "올림 초": 18.1,
+  "finish_reason": "stop",
+  "답": "Blue.",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "llama-3.2-3b-instruct-q8_0",
+  "올림 초": 18.1,
+  "finish_reason": "stop",
+  "답": "서울",
+  "생성 토큰": 1
+ },
+ {
+  "모델": "llama-3.1-8b-instruct-q4_k_m",
+  "올림 초": 108.3,
+  "finish_reason": "stop",
+  "답": "Paris.",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "llama-3.1-8b-instruct-q4_k_m",
+  "올림 초": 108.3,
+  "finish_reason": "stop",
+  "답": "Blue.",
+  "생성 토큰": 2
+ },
+ {
+  "모델": "llama-3.1-8b-instruct-q4_k_m",
+  "올림 초": 108.3,
+  "finish_reason": "stop",
+  "답": "서울",
+  "생성 토큰": 1
+ }
+]

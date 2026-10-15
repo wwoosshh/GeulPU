@@ -2,14 +2,14 @@
 # 39단계 비트 시험 · 대조(문서/39단계.md) — 고정한 코드(커밋)와 그 빌드로. 사전 등록대로 2 ~ 3 시간짜리 공식 속도 측정은 하지 않는다(속도는
 # 기록 한 번). 결과는 문서/결과/39단계/ 에(로짓 등 큰 파일은 작업 폴더에).
 #   bash 공식실행/시험39.sh <저장소> <작업폴더> <모델폴더> <llama.cpp 판 폴더> [단계 …]
-#   단계(없으면 모두, 이 차례로): 빌드 로프 끝에서끝 공유32 합성 그대로 독립 토크나이저 틀 속도 참조
+#   단계(없으면 모두, 이 차례로): 빌드 로프 끝에서끝 공유32 합성 그대로 독립 토크나이저 틀 속도 참조 합성참조
 # 모델폴더: bartowski 의 GGUF 다섯(Meta-Llama-3.1-8B-Instruct-Q4_K_M · Q8_0, Llama-3.2-3B-Instruct-Q8_0, Mistral-7B-Instruct-v0.3-Q4_K_M · Q8_0)
 #   과 합성/ (준비/합성qwen2.py · llama-quantize 로 — 단계 '합성' 이 없으면 만든다). 옛 모델(Qwen)은 저장소의 모델/ 에서.
 # 서버(토크나이저 · 틀)는 포트 18391 에 띄웠다 끈다. jinja2 는 WSL 의 Ubuntu-24.04 파이썬(3.1.2)으로 그린다.
 set -u
 R="$1"; W="$2"; M="$3"; LL="$4"; shift 4
 STEPS=("$@")
-[ ${#STEPS[@]} -eq 0 ] && STEPS=(빌드 로프 끝에서끝 공유32 합성 그대로 독립 토크나이저 틀 속도 참조)
+[ ${#STEPS[@]} -eq 0 ] && STEPS=(빌드 로프 끝에서끝 공유32 합성 그대로 독립 토크나이저 틀 속도 참조 합성참조)
 OUT="$R/문서/결과/39단계"
 GL="$R/../geul-lang-v2"
 GC="$GL/build/self_컴파일러.exe"
@@ -121,7 +121,7 @@ LIST
   [ -f "$MS/llama-synth-70b-l4-q8_0.gguf" ] || python -I -X utf8 준비/합성qwen2.py "$F31Q8" "$MS/llama-synth-70b-l4-q8_0.gguf" --모양 llama-70B --층 4 --형식 Q8_0 --씨앗 39 >> "$L" 2>&1
   [ -f "$MS/llama-synth-70b-l4-q4_k_m.gguf" ] || "$LL/llama-quantize.exe" --allow-requantize "$MS/llama-synth-70b-l4-q8_0.gguf" "$MS/llama-synth-70b-l4-q4_k_m.gguf" Q4_K_M > "$W/양자화.log" 2>&1
   sha256sum "$MS"/llama-synth-70b-l4-*.gguf | sed "s#$M/#모델/#" >> "$L"
-  python -I -X utf8 시험/입력7B.py "$MS/llama-synth-70b-l4-q8_0.gguf" "$W/입력무작위L.bin" --무작위 39 >> "$L" 2>&1
+  python -I -X utf8 시험/입력7B.py "$MS/llama-synth-70b-l4-q8_0.gguf" "$W/입력무작위L.bin" --무작위 39 --라마토큰 "$LT" >> "$L" 2>&1
   for s in q8_0 q4_k_m; do
     m=llamaQ8_8192x64x8x28672x128256; [ "$s" = q4_k_m ] && m=llamaK_8192x64x8x28672x128256
     rm -rf "$W/시험39_s70_$s"; mkdir -p "$W/시험39_s70_$s"
@@ -213,12 +213,14 @@ LIST
     기록 "속도 라마 $f 끝 $(date '+%T') 종료 $?"
   done
   ;;
-참조)   # 39a (2) · (5) — CPU 참조의 전체 앞으로(파일마다 수십 분 — 끝에)
+참조)   # 39a (2) — 다섯 파일의 CPU 참조 전체 앞으로(파일마다 수십 분 — 끝에)
   for f in "${FIVE[@]}"; do
     기록 "39a(2) $f 시작 $(date '+%T')"
     python -I -X utf8 시험/참조7B.py "$(파일 $f)" "$W/시험39_$f" "$OUT/39a_끝에서끝_$f.json" > "$W/39a_끝에서끝_$f.log" 2>&1
     기록 "39a(2) $f 끝 $(date '+%T') 종료 $? — $(tail -1 "$W/39a_끝에서끝_$f.log")"
   done
+  ;;
+합성참조)   # 39a (5) — 합성 70B 모양 둘의 CPU 참조(단계 '합성' 뒤에)
   for s in q8_0 q4_k_m; do
     python -I -X utf8 시험/참조7B.py "$MS/llama-synth-70b-l4-$s.gguf" "$W/시험39_s70_$s" "$OUT/39a_합성70B_$s.json" > "$W/39a5_참조_$s.log" 2>&1
     기록 "39a(5) 합성 70B $s CPU 참조 종료 $? — $(tail -1 "$W/39a5_참조_$s.log")"

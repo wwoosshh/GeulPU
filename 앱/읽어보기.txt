@@ -24,11 +24,12 @@ English below.
 필요한 것
   - Windows 10 / 11(64비트), 최신 그래픽 드라이버.
   - NVIDIA RTX 30 시리즈 이상은 CUDA로, 그 밖의 GPU(AMD 등)는 Vulkan으로 실행합니다.
-  - 그래픽 메모리: 작은 모델(Qwen3-1.7B) 6 GB, 7B · 8B는 8 GB(Q4_K_M) · 12 GB(Q8_0), 14B는 12 GB 이상.
+  - 그래픽 메모리: 작은 모델(Qwen3-1.7B · Llama-3.2-3B) 6 GB, 7B · 8B는 8 GB(Q4_K_M) · 12 GB(Q8_0), 14B는 12 GB 이상.
   - 인터넷은 모델을 찾고 받을 때와 새 버전을 확인할 때만 씁니다.
 
 지원하는 모델
-  Qwen3(1.7B · 8B · 14B), Qwen2.5 · Qwen2.5-Coder · DeepSeek-R1-Distill-Qwen(1.5B 이상)과 그 미세조정 모델 —
+  Qwen3(1.7B · 8B · 14B), Qwen2.5 · Qwen2.5-Coder · DeepSeek-R1-Distill-Qwen(1.5B 이상), Llama 3.1 · 3.2(3B · 8B) ·
+  Mistral 7B v0.3과 그 미세조정 모델(같은 대화 틀) —
   GGUF Q8_0 · Q4_K_M · Q5_K_M · Q6_K. 윈도의 AMD는 지금 Q8_0(과 순수 Q4_0) 파일만 실행합니다.
 
 데이터
@@ -65,11 +66,12 @@ Getting started
 Requirements
   - Windows 10 / 11 (64-bit) and an up-to-date graphics driver.
   - NVIDIA RTX 30 series or newer runs on CUDA; other GPUs (AMD, ...) run on Vulkan.
-  - Graphics memory: 6 GB for small models (Qwen3-1.7B), 8 GB (Q4_K_M) or 12 GB (Q8_0) for 7B / 8B, 12 GB or more for 14B.
+  - Graphics memory: 6 GB for small models (Qwen3-1.7B, Llama-3.2-3B), 8 GB (Q4_K_M) or 12 GB (Q8_0) for 7B / 8B, 12 GB or more for 14B.
   - The internet is used only to find and download models and to check for new versions.
 
 Supported models
-  Qwen3 (1.7B, 8B, 14B), Qwen2.5, Qwen2.5-Coder and DeepSeek-R1-Distill-Qwen (1.5B and up) and their fine-tunes —
+  Qwen3 (1.7B, 8B, 14B), Qwen2.5, Qwen2.5-Coder, DeepSeek-R1-Distill-Qwen (1.5B and up), Llama 3.1 / 3.2 (3B, 8B) and
+  Mistral 7B v0.3, and their fine-tunes (with the same chat templates) —
   GGUF Q8_0, Q4_K_M, Q5_K_M, Q6_K. AMD on Windows currently runs Q8_0 (and pure Q4_0) files only.
 
 Data

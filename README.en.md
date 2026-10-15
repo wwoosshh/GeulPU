@@ -3,7 +3,7 @@
 *한국어: [README.md](README.md). The code and most stage reports are written in Korean — see the [glossary](docs/glossary.md) for the
 terms; English documents live in [docs/](docs/).*
 
-GeulPU is a Windows app that runs language models such as Qwen3, Qwen2.5 and DeepSeek-R1 **on your own GPU**. There is no installer:
+GeulPU is a Windows app that runs language models such as Qwen3, Qwen2.5, DeepSeek-R1, Llama 3 and Mistral **on your own GPU**. There is no installer:
 unzip it, run `GeulPU.exe`, and a chat page opens in your browser. Models are downloaded from Hugging Face inside the app, and your
 conversations never leave the PC.
 
@@ -191,8 +191,13 @@ print(r.choices[0].message.content)
 - By default the thinking of Qwen3 and DeepSeek-R1 comes in front of the answer without tags. Add `"geulpu": {"special": true}` to
   receive `<think>` and `</think>` as text, so you can separate the thinking from the answer.
 - Only this PC can connect, and there is no authentication. Requests that other websites send through your browser are refused.
-- `/v1/chat/completions` uses the Qwen2.5 and Qwen3 chat templates. For DeepSeek-R1, put R1's template into `/v1/completions` yourself
-  for now.
+- `/v1/chat/completions` uses the Qwen2.5, Qwen3, Llama 3 (3.1 · 3.2) and Mistral (v0.3) chat templates. For DeepSeek-R1, put R1's
+  template into `/v1/completions` yourself for now.
+- The Llama 3 template puts a date in the system header. So that the same question does not become a different prompt every day, it is
+  fixed to `26 Jul 2024`; change it with `"chat_template_kwargs": {"date_string": "16 Oct 2026"}` in the request. Mistral's template has
+  no system role, so a system message is put in front of the first question as `{system}\n\n` (the same form as llama.cpp).
+- For Llama 3 and Mistral a BOS token is prepended to text prompts (the text of `/v1/completions` and the `prompt` of `/tokenize`), as
+  llama.cpp and vLLM do — `/tokenize` leaves it out with `"add_special_tokens": false`. Prompts given as token ids are used as they are.
 
 **Log-probabilities · scoring · tokenization (for research)** — every value in the research panel is also available from the API.
 Contract 5.2 ([contract](docs/contract.md)) defines the values, so they are bit-identical on any PC or GPU.
@@ -234,10 +239,16 @@ GeulPU takes a single GGUF file (merge split files with llama.cpp's `llama-gguf-
 |---|---|---|
 | qwen2 | Qwen2.5-Instruct · Qwen2.5-Coder · DeepSeek-R1-Distill-Qwen and their fine-tunes | 1.5B and up (head size 128) — 7B and 14B run on this project's PC |
 | qwen3 | Qwen3 and its fine-tunes | 1.7B · 8B · 14B |
+| llama | Llama 3.1 · 3.2 Instruct, Mistral 7B Instruct v0.3, and their fine-tunes that use the same chat templates | 3B · 7B · 8B — 70B checked as a shape with a synthetic model |
 
 - **Formats**: Q8_0 · Q4_K_M · Q5_K_M · Q6_K, and Q4_0 files whose tensors are all Q4_0.
-- **Not yet**: other architectures (Llama, Gemma, Mistral, Phi, …), Qwen3 0.6B · 4B · 32B, Qwen2.5-0.5B, MoE (Qwen3-30B-A3B, …), image
-  input, Q2_K · Q3_K · IQ · Q5_0 · F16 · BF16. Find models hides such files by default.
+- **Licenses** differ by model. In the app's list, Llama 3.1 · 3.2 use Meta's community licenses (usage conditions and an Acceptable
+  Use Policy — services with more than 700 million monthly users need permission from Meta), the Mistral 7B v0.3, Qwen2.5 and Qwen3 files
+  are Apache 2.0, and DeepSeek-R1-Distill is MIT (also shown in the app's model descriptions).
+- **Not yet**: other architectures (Gemma, Phi, …), models whose query width differs from the hidden size (Qwen3 0.6B · 4B · 32B,
+  Mistral NeMo), small models with head size 64 (Qwen2.5-0.5B, Llama 3.2 1B), MoE (Mixtral, Qwen3-30B-A3B, …), llama-architecture
+  fine-tunes with other chat templates (ChatML, …), image input, Q2_K · Q3_K · IQ · Q5_0 · F16 · BF16. Find models hides such files by
+  default.
 - **Depending on the GPU**: k-quants (Q4_K_M, …) run on CUDA and on Vulkan GPUs with at least 48 KB of shared memory. With AMD's
   Windows driver (32 KB of shared memory) only Q8_0 (and Q4_0) files run for now.
 
@@ -247,9 +258,9 @@ Files GeulPU has run itself (**Verified by GeulPU** in the app). Sizes use 1024-
 
 | Graphics memory | Suggested files |
 |---|---|
-| 6 GB | Qwen3-1.7B Q8_0 (1.7 GB) |
-| 8 GB | Qwen3-8B Q4_K_M (4.7 GB) · Qwen2.5-7B-Instruct Q4_K_M (4.4 GB) · DeepSeek-R1-Distill-Qwen-7B Q4_K_M (4.4 GB) |
-| 12 GB | Qwen3-8B Q8_0 (8.1 GB) · Qwen2.5-7B-Instruct Q8_0 · Qwen2.5-Coder-7B-Instruct Q8_0 · DeepSeek-R1-Distill-Qwen-7B Q8_0 (7.5 GB) — 14B Q4_K_M also runs with a reduced context |
+| 6 GB | Qwen3-1.7B Q8_0 (1.7 GB) · Llama-3.2-3B-Instruct Q8_0 (3.2 GB) |
+| 8 GB | Qwen3-8B Q4_K_M (4.7 GB) · Qwen2.5-7B-Instruct Q4_K_M (4.4 GB) · DeepSeek-R1-Distill-Qwen-7B Q4_K_M (4.4 GB) · Llama-3.1-8B-Instruct Q4_K_M (4.6 GB) · Mistral-7B-Instruct-v0.3 Q4_K_M (4.1 GB) |
+| 12 GB | Qwen3-8B Q8_0 (8.1 GB) · Qwen2.5-7B-Instruct Q8_0 · Qwen2.5-Coder-7B-Instruct Q8_0 · DeepSeek-R1-Distill-Qwen-7B Q8_0 (7.5 GB) · Llama-3.1-8B-Instruct Q8_0 (8.0 GB) · Mistral-7B-Instruct-v0.3 Q8_0 (7.2 GB) — 14B Q4_K_M also runs with a reduced context |
 | 16 GB or more | Qwen2.5-14B-Instruct Q4_K_M · DeepSeek-R1-Distill-Qwen-14B Q4_K_M (8.4 GB) |
 
 Qwen3-14B Q4_K_M has only been checked bit for bit on a synthetic model of the same shape and has not been run yet. The app tells you
@@ -399,14 +410,14 @@ The rest is for building the engine from source or reading the research record. 
 
 | | |
 |---|---|
-| Models | **Qwen3-1.7B / 8B / 14B** (stage 37 — per-head Q/K RMSNorm as contract §4.6 and one appended kernel, bit-identical to the CPU reference; the 14B shape tested on synthetic models) · **Qwen2.5-0.5B / 7B / 14B-Instruct** · DeepSeek-R1-Distill-Qwen (chat; Llama-family blocks — RMSNorm · RoPE · SwiGLU · GQA; head sizes 64 and 128). Head-128 Qwen2 shapes are read from the GGUF config; 32B and 72B shapes were bit-tested on 4-layer synthetic models. GPT-2 small and XL (research engine). |
-| App | Stages 36–38 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's template); self-diagnosis, speed and cross-check runs; result zips; a new-version notice; a **research panel** (stage 38 — per-token probabilities, branching, comparison, scoring and reproduction capsules; log-probabilities as contract §5.2) and an English UI. The release zip (1.4 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
+| Models | **Llama-3.1-8B · Llama-3.2-3B · Mistral-7B v0.3** (stage 39 — architecture `llama`: q · k row restore and RoPE scaling factors as contract §4.7; five files bit-identical to the CPU reference, mean KL ≤ 4 × 10⁻⁴ against llama.cpp on every token of the same texts; the 70B shape tested on synthetic models) · **Qwen3-1.7B / 8B / 14B** (stage 37 — per-head Q/K RMSNorm as contract §4.6 and one appended kernel, bit-identical to the CPU reference; the 14B shape tested on synthetic models) · **Qwen2.5-0.5B / 7B / 14B-Instruct** · DeepSeek-R1-Distill-Qwen (chat; Llama-family blocks — RMSNorm · RoPE · SwiGLU · GQA; head sizes 64 and 128). Head-128 Qwen2 shapes are read from the GGUF config; 32B and 72B shapes were bit-tested on 4-layer synthetic models. GPT-2 small and XL (research engine). |
+| App | Stages 36–39 — `GeulPU.exe` (a manager written in geul) and a web UI: find models (browse every Hugging Face GGUF repo, sorted), download, add and verify them; chat (Qwen2.5's ChatML, Qwen3's template with thinking on/off, R1's, Llama 3's and Mistral's templates); self-diagnosis, speed and cross-check runs; result zips; a new-version notice; a **research panel** (stage 38 — per-token probabilities, branching, comparison, scoring and reproduction capsules; log-probabilities as contract §5.2) and an English UI. The release zip (1.4 MB) is built from source by CI when a tag is pushed (as a draft; a person publishes it). Windows x64 only — see [Install](#install). |
 | Weight formats | GGUF **Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K**, including per-tensor mixes as in Q4_K_M · Q5_K_M (stage 26 — tested with files re-quantized on this PC from Q8_0; official Qwen files are not yet tested). |
-| Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: ChatML chat, streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
+| Runner | `빌드/글/실행기.exe model.gguf` (`실행기` = runner) — a geul program: chat (Qwen's ChatML and the Qwen3, Llama 3 and Mistral templates), streamed output, KV cache reused across turns, greedy decoding (the same conversation gives the same answer). About 0.3 s until the prompt runs. |
 | Server | `빌드/글/서버.exe model.gguf` (`서버` = server) — a geul program (stage 28): an OpenAI-compatible HTTP API (chat · completions · SSE streaming) with slots, continuous batching, prompt caching and a sampling contract (the same seed gives the same tokens). A request returns the same bits whatever else runs with it — zero differences over four models × twelve requests × four schedules, while llama-server's greedy answer changed in 11 of 12 cases depending on the concurrent requests. Head-128 Qwen2 (7B · 14B). 7B Q4_0 aggregate throughput: 302 tokens/s with four streams and 508 with eight (llama-server 360 · 632 — a multi-row decode kernel is next); one stream is 4% faster than llama-server. A cached prompt's first token takes 13.8 ms (llama-server 13.0 ms; stage 30 feeds the last rows through the decode step). See [`문서/28단계.md`](문서/28단계.md) · [`문서/30단계.md`](문서/30단계.md) |
 | Environment | Windows or Linux x86-64 (glibc) + NVIDIA Ampere (RTX 30) or newer + driver. Linux was tested under WSL2 Ubuntu 24.04 in stage 29 — the same bits as Windows on the same GPU, speed within ~0.5% ([`문서/29단계.md`](문서/29단계.md)). On Linux the programs import only libc.so.6 and libcuda.so.1. All numbers here are from one RTX 4070 Ti (12 GB). Building (generator → kernel source → PTX → runner) needs only the geul compiler. Tests and benchmarks need Python 3.12 + numpy. **Vulkan (stage 31):** Vulkan builds of the geul host (`시험_엔진V` · `시험_7BV` · `재기_7BV` — they import kernel32, shell32 and vulkan-1.dll; kernels come from the geul compiler's SPIR-V backend) reproduce the CUDA records byte for byte on NVIDIA (0.5B, 7B in five formats, 14B) and Intel integrated graphics (0.5B). Speed is not there yet — stage 34 replaced the emulated integer MMA with cooperative-matrix tensor-core work (`--협력` modules) and fixed the backend and the Vulkan layer: 7B prompts take 1.15–1.41× llama.cpp Vulkan's time (stage 31: 4.4–6.1×), decode 1.00–1.04× (stage 31: 1.09–1.24×) — a record, not yet a verdict. No Vulkan build of the runner or the server yet. |
 | Layer split | Stage 25 — split layers across GPUs (`--나누기 P` parts, `--장치 a,b,…` devices, `--예산 GB` budget). Emulated on one GPU with one CUDA context per part: 16 split runs are bit-identical to the single-part run; decoding with two parts takes 1.025–1.029× (mostly the emulation's context switching; 1.002–1.003× with a shared context). 14B in two parts did not fit at context 8192 on 12 GB, so that pre-registered cell was not measured (criterion 25c not passed). |
-| Not yet | Real multi-GPU runs; measuring the contract's loss with the real engine on 7B+ (done for 0.5B; simulated for 7B · 14B); Q2_K · Q3_K · IQ formats · Q5_0 (real 72B k-quant files use Q5_0 · Q8_0 for ffn_down); MoE; a GPU run on native Linux (tested under WSL2 only); running on Apple GPUs (three NVIDIA generations and an AMD Radeon RX 9060 XT (RDNA4, Vulkan) match bit for bit — [교차검증](교차검증/); AMD speed (RX 9060 XT generation is about 3× slower than an RTX 4070 Ti, mostly attention); Intel integrated graphics matches through Vulkan for 0.5B — stage 31); k-quants on 32 KB shared-memory devices (AMD on Windows); models whose query width differs from the hidden size (Qwen3-0.6B · 4B · 32B); other architectures (Llama, Gemma, Mistral, …). |
+| Not yet | Real multi-GPU runs; measuring the contract's loss with the real engine on 7B+ (done for 0.5B; simulated for 7B · 14B); Q2_K · Q3_K · IQ formats · Q5_0 (real 72B k-quant files use Q5_0 · Q8_0 for ffn_down); MoE; a GPU run on native Linux (tested under WSL2 only); running on Apple GPUs (three NVIDIA generations and an AMD Radeon RX 9060 XT (RDNA4, Vulkan) match bit for bit — [교차검증](교차검증/); AMD speed (RX 9060 XT generation is about 3× slower than an RTX 4070 Ti, mostly attention); Intel integrated graphics matches through Vulkan for 0.5B — stage 31); k-quants on 32 KB shared-memory devices (AMD on Windows); models whose query width differs from the hidden size (Qwen3-0.6B · 4B · 32B, Mistral NeMo); small head-64 llama models (Llama-3.2-1B); other architectures (Gemma, Phi, …). |
 
 ### Repository layout
 

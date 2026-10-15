@@ -1,4 +1,4 @@
-# Research log — how GeulPU came about (stages 0–38, 2026-10-08 to 10-15)
+# Research log — how GeulPU came about (stages 0–39, 2026-10-08 to 10-16)
 
 *English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
 `research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
@@ -118,6 +118,21 @@ same GGUF file: r < 1 means GeulPU is faster.
   Python's `json.dump` lost their seed in the panel's check, the chat's tokens/s left out the step that sampled EOS, and small numbers
   were shown with one significant digit — and its wider requests (distribution-level comparison, a pinned model with provenance in the
   API, a capsule view) are the next candidates ([38단계](../문서/38단계.md)).
+- **Stage 39 — Llama 3.1 · 3.2 and Mistral v0.3, the third model family (architecture `llama`).** Contract §4.7: the q · k weight
+  rows are restored per head (undoing the GGUF converter's permutation — the RoPE kernel is unchanged), so the channels come out in the
+  original model's order; the `rope_freqs` scaling factors divide the frequencies (θ / f, one fp64 division); an eps-10⁻⁵ `llama큰`
+  module (the thirteen qwen modules stay byte-identical). Two tokenizers written in geul — Llama 3's byte-level BPE (digits in groups of
+  1–3, no normalization, ignore_merges) and Mistral's SentencePiece (score-ordered merges, byte tokens, the dummy prefix) — three chat
+  templates and several end-of-generation tokens in the server and the runner (Llama 3's date is fixed), five catalog files with their
+  licenses and a pre-download check for the llama architecture in the app. 39a passed: three RoPE tables × 131,072 positions, five files
+  end to end with 0 differing logits against the CPU reference, Vulkan and the shared32 emulation byte-identical to CUDA, two synthetic
+  70B-shape models, and an **independent check** against llama.cpp b11669 on every row of the same texts (top-1 agreement 98.9–99.6 %,
+  mean KL 2.4–3.7 × 10⁻⁴). 39b passed: 2,000 lines × three files tokenize exactly as llama-tokenize, twelve conversations match the GGUF
+  chat template rendered by jinja2, and the end-of-generation set equals llama.cpp's (18 Mistral lines do not round-trip to the original
+  text — llama.cpp gives the same text, so the verdict is "same as llama.cpp"). 39c passed: five paths; six old Qwen summaries equal the
+  records or a rebuild of the previous code; R1 cross-check CUDA 32/32 and the Vulkan quick check, with renewed build hashes. 39d
+  passed: in the packaged app, 57 research-panel checks equal the API across three models, and chats stop at the end tokens. Record: decode r
+  0.995–1.011 (Q8_0) and 1.029–1.047 (Q4_K_M), prompts 1.19–1.44 — not pursued in a model-diversity stage ([39단계](../문서/39단계.md)).
 
 ## What remains (after stage 30)
 

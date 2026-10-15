@@ -1,0 +1,145 @@
+시작 2026-10-16 03:10:07 · 커밋 d2d6d3a · 바뀐 파일 2 · 글 저장소 dd91355 (바뀐 파일 0)
+== 단계 빌드 로프 끝에서끝 공유32 합성 그대로 독립 토크나이저 틀 속도 — 2026-10-16 03:10:07 · 커밋 d2d6d3a · 바뀐 파일 2
+빌드 시작 03:10:07
+name, driver_version, clocks.max.sm [MHz], clocks.max.memory [MHz], memory.total [MiB]
+NVIDIA GeForce RTX 4070 Ti, 616.56, 3105 MHz, 10501 MHz, 12282 MiB
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 12281 MiB):
+  Device 0: NVIDIA GeForce RTX 4070 Ti, compute capability 8.9, VMM: yes, VRAM: 12281 MiB
+load_backend: loaded CUDA backend from llama.cpp/ggml-cuda.dll
+load_backend: loaded RPC backend from llama.cpp/ggml-rpc.dll
+load_backend: loaded CPU backend from llama.cpp/ggml-cpu-alderlake.dll
+version: 0.7.0-dev (build 11669, commit 620d2225c)
+built with Clang 20.1.8 for Windows x86_64
+a02de09dd3c15555a088f61a006f07573bb38d0d4e1e8377214e39110d6cb15d *../geul-lang-v2/build/self_컴파일러.exe
+d2cd1276a60ffdb50bdd9b4b370872c2d03842b0a8b6f7ebfd98811ff6b6e305 *../geul-lang-v2/build/자체PTX.exe
+4e2dfc489cdb1b90c153c6d67c2cf96f4338230817d9c55168d9f16de6c291bb *../geul-lang-v2/build/자체SPIRV.exe
+962b97b132cb29e763a46c84f1943b2874ed7879037ac37fbe986400ac165ecf *llama.cpp/llama-tokenize.exe
+24473241d5af8781563c2878a0b581b7888467d13ee602df9b68b398b371a911 *llama.cpp/llama-bench.exe
+aacb073c9c0d30090dd3e56f49772545452ccc4fd311efbfdb7d1bba7bbb0bda *llama.cpp/llama.dll
+3e749ce6ec7ae18da1fe002cae5bdf446a123be1d11412f494eb03d5afabcd83 *llama.cpp/ggml-cuda.dll
+PTX llamaK_4096x32x8x14336x128256 종료 0
+SPIR-V llamaK_4096x32x8x14336x128256 종료 0
+모듈 llamaK_4096x32x8x14336x128256 — 소스 · PTX · SPIR-V 가 빠른 점검의 해시와 같다
+PTX llamaQ8_4096x32x8x14336x128256 종료 0
+SPIR-V llamaQ8_4096x32x8x14336x128256 종료 0
+모듈 llamaQ8_4096x32x8x14336x128256 — 소스 · PTX · SPIR-V 가 빠른 점검의 해시와 같다
+PTX llamaQ8_3072x24x8x8192x128256 종료 0
+SPIR-V llamaQ8_3072x24x8x8192x128256 종료 0
+모듈 llamaQ8_3072x24x8x8192x128256 — 소스 · PTX · SPIR-V 가 빠른 점검의 해시와 같다
+PTX llamaK_4096x32x8x14336x32768 종료 0
+SPIR-V llamaK_4096x32x8x14336x32768 종료 0
+PTX llamaQ8_4096x32x8x14336x32768 종료 0
+SPIR-V llamaQ8_4096x32x8x14336x32768 종료 0
+PTX llamaQ8_3072x24x8x8192x128256_공유32 종료 0
+SPIR-V llamaQ8_3072x24x8x8192x128256_공유32 종료 0
+모듈 llamaQ8_3072x24x8x8192x128256_공유32 — 소스 · PTX · SPIR-V 가 빠른 점검의 해시와 같다
+PTX llamaQ8_8192x64x8x28672x128256 종료 0
+PTX llamaK_8192x64x8x28672x128256 종료 0
+010f5dae36711e7c56ccc54c3a482959d6b907f1041300ce1887111c5757493c *작업/build/서버.exe
+a40abc898672575f09e5a3b55793fc79ab1402cbd4b583cddd49bf983516135b *작업/build/시험_7B.exe
+9b628809292e338e2fb9e139058665da514fdf6bc21066ba1839866574332388 *작업/build/시험_7BV.exe
+8d60f37368edb15210fc4562d21d549ac6548d3d9df2f3f9180f28ab9bba5b01 *작업/build/시험_로프.exe
+acac57421f787cab002b81fb368466e8932bd88dc42fcbc4cdc1e81f74c21fe2 *작업/build/실행기.exe
+7759b10a338b95db2aedef81cbee567199d8f28be44ad5b019c6aa83e06ed9a6 *작업/build/재기_7B.exe
+a304a8845bf13f02df7c71202adc6ba2f8552d773a243f625ea1b7987ab408bd *작업/build/커널생성.exe
+경우 [(47, 17, 0), (50, 17, 0), (43, 17, 0), (2100, 17, 2000)]
+경우 [(17, 17, 0), (29, 17, 0), (13, 17, 0), (2100, 17, 2000)]
+재기 입력: 채팅 43 · 긴 글 8192
+빌드 끝 03:12:40
+39a(1) 종료 0 — 39a (1): 모두 같음
+39c(1) 31q4 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+== 단계 참조 — 2026-10-16 03:18:19 · 커밋 07dceb8 · 바뀐 파일 5
+39a(2) 31q4 시작 03:18:19
+39a(3) Vulkan 31q4 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+39c(1) 31q8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(3) Vulkan 31q8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+39c(1) 32q8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(3) Vulkan 32q8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+39a(2) 31q4 끝 03:47:49 종료 0 — 모두 0: True
+39a(2) 31q8 시작 03:47:49
+39c(1) mq4 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(3) Vulkan mq4 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+39c(1) mq8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(2) 31q8 끝 04:03:25 종료 0 — 모두 0: True
+39a(2) 32q8 시작 04:03:25
+39a(3) Vulkan mq8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+39a(4) 공유32 흉내 32q8 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · CUDA 와 같음(로짓 · 토큰 · 요약)
+3d8bdd8d6a69c5d6945023b960c3bd9d8c6069bbb8348d76f2de8d119127e367 *모델/합성/llama-synth-70b-l4-q4_k_m.gguf
+f958f82bdab447e6d523e3e9cc6de412cd6d4cd19955faaa3380e152d35b0a02 *모델/합성/llama-synth-70b-l4-q8_0.gguf
+Traceback (most recent call last):
+  File "./시험\입력7B.py", line 124, in <module>
+    main()
+  File "./시험\입력7B.py", line 85, in main
+    tk = 라마토크나이저(sys.argv[sys.argv.index("--라마토큰") + 1], gguf)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: '--라마토큰' is not in list
+39a(5) 합성 70B q8_0 종료 1 — 입력을 읽을 수 없다
+39a(5) 합성 70B q4_k_m 종료 1 — 입력을 읽을 수 없다
+경우 [(41, 17, 0), (46, 17, 0), (37, 17, 0), (2100, 17, 2000)]
+경우 [(20, 17, 0), (25, 17, 0), (16, 17, 0), (2100, 17, 2000)]
+Preparing worktree (detached HEAD 3f0bff0)
+HEAD is now at 3f0bff0 39단계 사전 등록 — Llama 3.x · Mistral(구조 llama): q · k 줄 되돌리기 · RoPE 늘이기 · SentencePiece, 판정 39a ~ 39d
+그대로: 모듈 qwen2Q8_7b 소스가 옛 생성기와 같다
+그대로: 모듈 qwen2Q4_7b 소스가 옛 생성기와 같다
+그대로: 모듈 qwen2K_3584x28x4x18944x152064 소스가 옛 생성기와 같다
+그대로: 모듈 qwen3Q8_2048x16x8x6144x151936 소스가 옛 생성기와 같다
+그대로: 모듈 qwen3Q8_4096x32x8x12288x151936 소스가 옛 생성기와 같다
+그대로: 모듈 qwen3K_4096x32x8x12288x151936 소스가 옛 생성기와 같다
+39a(2) 32q8 끝 04:12:41 종료 0 — 모두 0: True
+39a(2) mq4 시작 04:12:41
+39c(2) 7b-q8_0 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(23단계/23b_요약_Q8.txt)과 같음
+39c(2) 7b-q4_0 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(23단계/23b_요약_Q4.txt)과 같음
+39c(2) 7b-q4_k_m 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(26단계/26b_요약_q4_k_m.txt)과 같음
+39c(2) q3-1.7b-q8_0 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(옛39_q3-1.7b-q8_0/요약.txt)과 같음
+39a(2) mq4 끝 04:31:34 종료 0 — 모두 0: True
+39a(2) mq8 시작 04:31:34
+39c(2) q3-8b-q8_0 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(옛39_q3-8b-q8_0/요약.txt)과 같음
+39a(2) mq8 끝 04:41:38 종료 0 — 모두 0: True
+39a(5) 합성 70B q8_0 CPU 참조 종료 1 — ValueError: need at least one array to concatenate
+39a(5) 합성 70B q4_k_m CPU 참조 종료 1 — ValueError: need at least one array to concatenate
+끝 2026-10-16 04:42:41
+39c(2) q3-8b-q4_k_m 종료 0 — 끝 — 모두 같음 1 · 오류칸 0 · 견줄 요약(옛39_q3-8b-q4_k_m/요약.txt)과 같음
+입력: 경우 2 · 토큰 2048 씩 · 첫 토큰 [[128000, 720, 284, 8563], [128000, 2, 4323, 360]]
+39a(6) 31q8 글 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(6) 31q8 llama.cpp 종료 0 — 2 경우
+39a(6) 31q8 — 경우 0: 1위 같음 99.27 % · 평균 KL 3.232e-04 · 최대 KL 1.539e-02 — 통과
+ 경우 1: 1위 같음 98.93 % · 평균 KL 3.732e-04 · 최대 KL 8.626e-03 — 통과
+ 39a(6) Meta-Llama-3.1-8B-Instruct-Q8_0.gguf — 통과
+ 
+입력: 경우 2 · 토큰 2048 씩 · 첫 토큰 [[1, 1027, 781, 1095], [1, 1190, 3172, 1121]]
+39a(6) mq8 글 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(6) mq8 llama.cpp 종료 0 — 2 경우
+39a(6) mq8 — 경우 0: 1위 같음 99.56 % · 평균 KL 2.417e-04 · 최대 KL 3.710e-02 — 통과
+ 경우 1: 1위 같음 99.51 % · 평균 KL 3.645e-04 · 최대 KL 3.323e-02 — 통과
+ 39a(6) Mistral-7B-Instruct-v0.3-Q8_0.gguf — 통과
+ 
+39b(1) 31q4 — 39b(1) Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf — 토큰 모두 같음 · 되돌리기 모두 같음
+39b(1) 32q8 — 39b(1) Llama-3.2-3B-Instruct-Q8_0.gguf — 토큰 모두 같음 · 되돌리기 모두 같음
+39b(1) mq4 — 39b(1) Mistral-7B-Instruct-v0.3-Q4_K_M.gguf — 토큰 모두 같음 · 되돌리기 모두 같음
+준비 12 대화 → 작업/틀준비_31q4.json
+그림 12 대화 · jinja2 3.1.2 → 작업/틀그림_31q4.json
+39b(2)(3) 31q4 — 39b(2) Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf — 틀 모두 같음 · 39b(3) 끝 토큰 같음 · 멈춤 모두
+준비 12 대화 → 작업/틀준비_32q8.json
+그림 12 대화 · jinja2 3.1.2 → 작업/틀그림_32q8.json
+39b(2)(3) 32q8 — 39b(2) Llama-3.2-3B-Instruct-Q8_0.gguf — 틀 모두 같음 · 39b(3) 끝 토큰 같음 · 멈춤 모두
+준비 12 대화 → 작업/틀준비_mq4.json
+그림 12 대화 · jinja2 3.1.2 → 작업/틀그림_mq4.json
+39b(2)(3) mq4 — 39b(2) Mistral-7B-Instruct-v0.3-Q4_K_M.gguf — 틀 모두 같음 · 39b(3) 끝 토큰 같음 · 멈춤 모두
+속도 글 31q8 시작 05:11:37
+속도 글 31q8 끝 05:16:58 종료 0
+속도 라마 31q8 끝 05:17:56 종료 0
+속도 글 31q4 시작 05:17:56
+속도 글 31q4 끝 05:21:37 종료 0
+속도 라마 31q4 끝 05:22:18 종료 0
+끝 2026-10-16 05:22:18
+== 단계 합성 — 2026-10-16 05:23:03 · 커밋 07dceb8 · 바뀐 파일 6
+3d8bdd8d6a69c5d6945023b960c3bd9d8c6069bbb8348d76f2de8d119127e367 *모델/합성/llama-synth-70b-l4-q4_k_m.gguf
+f958f82bdab447e6d523e3e9cc6de412cd6d4cd19955faaa3380e152d35b0a02 *모델/합성/llama-synth-70b-l4-q8_0.gguf
+경우 [(47, 17, 0), (50, 17, 0), (43, 17, 0), (2100, 17, 2000)]
+39a(5) 합성 70B q8_0 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+39a(5) 합성 70B q4_k_m 종료 0 — 끝 — 모두 같음 1 · 오류칸 0
+끝 2026-10-16 05:26:23
+== 단계 합성참조 — 2026-10-16 05:26:38 · 커밋 07dceb8 · 바뀐 파일 7
+39a(5) 합성 70B q8_0 CPU 참조 종료 0 — 모두 0: True
+39a(5) 합성 70B q4_k_m CPU 참조 종료 0 — 모두 0: True
+끝 2026-10-16 05:42:08

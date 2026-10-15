@@ -1,0 +1,102 @@
+{
+ "요약": {
+  "gguf": "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+  "jinja2": "3.1.2",
+  "대화": 12,
+  "다른 대화": 0,
+  "끝 토큰(글)": [
+   2
+  ],
+  "끝 토큰(llama.cpp llama_vocab_is_eog)": [
+   2
+  ],
+  "끝 토큰 모음 같음": true,
+  "생성이 끝 토큰에서 멈춤": true,
+  "llama.cpp 판": "llama-b11669"
+ },
+ "대화": [
+  {
+   "번호": 0,
+   "같음": true,
+   "토큰 수": 12
+  },
+  {
+   "번호": 1,
+   "같음": true,
+   "토큰 수": 19
+  },
+  {
+   "번호": 2,
+   "같음": true,
+   "토큰 수": 34
+  },
+  {
+   "번호": 3,
+   "같음": true,
+   "토큰 수": 35
+  },
+  {
+   "번호": 4,
+   "같음": true,
+   "토큰 수": 9
+  },
+  {
+   "번호": 5,
+   "같음": true,
+   "토큰 수": 20
+  },
+  {
+   "번호": 6,
+   "같음": true,
+   "토큰 수": 28
+  },
+  {
+   "번호": 7,
+   "같음": true,
+   "토큰 수": 14
+  },
+  {
+   "번호": 8,
+   "같음": true,
+   "토큰 수": 17
+  },
+  {
+   "번호": 9,
+   "같음": true,
+   "토큰 수": 48
+  },
+  {
+   "번호": 10,
+   "같음": true,
+   "토큰 수": 14
+  },
+  {
+   "번호": 11,
+   "같음": true,
+   "토큰 수": 18
+  }
+ ],
+ "생성": [
+  {
+   "질문": "What is the capital of France? Answer in one word.",
+   "finish_reason": "stop",
+   "답": "Paris",
+   "생성 토큰": 1,
+   "오류": null
+  },
+  {
+   "질문": "대한민국의 수도는 어디야? 한 단어로 답해.",
+   "finish_reason": "stop",
+   "답": "Seoul",
+   "생성 토큰": 2,
+   "오류": null
+  },
+  {
+   "질문": "Say hello in three languages.",
+   "finish_reason": "stop",
+   "답": "Hello! Here are the greetings in three different languages:\n\n1. English: Hello\n2. Spanish: Hola\n3. French: Bonjour",
+   "생성 토큰": 34,
+   "오류": null
+  }
+ ]
+}
