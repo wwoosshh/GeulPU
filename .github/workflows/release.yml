@@ -62,6 +62,6 @@ jobs:
           $log = [IO.File]::ReadAllText("GeulPU/바뀐것.md", [Text.Encoding]::UTF8)
           $m = [regex]::Match($log, "(?ms)^## $([regex]::Escape($ver))\b.*?(?=^## |\z)")
           if ($m.Success) { $notes = $m.Value + "`n`n" + $notes }
-          $notes += "`n`n**English**: unzip GeulPU-$ver-windows-x64.zip and run GeulPU.exe. The install and usage guide (with a table of the app's Korean labels) is in [README.en.md](https://github.com/wwoosshh/GeulPU/blob/main/README.en.md)."
+          $notes += "`n`n**English**: unzip GeulPU-$ver-windows-x64.zip and run GeulPU.exe. The app's screens are in English unless the browser is set to Korean (Settings → 언어 · Language). The install and usage guide is in [README.en.md](https://github.com/wwoosshh/GeulPU/blob/main/README.en.md)."
           [IO.File]::WriteAllText("$env:RUNNER_TEMP/notes.md", $notes, (New-Object System.Text.UTF8Encoding($false)))
           gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft --title "GeulPU $ver" --notes-file "$env:RUNNER_TEMP/notes.md" "out/GeulPU-$ver-windows-x64.zip" "out/SHA256SUMS.txt"
