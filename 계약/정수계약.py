@@ -405,15 +405,20 @@ def _바른반올림32(값, 정밀식):
     return f
 
 
-def rope표(최대길이, theta=1e6, hd=64):
+def rope표(최대길이, theta=1e6, hd=64, 인자=None):
     """RoPE 의 cos · sin 표 [위치][hd/2] (짧은실수) — θ_i = θ^(−2i/hd) 를 fp64 로 바르게 반올림(decimal 60 자리의 거듭제곱 → fp64), 각 = 위치 · θ_i
     (fp64 곱 — IEEE 반올림 하나), cos(각) · sin(각) 을 짧은실수로 바르게 반올림(정확한 값의 반올림 하나 — 플랫폼의 수학 함수와 상관없다).
-    표준 라이브러리(decimal)만 쓴다 — 14단계의 처음 판(mpmath 50 자리)과 같은 표임을 위치 32768 까지 확인했다."""
+    표준 라이브러리(decimal)만 쓴다 — 14단계의 처음 판(mpmath 50 자리)과 같은 표임을 위치 32768 까지 확인했다.
+    39단계 — 인자(llama 의 `rope_freqs` — 짧은실수 hd/2 칸, 계약 4.7): θ′_i = θ_i / f_i(fp64 나눗셈 — IEEE 반올림 하나) 로 바꾼 뒤 그대로."""
     import decimal
     with decimal.localcontext() as c:
         c.prec = 60
         inv = np.array([float(decimal.Decimal(repr(float(theta))) ** (decimal.Decimal(-2 * k) / decimal.Decimal(hd))) for k in range(hd // 2)],
                        np.float64)
+    if 인자 is not None:
+        f = np.asarray(인자, np.float32).astype(np.float64)
+        assert f.shape == inv.shape and (f > 0).all(), "RoPE 늘이기 인자는 hd/2 칸의 양수여야 한다"
+        inv = inv / f
     각 = np.arange(최대길이, dtype=np.float64)[:, None] * inv[None, :]
     평 = 각.reshape(-1)
     c_ = _바른반올림32(np.cos(각), lambda j: _십진cos_sin(decimal.Decimal(float(평[j])))[0])

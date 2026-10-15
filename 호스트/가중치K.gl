@@ -249,6 +249,10 @@
             정수 nq = 텐서열수(g, 층이름(l2, "attn_q.weight")).
             K줄들(g, 층이름(l2, "attn_k.weight"), 줄들, nq).
             N2 = nq + 텐서열수(g, 층이름(l2, "attn_k.weight")).
+            llama모델이면 {                                  (* 39단계 — 계약 4.7 (1): q · k 의 줄을 머리마다 되돌린다(가중치.gl) *)
+                줄되돌리기(줄들, 0, 머리수).
+                줄되돌리기(줄들, nq, KV머리수).
+            }
             K텐서형식(g, 층이름(l2, "attn_v.weight")) == f2이면 {
                 K줄들(g, 층이름(l2, "attn_v.weight"), 줄들, N2).
                 N2 += 텐서열수(g, 층이름(l2, "attn_v.weight")).

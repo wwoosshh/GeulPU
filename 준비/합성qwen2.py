@@ -12,15 +12,19 @@
 값은 학습한 모델이 아니다 — 모양 · 비트 · 길 · 속도(층마다)를 보는 데만 쓴다.
 37단계 — 바탕이 Qwen3(구조 qwen3)면 열쇠의 앞머리가 qwen3. 이고, 층마다 치우침 대신 attn_q_norm · attn_k_norm(F32 128 칸 — 감마와 같은
 1 + N(0, 0.1))을 둔다. 모양 qwen3-14B = Qwen3-14B(5120 · 40 / 8 · 17408). Qwen2 바탕의 파일은 바이트까지 그대로다.
+39단계 — 바탕이 llama(Llama 3.1 · 3.2 · Mistral)면 열쇠의 앞머리가 llama. 이고, 층에 치우침 · q · k 정규화가 없다. 바탕에 rope_freqs.weight
+(RoPE 늘이기 인자 — F32 64 칸)가 있으면 그 값을 바이트 그대로 옮긴다(모양이 바뀌어도 머리 크기 128 · 늘이기 설정이 같다). 모양 llama-70B =
+Llama-3.1-70B(8192 · 64 / 8 · 28672). Q4_K_M 은 이 파일을 llama-quantize(--allow-requantize)로 만든다. Qwen2 · Qwen3 바탕의 파일은 그대로다.
 """
 import hashlib
+import os
 import struct
 import sys
 
 import numpy as np
 
 모양들 = {"14B": (5120, 40, 8, 13824), "32B": (5120, 40, 8, 27648), "72B": (8192, 64, 8, 29568),
-         "qwen3-14B": (5120, 40, 8, 17408)}
+         "qwen3-14B": (5120, 40, 8, 17408), "llama-70B": (8192, 64, 8, 28672)}
 F32, Q4_0, Q8_0 = 0, 2, 8
 파일형식 = {"Q4_0": 2, "Q8_0": 7}                                  # llama.cpp 의 LLAMA_FTYPE_MOSTLY_*
 정렬 = 32
@@ -101,10 +105,21 @@ def main():
     KVD = NKV * HD
     메타 = 메타읽기(바탕)
     구조 = next((raw[8:].decode("utf-8") for k, t, raw in 메타 if k == "general.architecture"), "qwen2")
-    assert 구조 in ("qwen2", "qwen3"), 구조
+    assert 구조 in ("qwen2", "qwen3", "llama"), 구조
     qwen3 = 구조 == "qwen3"
+    llama = 구조 == "llama"                                  # 39단계
     앞 = 구조 + "."
     이름글 = f"합성 Qwen3 {모양} 모양 · 층 {층} · {형식} (37단계)" if qwen3 else f"합성 Qwen2 {모양} 모양 · 층 {층} · {형식} (24단계)"
+    if llama:
+        이름글 = f"합성 Llama {모양} 모양 · 층 {층} · {형식} (39단계)"
+    로프인자 = None
+    if llama:                                                # 바탕의 rope_freqs.weight (있으면) — 바이트 그대로
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "엔진"))
+        import gguf읽기 as GR                                # noqa: E402
+        g0 = GR.GGUF(바탕)
+        if "rope_freqs.weight" in g0.tensors:
+            로프인자 = np.ascontiguousarray(g0.풀기("rope_freqs.weight"), np.float32)
+            assert 로프인자.shape == (64,), 로프인자.shape
     V = None
     바꿈 = {앞 + "block_count": (4, struct.pack("<I", 층)), 앞 + "embedding_length": (4, struct.pack("<I", D)),
           앞 + "feed_forward_length": (4, struct.pack("<I", F)), 앞 + "attention.head_count": (4, struct.pack("<I", NH)),
@@ -125,8 +140,15 @@ def main():
     assert V is not None
     # 텐서 — (이름, 타입, ne0, ne1) 차례
     텐서 = [("token_embd.weight", 형식, D, V)]
+    if 로프인자 is not None:
+        텐서 += [("rope_freqs.weight", "F32", 64, 1)]
     for l in range(층):
         p = f"blk.{l}."
+        if llama:                                            # 39단계 — 치우침 · q · k 정규화 없음
+            텐서 += [(p + "attn_norm.weight", "F32", D, 1), (p + "attn_q.weight", 형식, D, D), (p + "attn_k.weight", 형식, D, KVD),
+                   (p + "attn_v.weight", 형식, D, KVD), (p + "attn_output.weight", 형식, D, D), (p + "ffn_norm.weight", "F32", D, 1),
+                   (p + "ffn_gate.weight", 형식, D, F), (p + "ffn_up.weight", 형식, D, F), (p + "ffn_down.weight", 형식, F, D)]
+            continue
         if qwen3:                                            # 37단계 — 치우침 없음, 머리마다 q · k 정규화의 무게
             텐서 += [(p + "attn_norm.weight", "F32", D, 1), (p + "attn_q.weight", 형식, D, D), (p + "attn_q_norm.weight", "F32", HD, 1),
                    (p + "attn_k.weight", 형식, D, KVD), (p + "attn_k_norm.weight", "F32", HD, 1), (p + "attn_v.weight", 형식, D, KVD),
@@ -160,7 +182,9 @@ def main():
         for 이름, t, ne0, ne1 in 텐서:
             r = np.random.default_rng(씨앗(이름, 기본씨앗))
             n = 바이트수(t, ne0, ne1)
-            if t == "F32":
+            if t == "F32" and 이름 == "rope_freqs.weight":
+                f.write(로프인자.tobytes())
+            elif t == "F32":
                 if 이름.endswith("norm.weight"):
                     x = (1.0 + 0.1 * r.standard_normal(ne0)).astype(np.float32)
                 else:

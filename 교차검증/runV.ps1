@@ -520,8 +520,12 @@ $new1 = '    참거짓 딥시크 = 문자열_같은가(메타글(g, "tokenizer.g
 $old2 = '    끝토큰 = 특수번호("<|im_end|>").' + "`n" + '    글끝토큰 = 특수번호("<|endoftext|>").'
 $new2 = '    딥시크이면 {' + "`n" + '        끝토큰 = 특수번호("<｜end▁of▁sentence｜>").' + "`n" + '        글끝토큰 = 끝토큰.' + "`n" + '    }' + "`n" +
         '    아니면 {' + "`n" + '        끝토큰 = 특수번호("<|im_end|>").' + "`n" + '        글끝토큰 = 특수번호("<|endoftext|>").' + "`n" + '    }'
+# 39단계부터는 토크나이저열기가 Llama 3 · SentencePiece 까지 받도록 다시 짜여 R1 의 두 곳이 아래 글로 들어 있다 — 그대로 둔다
+$r39a = '    참거짓 딥시크 = 문자열_같은가(앞꼴, "deepseek-r1-qwen").'
+$r39b = '    딥시크이면 {' + "`n" + '        끝토큰 = 특수번호("<｜end▁of▁sentence｜>").' + "`n" + '        글끝토큰 = 끝토큰.' + "`n" + '    }'
 # 36단계부터 저장소의 토크나이저에 이 덧댐이 들어 있다 — 그러면 그대로 둔다(빌드는 같은 바이트)
 if ($t.Contains($new1) -and $t.Contains($new2)) { }
+elseif ($t.Contains($r39a) -and $t.Contains($r39b)) { }
 elseif ($t.Contains($old1) -and $t.Contains($old2)) { $t = $t.Replace($old1, $new1).Replace($old2, $new2) }
 else { Fail '토크나이저.gl 이 예상과 달라 고칠 수 없습니다 (저장소 판을 확인해 주세요).' }
 [IO.File]::WriteAllText($tk, $t, (New-Object System.Text.UTF8Encoding($false)))

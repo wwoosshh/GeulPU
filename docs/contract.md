@@ -127,6 +127,18 @@ the reason short chunks at long contexts became fast. Accuracy is unchanged (med
    normalized. RoPE (head size 128, item 2 below) and the integer KV cache follow unchanged. The kernel gives lane l the values
    d = l + 32·i (i = 0 … 3), so the 64-fold is two adds (p_l + p_{l+64}, p_{l+32} + p_{l+96}), the 32-fold adds those two, and xor
    shuffles 16 · 8 · 4 · 2 · 1 finish the fold — bit-identical to the order above (checked over 4,096 heads in the contract self-test).
+7. **The llama architecture** (stage 39 — Llama 3.1 · 3.2 · Mistral v0.3): the block is items 1 – 5 unchanged (no biases — 0 is
+   added), head size 128 (below). Three things differ:
+   1. **q · k row restore**: the GGUF converter (the permute in llama.cpp's `convert_hf_to_gguf.py`) stores the original row
+      h · 64 + j of each head (128 rows; h ∈ {0, 1}, j < 64) at file row 2j + h. When the weights are loaded, new row j (< 64) of each
+      head takes file row 2j and new row 64 + j takes file row 2j + 1 (q per query head, k per KV head — the quantized rows are moved
+      as they are; every row is quantized on its own, so the values are unchanged; biases, if any, move with them). RoPE then uses
+      item 2 of head size 128 below (pairs (i, i + 64)) unchanged, and the KV cache holds the channels in the original (HF) order.
+   2. **RoPE scaling factors**: if the GGUF has `rope_freqs.weight` (64 positive float32 values f_i), θ′_i = θ_i / f_i (one fp64
+      division, correctly rounded), angle = position · θ′_i (fp64 product), cos and sin correctly rounded to float32 (decimal).
+      Without it, θ′_i = θ_i. A `rope.scaling.type` other than none is refused.
+   3. **eps**: RMSNorm eps = 10⁻⁵ (the module constant float32(10⁻⁵) = 0x3727C5AC — it must equal the GGUF's value). The formula
+      is item 1 unchanged.
 
 ### Head size 128 (stage 22 — Qwen2.5-7B and larger)
 

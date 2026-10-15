@@ -8,6 +8,8 @@ CPU 참조(정수 계약의 Qwen2 앞으로 — 계약/정수계약.py, 행렬�
 미리 적은 대로). 앞으로는 층마다 가중치를 한 번 풀어 세 경우의 행을 함께 행렬곱하고, RoPE · 어텐션은 경우마다(위치 0 부터).
 37단계 — 구조 qwen3(Qwen3)도: 열쇠 앞머리는 general.architecture 에서, 치우침 텐서가 없으면 0(계약 4.5), RoPE 앞에 머리마다 q · k 정규화
 (계약 4.6 — attn_q_norm · attn_k_norm), output.weight 가 없으면 낱말표(묶인 출력), 머리 크기는 key_length(없으면 너비 / 머리 수).
+39단계 — 구조 llama(Llama 3.x · Mistral): q · k 무게의 줄을 머리마다 되돌리고(GGUF 변환기의 permute 를 거꾸로 — 계약 4.7), RoPE 표에
+늘이기 인자(rope_freqs — 있으면), eps 는 파일의 값.
 """
 import json
 import os
@@ -116,11 +118,23 @@ def 설정(g):
     """모델 머리의 설정 — 구조(qwen2 · qwen3), 층 · 머리 · KV 머리, eps, RoPE θ, 머리 크기(key_length — 없으면 None: 너비 / 머리 수)."""
     m = g.meta
     구조 = m.get("general.architecture", "qwen2")
-    assert 구조 in ("qwen2", "qwen3"), f"받지 않는 구조 {구조}"
+    assert 구조 in ("qwen2", "qwen3", "llama"), f"받지 않는 구조 {구조}"
     k = 구조 + "."
+    assert m.get(k + "rope.scaling.type", "none") == "none", "RoPE 늘이기 열쇠(rope.scaling.*)는 받지 않는다 — llama 의 늘이기는 rope_freqs 텐서로"
     return {"구조": 구조, "층": m[k + "block_count"], "머리": m[k + "attention.head_count"], "KV머리": m[k + "attention.head_count_kv"],
             "eps": float(m[k + "attention.layer_norm_rms_epsilon"]), "θ": float(m[k + "rope.freq_base"]),
             "머리크기": m.get(k + "attention.key_length")}
+
+
+def 줄되돌리기(w, 머리수, hd):
+    """39단계 — 계약 4.7: llama 의 q · k 무게(줄 = 머리수 × hd)를 머리마다 원래 차례로. GGUF 변환기(convert_hf_to_gguf.py 의 permute)는
+    머리 하나를 [2][hd/2] 로 보고 두 축을 바꿔 원래 줄 h · hd/2 + j 를 파일의 줄 2j + h 에 두었다 — 거꾸로 새 줄 j < hd/2 는 파일의 2j,
+    hd/2 + j 는 2j + 1. 줄을 통째로 옮길 뿐이다(Q8_0 · k-양자화는 줄마다 따로 양자화되어 있다)."""
+    한 = np.concatenate([np.arange(0, hd, 2), np.arange(1, hd, 2)])
+    차례 = (np.arange(머리수)[:, None] * hd + 한[None, :]).reshape(-1)
+    if isinstance(w, tuple):                                          # (형식, q, d 또는 a, b) — 배열은 줄마다, 형식 · None 은 그대로
+        return tuple(a[차례] if isinstance(a, np.ndarray) else a for a in w)
+    return np.asarray(w)[차례]
 
 
 def 치우침(g, 이름, n):
@@ -134,6 +148,7 @@ def 앞으로(g, 경우, 말=True, 끝행만=False):
     s_ = 설정(g)
     NL, NH, NKV, eps, θ = s_["층"], s_["머리"], s_["KV머리"], s_["eps"], s_["θ"]
     qwen3 = s_["구조"] == "qwen3"
+    llama = s_["구조"] == "llama"
     we = 가중(g, "token_embd.weight")
     D = we[1].shape[1]
     HD = int(s_["머리크기"] or D // NH)
@@ -148,17 +163,21 @@ def 앞으로(g, 경우, 말=True, 끝행만=False):
         x = np.concatenate([C.임베딩K(we, S) for S in 경우], 0)              # 26단계
     del we
     시작 = np.cumsum([0] + [len(S) for S in 경우])
-    cos, sin = C.rope표(max(64, int(max(len(S) for S in 경우))), θ, hd=HD)
+    인자 = g.풀기("rope_freqs.weight") if llama and "rope_freqs.weight" in g.tensors else None      # 39단계 — 계약 4.7 (2)
+    cos, sin = C.rope표(max(64, int(max(len(S) for S in 경우))), θ, hd=HD, 인자=인자)
     for l in range(NL):
         tl = time.time()
         p = f"blk.{l}."
         h = C.rms정규화(x, g.풀기(p + "attn_norm.weight"), eps)
         ws = [가중(g, p + f"attn_{a}.weight") for a in ("q", "k", "v")]
+        bs = [치우침(g, p + f"attn_{a}.bias", w[1].shape[0]) for w, a in zip(ws, ("q", "k", "v"))]
+        if llama:                                                                       # 39단계 — 계약 4.7 (1): q · k 의 줄 되돌리기
+            ws[0], bs[0] = 줄되돌리기(ws[0], NH, HD), 줄되돌리기(bs[0], NH, HD)
+            ws[1], bs[1] = 줄되돌리기(ws[1], NKV, HD), 줄되돌리기(bs[1], NKV, HD)
         if all(w[0] == ws[0][0] and w[0] in ("Q8_0", "Q4_0") for w in ws):          # 22 · 23단계와 같은 길
-            bias = np.concatenate([치우침(g, p + f"attn_{a}.bias", w[1].shape[0]) for w, a in zip(ws, ("q", "k", "v"))])
-            qkv = C.행렬곱블라스(h, np.concatenate([w[1] for w in ws]), np.concatenate([w[2] for w in ws]), bias)
+            qkv = C.행렬곱블라스(h, np.concatenate([w[1] for w in ws]), np.concatenate([w[2] for w in ws]), np.concatenate(bs))
         else:                                                                           # 26단계 — 텐서마다 형식(열마다 따로라 값은 같다)
-            qkv = np.concatenate([곱(h, w, 치우침(g, p + f"attn_{a}.bias", w[1].shape[0])) for w, a in zip(ws, ("q", "k", "v"))], 1)
+            qkv = np.concatenate([곱(h, w, b) for w, b in zip(ws, bs)], 1)
         del ws
         if qwen3:                                                                       # 37단계 — 계약 4.6: RoPE 앞, v 는 그대로
             qkv = np.concatenate([C.머리정규화(qkv[:, :A], g.풀기(p + "attn_q_norm.weight"), eps, HD),

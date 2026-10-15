@@ -293,7 +293,7 @@ const DICT = {
   "폴더 경로": "Folder path",
   "모델 폴더 고르기": "Choose the model folder",
   "받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.": "Choose where downloaded models go. Applies from the next start.",
-  "GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.": "GeulPU runs GGUF files of the qwen2 architecture (Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B and up) and the qwen3 architecture (Qwen3 1.7B · 8B · 14B). Support is checked as soon as you add a file.",
+  "GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상), qwen3 구조(Qwen3 1.7B · 8B · 14B), llama 구조(Llama 3.1 8B · Llama 3.2 3B · Mistral 7B v0.3)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.": "GeulPU runs GGUF files of the qwen2 architecture (Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B and up), the qwen3 architecture (Qwen3 1.7B · 8B · 14B) and the llama architecture (Llama 3.1 8B · Llama 3.2 3B · Mistral 7B v0.3). Support is checked as soon as you add a file.",
   "이동": "Go",
   "이 폴더 선택": "Choose this folder",
   "구조 정보 없음": "No architecture info",
@@ -306,6 +306,8 @@ const DICT = {
   "크기 확인 필요": "Size needs a check",
   "흔한 Qwen3 크기(1.7B · 8B · 14B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.": "Not a common Qwen3 size (1.7B · 8B · 14B). GeulPU fetches the start of the file to check that it runs before downloading.",
   "헤드 크기가 64인 작은 Qwen2(0.5B 등)는 GeulPU가 아직 실행하지 않습니다.": "GeulPU doesn't run small Qwen2 models with head size 64 (such as 0.5B) yet.",
+  "헤드 크기가 64인 작은 llama 구조(Llama 3.2 1B · TinyLlama 등)는 GeulPU가 아직 실행하지 않습니다.": "GeulPU doesn't run small llama-architecture models with head size 64 (such as Llama 3.2 1B · TinyLlama) yet.",
+  "흔한 Llama 3 · Mistral 크기(3B · 7~8B · 70B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.": "Not a common Llama 3 · Mistral size (3B · 7–8B · 70B). GeulPU fetches the start of the file to check that it runs before downloading.",
   "{}일 전": "{0} {0|day|days} ago",
   "{}주 전": "{0} {0|week|weeks} ago",
   "{}개월 전": "{0} {0|month|months} ago",
@@ -325,7 +327,7 @@ const DICT = {
   "모델 이름으로 좁히기": "Filter by model name",
   "검색어 지우기": "Clear the search",
   "실행 안 되는 모델도 보기": "Also show models that don't run",
-  "끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다": "When off, only architectures (qwen2 · qwen3) and sizes that GeulPU runs are shown",
+  "끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3 · llama)와 크기만 보입니다": "When off, only architectures (qwen2 · qwen3 · llama) and sizes that GeulPU runs are shown",
   "정렬": "Sort",
   "GeulPU 확인됨": "Verified by GeulPU",
   "GeulPU에서 실제로 돌려 본 파일이 있는 저장소만": "Only repositories with a file GeulPU has actually run",
@@ -965,14 +967,19 @@ const TMX = [
   [/생성 64토큰\(문맥 1024 이후\)/g, 'generation 64 tokens (after context 1024)'],
   // 모델 파일(GGUF 머리) 까닭
   [/여러 조각으로 나뉜 GGUF의 일부입니다\((\d+)조각\) — 하나로 합친 파일만 지원합니다\(llama-gguf-split --merge\)/g, 'Part of a GGUF split into $1 parts — only merged single files are supported (llama-gguf-split --merge)'],
-  [/지원하지 않는 모델 구조입니다\((.+?)\) — 지금은 qwen2 구조\(Qwen2\.5 · DeepSeek-R1-Distill-Qwen\)와 qwen3 구조\(Qwen3\)만 지원합니다/g, 'Unsupported model architecture ($1) — only the qwen2 (Qwen2.5 · DeepSeek-R1-Distill-Qwen) and qwen3 (Qwen3) architectures are supported for now'],
+  [/지원하지 않는 모델 구조입니다\((.+?)\) — 지금은 qwen2 구조\(Qwen2\.5 · DeepSeek-R1-Distill-Qwen\), qwen3 구조\(Qwen3\), llama 구조\(Llama 3\.1 · 3\.2 · Mistral\)만 지원합니다/g, 'Unsupported model architecture ($1) — only the qwen2 (Qwen2.5 · DeepSeek-R1-Distill-Qwen), qwen3 (Qwen3) and llama (Llama 3.1 · 3.2 · Mistral) architectures are supported for now'],
   [/지원하지 않는 헤드 크기입니다\((\d+) · (\d+)\) — 128만 지원합니다/g, 'Unsupported head size ($1 · $2) — only 128 is supported'],
   [/질의 폭\(헤드 (\d+) × 128 = (\d+)\)이 너비 (\d+)와 다른 Qwen3\(0\.6B · 4B · 32B\)는 아직 지원하지 않습니다/g, 'Qwen3 models whose query width (heads $1 × 128 = $2) differs from the hidden size $3 (0.6B · 4B · 32B) are not supported yet'],
   [/RMSNorm eps가 10⁻⁶이 아닌 Qwen3 파일은 지원하지 않습니다/g, 'Qwen3 files whose RMSNorm eps is not 10⁻⁶ are not supported'],
+  [/RMSNorm eps가 10⁻⁵이 아닌 llama 구조 파일은 지원하지 않습니다/g, 'llama-architecture files whose RMSNorm eps is not 10⁻⁵ are not supported'],
+  [/질의 폭\(헤드 (\d+) × 128 = (\d+)\)이 너비 (\d+)와 다른 파일은 지원하지 않습니다/g, 'Files whose query width (heads $1 × 128 = $2) differs from the hidden size $3 are not supported'],
+  [/RoPE 늘이기\((.+?)\)가 들어간 파일은 지원하지 않습니다\(늘이기 인자는 rope_freqs 텐서로만\)/g, 'Files with RoPE scaling ($1) are not supported (scaling factors only through the rope_freqs tensor)'],
+  [/전문가 섞기\(MoE — 전문가 (\d+)개\) 모델은 아직 지원하지 않습니다/g, 'Mixture-of-experts models (MoE — $1 experts) are not supported yet'],
+  [/채팅 틀이 Llama 3 · Mistral의 것과 다른 파일입니다\(ChatML 등을 쓰는 미세조정\) — 아직 지원하지 않습니다/g, 'The chat template differs from the Llama 3 · Mistral ones (a fine-tune using ChatML or similar) — not supported yet'],
   [/RoPE 늘이기\((.+?)\)가 들어간 파일은 지원하지 않습니다/g, 'Files with RoPE scaling ($1) are not supported'],
-  [/지원하지 않는 모델 크기입니다\(너비 (\d+) · 헤드 (\d+) · KV 헤드 (\d+) · FFN (\d+)\) — 헤드 크기 128인 Qwen2\(7B 이상\)만 지원합니다/g, 'Unsupported model size (hidden $1 · heads $2 · KV heads $3 · FFN $4) — only Qwen2 with head size 128 (7B and up) is supported'],
-  [/지원하지 않는 토크나이저입니다\((.*?)\) — gpt2만 지원합니다/g, 'Unsupported tokenizer ($1) — only gpt2 is supported'],
-  [/지원하지 않는 토크나이저 사전 처리입니다\((.*?)\) — qwen2 · deepseek-r1-qwen만 지원합니다/g, 'Unsupported tokenizer pre-processing ($1) — only qwen2 · deepseek-r1-qwen are supported'],
+  [/지원하지 않는 모델 크기입니다\(너비 (\d+) · 헤드 (\d+) · KV 헤드 (\d+) · FFN (\d+)\) — 헤드 크기 128인 모델\(Qwen2 7B 이상 · Llama 3\.x · Mistral 7B 등\)만 지원합니다/g, 'Unsupported model size (hidden $1 · heads $2 · KV heads $3 · FFN $4) — only models with head size 128 (Qwen2 7B and up · Llama 3.x · Mistral 7B and the like) are supported'],
+  [/지원하지 않는 토크나이저입니다\((.*?)\) — gpt2\(바이트 BPE\)와 llama\(SentencePiece\)만 지원합니다/g, 'Unsupported tokenizer ($1) — only gpt2 (byte-level BPE) and llama (SentencePiece) are supported'],
+  [/지원하지 않는 토크나이저 사전 처리입니다\((.*?)\) — qwen2 · deepseek-r1-qwen · llama-bpe만 지원합니다/g, 'Unsupported tokenizer pre-processing ($1) — only qwen2 · deepseek-r1-qwen · llama-bpe are supported'],
   [/지원하지 않는 GGUF 버전입니다\((\d+)\) — 버전 3만 지원합니다/g, 'Unsupported GGUF version ($1) — only version 3 is supported'],
   [/GGUF 헤더를 끝까지 읽지 못했습니다\(파일이 잘렸거나 손상됨\)/g, 'Could not read the whole GGUF header (the file is truncated or damaged)'],
   [/GGUF 헤더가 손상되었습니다/g, 'The GGUF header is damaged'],
@@ -3046,7 +3053,7 @@ async function browse(path, pick) {
   const go = () => browse(inp.value.trim(), pick);
   inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); });
   modal(h('div', null, h('h2', null, pick ? T('모델 폴더 고르기') : T('GGUF 파일 추가')),
-    h('p', { class: 'small muted m0 mb12' }, pick ? T('받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.') : T('GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.')),
+    h('p', { class: 'small muted m0 mb12' }, pick ? T('받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.') : T('GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상), qwen3 구조(Qwen3 1.7B · 8B · 14B), llama 구조(Llama 3.1 8B · Llama 3.2 3B · Mistral 7B v0.3)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.')),
     h('div', { class: 'fs-path' }, inp, h('button', { class: 'btn', onclick: go }, T('이동'))), list),
     [h('button', { class: 'btn ghost', onclick: () => closeModal() }, T('닫기')),
       pick ? h('button', { class: 'btn primary', disabled: j.path ? null : true, onclick: () => { closeModal(); pick(j.path); } }, T('이 폴더 선택')) : null].filter(Boolean), false, '.fs-item');
@@ -3060,12 +3067,15 @@ const HFHOST = 'https://huggingface.co';
 const quantFromName = n => { const m = /(IQ\d_[A-Z]+|Q\d_K(?:_[SML])?|Q\d_\d|BF16|F16|F32)/i.exec(n || ''); return m ? m[1].toUpperCase() : ''; };
 const quantOk = q => /^(Q8_0|Q4_0|Q4_K(_[SM])?|Q5_K(_[SM])?|Q6_K)$/.test(q);
 const hfName = id => String(id).split('/').pop().replace(/[-_.]?GGUF$/i, '');
-const archOk = a => a === 'qwen2' || a === 'qwen3';
+const archOk = a => a === 'qwen2' || a === 'qwen3' || a === 'llama';      // 39단계 — llama(Llama 3.1 · 3.2 · Mistral)
 // 크기로 어림하는 지원 여부(확인은 받기 전에 GGUF 머리로) — 매개변수 수(미세조정도 바탕과 같고, 출력을 따로 둔 변환은 낱말표만큼 크다).
 // Qwen3: 1.7B · 8B · 14B 는 실행(질의 폭 = 너비), 0.6B · 4B · 32B 는 아직 아님(질의 폭 ≠ 너비), 그 밖의 크기는 받기 전 확인.
 // Qwen2: 헤드 크기 64 인 작은 것(0.5B 등)은 아직 아님
 const Q3OK = [[1.6e9, 2.1e9], [7.9e9, 8.4e9], [14.5e9, 15.0e9]];
 const Q3BAD = [[0.55e9, 0.8e9], [3.9e9, 4.5e9], [32e9, 33.5e9]];
+// 39단계 — llama 구조: Llama 3.2 3B · Mistral 7B · Llama 3.1 8B · 70B 는 실행(머리 128 · 질의 폭 = 너비), 헤드 64 인 작은 것(1B 등)은 아직 아님,
+// 그 밖의 크기(Mistral NeMo 12B 등)는 받기 전 확인(채팅 틀도 그때 본다 — ChatML 미세조정 등은 거른다)
+const L3OK = [[3.1e9, 3.3e9], [7.1e9, 7.4e9], [7.9e9, 8.1e9], [70.4e9, 70.7e9]];
 const inRange = (p, rs) => rs.some(([lo, hi]) => p >= lo && p <= hi);
 // 대화용이 아닌 모델(이미지 생성의 텍스트 인코더 · 임베딩 · 순위 매기기 · 음성) — 같은 구조라도 채팅에 쓰지 못한다(꼬리표 · 용도 · 이름으로)
 const NONCHAT = ['text-to-image', 'image-to-image', 'feature-extraction', 'sentence-similarity', 'text-classification', 'text-ranking',
@@ -3080,6 +3090,11 @@ function fdSupport(m) {
   if (!a) return { k: 'unknown', t: T('구조 정보 없음') };
   if (!archOk(a)) return { k: 'arch', t: T`${a} · 미지원 구조` };
   if (fdNonChat(m)) return { k: 'task', t: T('대화용 모델 아님'), why: T('이미지 생성용 텍스트 인코더 · 임베딩 · 음성처럼 채팅에 쓰는 모델이 아닙니다.') };
+  if (a === 'llama') {
+    if (inRange(p, L3OK)) return { k: 'ok', t: T('GeulPU에서 실행됨') };
+    if (p > 0 && p < 2.5e9) return { k: 'size', t: T('이 크기는 아직 미지원'), why: T('헤드 크기가 64인 작은 llama 구조(Llama 3.2 1B · TinyLlama 등)는 GeulPU가 아직 실행하지 않습니다.') };
+    return { k: 'check', t: T('크기 확인 필요'), why: T('흔한 Llama 3 · Mistral 크기(3B · 7~8B · 70B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.') };
+  }
   if (a === 'qwen3') {
     if (inRange(p, Q3OK)) return { k: 'ok', t: T('GeulPU에서 실행됨') };
     if (inRange(p, Q3BAD)) return { k: 'size', t: T('이 크기는 아직 미지원'), why: T('Qwen3의 0.6B · 4B · 32B는 질의 폭이 너비와 달라 GeulPU가 아직 실행하지 않습니다.') };
@@ -3200,7 +3215,7 @@ function fdBar() {
     const all = h('input', { type: 'checkbox', role: 'switch', 'data-fk': 'fd-all', 'aria-label': T('실행 안 되는 모델도 보기'),
       onchange: () => { FD.only = !all.checked; fdBar(); fdReload(); } });
     all.checked = !FD.only;
-    const allSw = h('label', { class: 'fd-toggle', 'data-tip': T('끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다'), 'data-tip-pos': 'bottom' },
+    const allSw = h('label', { class: 'fd-toggle', 'data-tip': T('끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3 · llama)와 크기만 보입니다'), 'data-tip-pos': 'bottom' },
       h('span', { class: 'switch' }, all, h('i')), h('span', null, T('실행 안 되는 모델도 보기')));
     put(FD.bar,
       h('div', { class: 'fd-line' },
@@ -3217,12 +3232,13 @@ function fdBar() {
 }
 function fdClearBtn() { const b = FD.bar.querySelector('[data-fk="fd-qx"]'); if (b) b.hidden = !FD.draft; }
 function fdSearch(q) { if (q === FD.q) return; FD.q = q; fdReload(); }
-// 정렬 · 거르기 · 검색어가 바뀌면 처음부터 — '실행되는 것만'은 꼬리표 qwen2 · qwen3 의 두 목록을 정렬 열쇠로 맞물려 하나로
+// 정렬 · 거르기 · 검색어가 바뀌면 처음부터 — '실행되는 것만'은 꼬리표 qwen2 · qwen3 · llama · mistral 의 목록을 정렬 열쇠로 맞물려 하나로
+// (39단계 — llama 구조의 GGUF 저장소는 꼬리표가 llama · mistral 이거나 없다: 꼬리표 없는 것은 '실행되는 것만'을 끄고 찾는다)
 function fdReload() {
   FD.seq++;
   FD.items = []; FD.seen = new Set(); FD.done = false; FD.err = ''; FD.busy = false; FD.dry = 0;
   const base = `${HFHOST}/api/models?filter=gguf&sort=${FD.sort}&direction=-1&limit=100&${FD_EXPAND}${FD.q ? '&search=' + encodeURIComponent(FD.q) : ''}`;
-  FD.srcs = FD.checked ? [] : (FD.only ? [base + '&filter=qwen2', base + '&filter=qwen3'] : [base]).map(u => ({ next: u, buf: [] }));
+  FD.srcs = FD.checked ? [] : (FD.only ? ['qwen2', 'qwen3', 'llama', 'mistral'].map(t => base + '&filter=' + t) : [base]).map(u => ({ next: u, buf: [] }));
   fdDrawList();
   FD.scroll.scrollTop = FD.y[0] = 0;
   fdMore();
