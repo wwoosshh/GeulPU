@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "GeulPU 앱이 받을 수 있는 모델. check: crosscheck = 교차검증의 기준 모델(출력이 기준 PC 와 비트까지 같은지 볼 수 있음) · untested = 엔진이 받는 꼴의 파일이지만 이 파일로는 아직 GeulPU 에서 돌려 보지 않음(받은 뒤 앱이 GGUF 머리를 보고 받는지 알린다). size · sha256 은 Hugging Face 의 값(2026-10-15).",
+  "note": "GeulPU 앱이 다운로드할 수 있는 모델 목록. check: crosscheck = 재현성 검증의 기준 모델(출력이 기준 PC와 비트 단위로 같은지 확인할 수 있음) · tested = 이 파일로 GeulPU에서 실행해 확인함(어느 백엔드에서 확인했는지는 note) · untested = 엔진이 지원하는 형식이지만 이 파일로는 아직 실행해 보지 않음(다운로드가 끝나면 앱이 GGUF 헤더를 보고 지원 여부를 알린다). size · sha256은 Hugging Face의 값(2026-10-15).",
   "models": [
     {
       "id": "deepseek-r1-distill-qwen-7b-q8_0",
@@ -15,7 +15,7 @@
       "license": "MIT",
       "check": "crosscheck",
       "devices": "all",
-      "note": "교차검증의 기준 모델 — 수학 문제 32 개의 출력이 기준 PC(NVIDIA · CUDA)와 비트까지 같은지 볼 수 있다. 생각(<think>)을 길게 쓰는 추론 모델."
+      "note": "재현성 검증의 기준 모델입니다. 수학 문제 32개의 출력이 기준 PC(NVIDIA · CUDA)와 비트 단위로 같은지 확인할 수 있습니다. 답하기 전에 생각 과정(<think>)을 길게 쓰는 추론 모델입니다."
     },
     {
       "id": "qwen2.5-7b-instruct-q8_0",
@@ -28,9 +28,9 @@
       "size": 8098525888,
       "sha256": "9c6a6e61664446321d9c0dd7ee28a0d03914277609e21bc0e1fce4abe780ce1b",
       "license": "Apache-2.0",
-      "check": "untested",
+      "check": "tested",
       "devices": "all",
-      "note": "일반 채팅 모델(한국어 · 영어). Q8_0 — AMD 등 공유 메모리 32 KB 장치에서도 돈다."
+      "note": "한국어 · 영어 일반 대화 모델입니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU(AMD 등)에서도 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     },
     {
       "id": "qwen2.5-7b-instruct-q4_k_m",
@@ -43,9 +43,9 @@
       "size": 4683074240,
       "sha256": "65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423",
       "license": "Apache-2.0",
-      "check": "untested",
+      "check": "tested",
       "devices": "k",
-      "note": "4 비트(k-양자화) — VRAM 8 GB 급에서도. k-양자화는 CUDA · 공유 메모리 48 KB 의 Vulkan 장치에서만(AMD 는 아직)."
+      "note": "4비트 k-양자화 파일이라 VRAM 8 GB급 GPU에서도 실행됩니다. k-양자화 모델은 CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다(AMD는 아직 지원하지 않음). 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     },
     {
       "id": "deepseek-r1-distill-qwen-7b-q4_k_m",
@@ -58,9 +58,9 @@
       "size": 4683073248,
       "sha256": "78272d8d32084548bd450394a560eb2d70de8232ab96a725769b1f9171235c1c",
       "license": "MIT",
-      "check": "untested",
+      "check": "tested",
       "devices": "k",
-      "note": "추론 모델의 4 비트(k-양자화) 판. CUDA · 공유 메모리 48 KB 의 Vulkan 장치에서만."
+      "note": "추론 모델의 4비트 k-양자화 파일입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     },
     {
       "id": "qwen2.5-coder-7b-instruct-q8_0",
@@ -73,9 +73,9 @@
       "size": 8098525984,
       "sha256": "ddabea51a3751a6412f06a8beaf9818a3e3e6931596337458407726220097071",
       "license": "Apache-2.0",
-      "check": "untested",
+      "check": "tested",
       "devices": "all",
-      "note": "코드 모델."
+      "note": "코드 작성 · 설명에 맞춘 모델입니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU에서도 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     },
     {
       "id": "qwen2.5-14b-instruct-q4_k_m",
@@ -88,9 +88,9 @@
       "size": 8988110976,
       "sha256": "e47ad95dad6ff848b431053b375adb5d39321290ea2c638682577dafca87c008",
       "license": "Apache-2.0",
-      "check": "untested",
+      "check": "tested",
       "devices": "k",
-      "note": "14B — VRAM 12 GB 이상(문맥은 엔진이 메모리에 맞춰 줄임). CUDA · 공유 메모리 48 KB 의 Vulkan 장치에서만."
+      "note": "14B 모델입니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     },
     {
       "id": "deepseek-r1-distill-qwen-14b-q4_k_m",
@@ -103,9 +103,9 @@
       "size": 8988109984,
       "sha256": "67a7933cf2ad596a393c8e13b30bc4da2d50b283e250b78554aed18817eca31c",
       "license": "MIT",
-      "check": "untested",
+      "check": "tested",
       "devices": "k",
-      "note": "14B 추론 모델 — VRAM 12 GB 이상. CUDA · 공유 메모리 48 KB 의 Vulkan 장치에서만."
+      "note": "14B 추론 모델입니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
     }
   ]
 }

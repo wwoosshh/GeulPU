@@ -9,7 +9,7 @@ cuBLAS or PyTorch: the chat runner is a single executable that imports only `ker
 
 > It loses only what is written down — and it shows what losing less costs.
 
-## Use the app (0.2.0 — stage 36)
+## Use the app (0.3.0 — stage 36)
 
 No git, Python, build or scripts:
 
@@ -17,10 +17,15 @@ No git, Python, build or scripts:
 2. Run `GeulPU.exe`; your browser opens `http://127.0.0.1:44544` (local only; closing the console window stops GeulPU).
    The executable is unsigned — if "Windows protected your PC" appears, choose *More info* → *Run anyway*.
 3. **Models** — download from the list (file, source and size are shown before anything is fetched; resumable; SHA-256 verified)
-   or add a GGUF you already have.
-4. **Chat** — pick a model per conversation and talk (streaming, stop). The first run builds kernels for your GPU (seconds).
-5. **Bench & verify** — self-diagnosis, speed (prompt and generation tokens/s) and the cross-check (32 R1 problems compared bit for bit
-   with the reference PC). Results download as a zip.
+   or add a GGUF you already have. All seven catalog files (Qwen2.5-7B/14B-Instruct, Qwen2.5-Coder-7B, DeepSeek-R1-Distill-Qwen-7B/14B,
+   Q8_0 and Q4_K_M) were run on CUDA (RTX 4070 Ti); the six besides the reference model (R1-7B Q8_0) were downloaded through the app.
+4. **Chat** — pick a model per conversation and talk (streaming, stop, regenerate, edit-and-resend; R1's reasoning folds away,
+   Markdown tables, code blocks and LaTeX math render in the app). The first run builds kernels for your GPU (seconds).
+5. **Benchmark** — hardware diagnosis, speed (prompt and generation tokens/s) and the reproducibility check (32 R1 problems compared
+   bit for bit with the reference PC). Results export as a zip.
+
+The interface is dark-only and follows the x.ai design system ([앱/DESIGN.md](앱/DESIGN.md), from VoltAgent/awesome-design-md, MIT)
+with one accent colour; it was refined over several rounds of review by independent agents ([stage 36](문서/36단계.md)).
 
 NVIDIA RTX 30 and newer run on CUDA, other GPUs (AMD, …) on Vulkan (switchable in Settings). Models, kernels and results live in
 `%USERPROFILE%\GeulPU` and survive upgrades. Other programs can use `http://127.0.0.1:44544/v1` (OpenAI-compatible). The manager

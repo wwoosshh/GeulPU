@@ -2,133 +2,70 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
 <title>GeulPU</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div id="app">
-  <aside id="nav">
-    <div class="brand"><span class="logo">글</span><div><b>GeulPU</b><small id="ver">…</small></div></div>
-    <button class="navbtn active" data-view="chat">채팅</button>
-    <button class="navbtn" data-view="models">모델</button>
-    <button class="navbtn" data-view="bench">벤치 · 검증</button>
-    <button class="navbtn" data-view="device">장치</button>
-    <button class="navbtn" data-view="settings">설정 · 정보</button>
-    <div class="navfoot" id="navfoot">글(geul) 언어로 쓴 LLM 엔진</div>
-  </aside>
-  <main>
-    <header id="topbar">
-      <span class="chip" id="chip-gpu"><i class="dot"></i><span>장치 확인 중…</span></span>
-      <span class="chip" id="chip-server"><i class="dot"></i><span>서버 꺼짐</span></span>
-      <span class="chip" id="chip-job" hidden><i class="dot busy"></i><span></span></span>
-      <span class="grow"></span>
-      <span class="chip" id="chip-conn" hidden><i class="dot err"></i><span>관리자와 끊김 — GeulPU.exe 창이 열려 있는지 보세요</span></span>
-    </header>
-    <div id="update-banner" class="banner" hidden></div>
+  <nav id="rail" aria-label="메뉴">
+    <div class="mark" aria-hidden="true">글</div>
+    <button class="rail-btn" data-view="chat" data-tip="채팅" aria-label="채팅"></button>
+    <button class="rail-btn" data-view="models" data-tip="모델" aria-label="모델"></button>
+    <button class="rail-btn" data-view="bench" data-tip="벤치마크" aria-label="벤치마크"></button>
+    <button class="rail-btn" data-view="device" data-tip="하드웨어" aria-label="하드웨어"></button>
+    <div class="rail-gap"></div>
+    <button class="rail-btn" data-view="settings" data-tip="설정" aria-label="설정"></button>
+  </nav>
+  <main id="main">
+    <div id="banner" hidden role="status"></div>
 
-    <section id="view-chat" class="view active">
-      <div id="rooms">
-        <div class="head"><button class="btn primary" id="newroom" style="width:100%">+ 새 대화</button></div>
+    <section id="view-chat" class="view" aria-label="채팅">
+      <div id="scrim" hidden></div>
+      <aside id="convos" aria-label="채팅 목록">
+        <div class="convos-head">
+          <button class="btn" id="newroom" data-tip="Ctrl+Shift+O" data-tip-pos="bottom"></button>
+          <button class="icon-btn" id="hide-convos" data-tip="목록 닫기" data-tip-pos="bottom" aria-label="채팅 목록 닫기"></button>
+        </div>
         <div id="roomlist"></div>
-      </div>
-      <div id="chatmain">
-        <div id="chathead">
-          <label class="muted small" for="chatmodel">모델</label>
-          <select id="chatmodel"></select>
-          <span id="chatmodelinfo" class="muted small"></span>
+        <div class="convos-foot">채팅은 이 브라우저에만 저장됩니다</div>
+      </aside>
+      <div id="chat">
+        <header id="chat-top">
+          <button class="icon-btn" id="show-convos" data-tip="채팅 목록" data-tip-pos="bottom" aria-label="채팅 목록 열기" hidden></button>
+          <button class="model-pill needs-conn" id="model-pill" aria-haspopup="menu" aria-expanded="false"></button>
+          <span class="model-state" id="model-state"></span>
           <span class="grow"></span>
-          <button class="btn small" id="optbtn">설정</button>
-        </div>
+          <button class="icon-btn" id="optbtn" data-tip="생성 설정" data-tip-pos="left" aria-label="생성 설정" aria-haspopup="dialog" aria-expanded="false"></button>
+        </header>
         <div id="msgs"></div>
-        <div id="composer">
-          <div id="chatopts">
-            <label class="small">온도 <input type="number" id="opt-temp" min="0" max="2" step="0.1" value="0" style="width:72px"></label>
-            <label class="small">답 길이 상한 <input type="number" id="opt-max" min="16" max="32768" step="256" value="4096" style="width:90px"></label>
-            <span class="muted small">온도 0 = 탐욕 — 같은 대화에는 늘 같은 답(비트까지).</span>
-            <textarea id="opt-system" placeholder="시스템 말(비우면 모델의 기본)"></textarea>
+        <footer id="composer">
+          <button class="icon-btn" id="tobottom" aria-label="맨 아래로" hidden></button>
+          <div class="composer-box needs-conn">
+            <textarea id="input" rows="1" placeholder="메시지 입력" aria-label="메시지"></textarea>
+            <div class="composer-bar">
+              <span class="hint" id="composer-hint">Enter 보내기 · Shift+Enter 줄바꿈</span>
+              <span class="grow"></span>
+              <button class="send-btn" id="sendbtn" aria-label="보내기" disabled></button>
+            </div>
           </div>
-          <div class="wrap">
-            <textarea id="input" rows="1" placeholder="메시지를 쓰세요 — Enter 보내기 · Shift+Enter 줄바꿈"></textarea>
-            <button class="btn primary" id="sendbtn">보내기</button>
-          </div>
-        </div>
+        </footer>
       </div>
     </section>
 
-    <section id="view-models" class="view">
-      <h2>모델</h2>
-      <p class="sub">GeulPU 는 머리 크기 128 의 Qwen2 계열(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)을 Q8_0 · 순수 Q4_0 · k-양자화(Q4_K_M 등)로 돌립니다.</p>
-      <div class="row">
-        <button class="btn" id="addfile">가진 GGUF 파일 더하기</button>
-        <button class="btn" id="openmodels">모델 폴더 열기</button>
-        <span class="muted small" id="diskfree"></span>
-      </div>
-      <h3>가진 모델</h3>
-      <div id="mymodels" class="col"></div>
-      <h3>받을 수 있는 모델</h3>
-      <p class="muted small" style="margin-top:-4px">받기를 누르면 파일 · 출처 · 크기를 먼저 보여 줍니다. 다 받으면 SHA-256 을 목록의 값과 견주고 맞을 때만 씁니다. 끊기면 다시 눌러 이어받습니다.</p>
-      <div id="catalog" class="cards"></div>
-    </section>
+    <section id="view-models" class="view" aria-label="모델"><div class="page" id="page-models"></div></section>
+    <section id="view-bench" class="view" aria-label="벤치마크"><div class="page" id="page-bench"></div></section>
+    <section id="view-device" class="view" aria-label="하드웨어"><div class="page" id="page-device"></div></section>
+    <section id="view-settings" class="view" aria-label="설정"><div class="page" id="page-settings"></div></section>
 
-    <section id="view-bench" class="view">
-      <h2>벤치 · 검증</h2>
-      <p class="sub">한 번에 하나씩 돕니다(GPU 를 혼자 씀). 도는 동안 채팅 서버는 내려갑니다. 결과는 아래 목록에 남고 zip 으로 받아 보낼 수 있습니다.</p>
-      <div id="jobpanel" class="card" hidden></div>
-      <h3>돌릴 것</h3>
-      <div class="cards" id="benchcards"></div>
-      <h3>결과</h3>
-      <div id="results" class="col"></div>
-      <div id="resultview" class="card" hidden style="margin-top:12px"></div>
-    </section>
-
-    <section id="view-device" class="view">
-      <h2>장치</h2>
-      <p class="sub">GeulPU 가 이 PC 에서 고른 GPU 와 그 한도. NVIDIA 는 CUDA(nvcuda.dll), 그 밖은 Vulkan 으로 돕니다 — 설정에서 바꿀 수 있습니다.</p>
-      <div class="row" style="margin-bottom:12px"><button class="btn" id="devcheck">다시 확인</button></div>
-      <div id="devsummary" class="card"></div>
-      <h3>Vulkan 장치</h3>
-      <div id="devvulkan" class="col"></div>
-      <h3>CUDA 장치</h3>
-      <div id="devcuda" class="col"></div>
-    </section>
-
-    <section id="view-settings" class="view">
-      <h2>설정 · 정보</h2>
-      <div class="card col" style="max-width:720px">
-        <label class="row">GPU 층
-          <select id="set-layer">
-            <option value="auto">자동 (NVIDIA → CUDA, 그 밖 → Vulkan)</option>
-            <option value="cuda">CUDA</option>
-            <option value="vulkan">Vulkan</option>
-          </select>
-        </label>
-        <label class="row">Vulkan 장치 <input type="text" id="set-vkdev" placeholder="이름의 일부 — 비우면 첫 외장 GPU" style="width:280px"></label>
-        <label class="row">채팅 서버 슬롯 <input type="number" id="set-slots" min="1" max="8" style="width:70px">
-          <span class="muted small">동시에 답할 수 있는 대화 수</span></label>
-        <label class="row">슬롯마다 문맥 <input type="number" id="set-ctx" min="1024" max="131072" step="1024" style="width:100px">
-          <span class="muted small">토큰 — 장치 메모리에 들지 않으면 엔진이 줄입니다</span></label>
-        <label class="row">모델 폴더 <input type="text" id="set-mdir" placeholder="비우면 자료 폴더의 모델" style="width:360px">
-          <span class="muted small">다음 시작부터</span></label>
-        <label class="row"><input type="checkbox" id="set-update"> 새 판 알림 (GitHub 의 최신 릴리스와 견줌)</label>
-        <div class="row"><button class="btn primary" id="set-save">저장</button><span class="muted small">GPU 층을 바꾸면 장치를 다시 확인합니다.</span></div>
-      </div>
-      <h3>정보</h3>
-      <div class="card" style="max-width:720px">
-        <div class="kv" id="about"></div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn" id="opendata">자료 폴더 열기</button>
-          <a class="btn" href="https://github.com/wwoosshh/GeulPU" target="_blank" rel="noopener">GitHub</a>
-          <a class="btn" href="https://github.com/wwoosshh/GeulPU/releases" target="_blank" rel="noopener">릴리스</a>
-          <button class="btn" id="theme">밝게 · 어둡게</button>
-        </div>
-      </div>
-    </section>
+    <footer id="statusbar" aria-label="상태"></footer>
   </main>
 </div>
-<div id="modal" hidden><div class="box" id="modalbox"></div></div>
-<div id="toast"></div>
+<div id="modal" hidden><div class="box" id="modalbox" role="dialog" aria-modal="true" aria-labelledby="modal-title"></div></div>
+<div id="toast" aria-live="polite"></div>
+<div id="sr-live" class="sr" aria-live="polite"></div>
 <script src="/app.js"></script>
 </body>
 </html>
