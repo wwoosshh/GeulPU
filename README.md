@@ -1,35 +1,241 @@
-# GeulPU — 의미를 지키는 GPU 추론 엔진
+# GeulPU — 내 PC의 그래픽카드로 돌리는 AI 채팅
 
-*English: [README.en.md](README.en.md) · [docs/](docs/) — the contract, research log, hidden-loss measurements, how to reproduce,
-glossary, and a short brief for outside reviewers.*
+*English: [README.en.md](README.en.md)*
 
-**글(geul)** 언어로 쓴 GPU 커널을 글 컴파일러가 PTX 로 바꿔 NVIDIA 드라이버에 바로 올리는 언어 모델 추론 엔진이다. CUDA 툴킷 ·
-cuBLAS · PyTorch 없이, 그래픽 드라이버에 들어 있는 `nvcuda.dll` 하나로 돈다.
+GeulPU는 Qwen3 · Qwen2.5 · DeepSeek-R1 같은 언어 모델을 **내 PC의 그래픽카드(GPU)에서** 돌리는 Windows 앱입니다. 설치 프로그램 없이
+zip을 풀고 `GeulPU.exe`를 실행하면 브라우저에 채팅 화면이 열립니다. 모델은 앱 안에서 Hugging Face로부터 받고, 대화는 이 PC 밖으로
+나가지 않습니다.
+
+엔진은 한국어 프로그래밍 언어 **글(geul)** 로 썼습니다 — GPU 커널부터 추론 서버 · 앱까지. CUDA 툴킷 · Python · PyTorch 없이 그래픽
+드라이버만으로 돌고, 계산 결과가 CPU 참조 구현과 **비트까지 같도록** 정밀도를 계약으로 정해 둡니다([무엇이 다른가](#무엇이-다른가)).
 
 > 적힌 대로만 잃는다. 덜 잃는 데 드는 셈은 숨기지 않는다.
 
-## 앱으로 쓰기 (0.3.0 — 36단계)
+**[⬇ 최신 버전 받기 — Windows 64비트 · zip 약 1.3 MB](https://github.com/wwoosshh/GeulPU/releases/latest)**
 
-git · 파이썬 · 빌드 · 스크립트 없이:
+[설치](#설치) · [처음 쓰기](#처음-쓰기) · [지원하는 모델](#지원하는-모델) · [실행 방식](#실행-방식) · [문제 해결](#문제-해결) ·
+[업데이트 · 삭제](#업데이트--삭제) · [무엇이 다른가](#무엇이-다른가) · [개발 · 연구](#개발--연구)
 
-1. [릴리스](https://github.com/wwoosshh/GeulPU/releases)에서 `GeulPU-<판>-windows-x64.zip` 을 받아 아무 폴더에 풉니다.
-2. `GeulPU.exe` 를 실행하면 브라우저에 `http://127.0.0.1:44544` 가 열립니다(이 PC 안에서만 들림 · 창을 닫으면 꺼짐).
-   서명하지 않은 실행 파일이라 "Windows 의 PC 보호" 가 뜨면 [추가 정보] → [실행].
-3. **모델** — 목록에서 받거나(파일 · 출처 · 크기를 보이고 누른 뒤에 받음 · 이어받기 · SHA-256 확인) 가진 GGUF 를 더합니다. 목록의 일곱
-   파일(Qwen2.5-7B/14B-Instruct · Qwen2.5-Coder-7B · DeepSeek-R1-Distill-Qwen-7B/14B, Q8_0 · Q4_K_M)을 모두 CUDA(RTX 4070 Ti)에서
-   돌려 보았습니다(기준 모델 R1-7B Q8_0 밖의 여섯은 앱으로 받아서).
-4. **채팅** — 대화방마다 모델을 골라 말을 겁니다(흘림 · 멈춤 · 다시 생성 · 고쳐 보내기 — R1 의 생각은 접히고, 표 · 코드 · 수식(LaTeX)을
-   앱이 그립니다). 처음 한 번은 이 GPU 에 맞는 커널을 만듭니다(수 초).
-5. **벤치마크** — 하드웨어 진단 · 속도 측정(프롬프트 · 생성 토큰/초) · 재현성 검증(R1 32 문제를 기준 PC 와 비트까지 견줌). 결과는 zip 으로
-   내보냅니다.
+## 설치
 
-화면은 어둠 한 가지에 강조색 하나인 x.ai 디자인 시스템([앱/DESIGN.md](앱/DESIGN.md), VoltAgent/awesome-design-md · MIT)을 따르고, 독립
-에이전트의 평가를 여러 차례 거쳐 다듬었습니다([36단계](문서/36단계.md)).
+### 필요한 것
 
-NVIDIA RTX 30 이상은 CUDA, 그 밖(AMD 등)은 Vulkan 으로 돕니다(설정에서 바꿈). 모델 · 커널 · 결과는 `%USERPROFILE%\GeulPU` 에 남아 판을
-바꿔도 그대로입니다. 다른 프로그램은 `http://127.0.0.1:44544/v1`(OpenAI 꼴)로 씁니다. 관리자(`GeulPU.exe`)도 글(geul) 언어로 썼고 윈도의
-DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵니다. 릴리스는 태그를 밀면 CI 가 소스에서 빌드하며, 그 서버 · 생성기 ·
-뒷단은 교차검증의 기준 빌드와 같은 바이트입니다(`앱/꾸리기.ps1` 이 견줌). 바뀐 것은 [바뀐것.md](바뀐것.md), 만든 과정은 [36단계](문서/36단계.md).
+| | |
+|---|---|
+| 운영체제 | Windows 10 · 11 (64비트) |
+| 그래픽카드 | NVIDIA RTX 30 시리즈 이상은 CUDA로, 그 밖의 GPU(AMD Radeon 등)는 Vulkan 1.3으로 돕니다 |
+| 그래픽 메모리 | 6 GB부터(작은 모델) — 7B · 8B는 8 GB(Q4_K_M) · 12 GB(Q8_0), 14B는 12 GB 이상([아래 표](#내-pc에-맞는-모델)) |
+| 디스크 | 앱 약 5 MB + 모델 하나에 2 ~ 9 GB |
+| 인터넷 | 모델을 찾고 받을 때와 새 버전을 확인할 때만 |
+
+그래픽 드라이버는 최신으로 두세요. RTX 20 · GTX 16 이하의 NVIDIA 카드는 CUDA 경로를 쓰지 못합니다(계산 능력 8.0 미만). 이때 앱은 Vulkan으로
+돌 수 있는지 스스로 확인합니다. AMD는 Radeon RX 9060 XT에서 확인했습니다.
+
+### 1. 받기
+
+[릴리스 페이지](https://github.com/wwoosshh/GeulPU/releases/latest)에서 **`GeulPU-<버전>-windows-x64.zip`** 을 받습니다. 모델은 들어 있지 않아
+작습니다(모델은 앱 안에서 받습니다).
+
+받은 파일이 그대로인지 보려면(선택) 같은 페이지의 `SHA256SUMS.txt` 와 견줍니다. PowerShell에서:
+
+```powershell
+Get-FileHash .\GeulPU-0.4.0-windows-x64.zip
+```
+
+### 2. 압축 풀기
+
+zip을 마우스 오른쪽 단추로 누르고 **모두 압축 풀기** → 원하는 폴더(예: `C:\GeulPU`)에 풉니다. 경로에 한글이 있어도 됩니다.
+zip을 연 채로 그 안의 `GeulPU.exe` 를 바로 실행하지 말고, 꼭 풀어서 실행하세요.
+
+### 3. 실행
+
+`GeulPU.exe` 를 두 번 누릅니다.
+
+1. **"Windows의 PC 보호"** 창이 뜨면 **추가 정보 → 실행**을 누릅니다. 코드 서명을 하지 않은 실행 파일이라 나타납니다. 릴리스 zip은
+   GitHub Actions가 이 저장소의 소스로 빌드합니다([실행 방식](#실행-방식)).
+2. 검은 창(콘솔)이 하나 뜹니다. 이것이 GeulPU 본체입니다 — **이 창을 닫으면 앱이 꺼집니다.**
+3. 브라우저에 `http://127.0.0.1:44544` 가 열립니다. 열리지 않으면 이 주소를 주소창에 직접 입력하세요.
+
+## 처음 쓰기
+
+화면 왼쪽 막대의 아이콘은 위에서부터 **채팅 · 모델 · 벤치마크 · 하드웨어**, 맨 아래가 **설정**입니다.
+
+### 1. 모델 받기 — 모델 → 모델 찾기
+
+- Hugging Face의 GGUF 모델이 **요즘 뜨는** 순으로 보입니다. **인기 · 좋아요 · 최근 업데이트** 순으로 바꾸거나, 위 칸에 이름(예: `qwen3`,
+  `coder`, `14b`)을 넣어 좁힙니다.
+- 기본으로 **GeulPU에서 실행되는 모델만** 보입니다. **실행 안 되는 모델도 보기**를 켜면 모두 보이고, 실행되지 않는 것은 흐리게 까닭과
+  함께 보입니다. **이 PC에 맞는 크기**를 켜면 그래픽 메모리에 들어가는 것만 남습니다.
+- 모델을 누르면 오른쪽에 설명 · 다운로드 수 · 라이선스와 **파일 목록**이 나옵니다. 파일마다 이 PC에 맞는지(맞음 · 빠듯함 · 부족)와
+  **추천**이 표시됩니다. 고른 파일의 **다운로드**를 누릅니다.
+- 받기 전에 파일 앞부분만 읽어 실행되는지 먼저 확인하고, 끊기면 이어서 받고, 다 받으면 SHA-256으로 확인합니다. 받는 중인 파일은
+  **내 모델** 칸과 아래 상태 막대에서 보고 멈추거나 이을 수 있습니다.
+- 처음이라면 **GeulPU 확인됨** 표시가 있는 모델(GeulPU가 직접 돌려 본 파일)부터 고르세요 — [내 PC에 맞는 모델](#내-pc에-맞는-모델).
+- 이미 가진 GGUF 파일은 위쪽의 **GGUF 파일 추가**로 넣습니다(파일은 그 자리에 둔 채 씁니다).
+
+### 2. 채팅하기
+
+- 위쪽 모델 단추에서 모델을 고르고 메시지를 보냅니다(**Enter** 보내기 · **Shift+Enter** 줄바꿈).
+- **처음 한 번**은 이 GPU와 모델에 맞는 커널을 만들고(빠른 CPU에서 10초 안팎, 느리면 1 ~ 3분) 모델을 그래픽 메모리에 올립니다(7B 약
+  20초). 다음부터는 올리기만 합니다.
+- **추론 모델**(Qwen3 · DeepSeek-R1)은 답하기 전에 생각을 씁니다. 생각은 접혀 있고, 눌러서 펼쳐 봅니다.
+- **Qwen3의 생각 끄기**: 오른쪽 위 **생성 설정**(슬라이더 아이콘) → **생각 과정 쓰기**를 끄면 생각 없이 바로 답합니다.
+- **생성 설정**에서 온도(0이면 같은 질문에 늘 같은 답)와 최대 답변 길이도 정합니다.
+- 답을 다시 생성하거나 내 메시지를 고쳐 보낼 수 있고, 앞의 답은 버전으로 남아 ‹ 1 / 2 › 로 넘겨 봅니다. 코드 · 표 · 수식(LaTeX)을
+  그려 줍니다.
+- 대화는 이 브라우저에만 저장됩니다.
+
+### 3. 벤치마크 (선택)
+
+- **하드웨어 진단**: 메모리 대역 · 텐서 코어 성능을 재고, 커널마다 하드웨어 한계에 얼마나 가까운지 보여 줍니다.
+- **속도 측정**: 프롬프트(512 · 2048 토큰)와 생성 속도(토큰/초).
+- **재현성 검증**: DeepSeek-R1-Distill-Qwen-7B Q8_0으로 수학 문제 32개를 풀어 기준 PC의 출력과 비트까지 같은지 견줍니다(빠른 확인은
+  문제 2개 · 64토큰).
+- 결과는 zip으로 내보낼 수 있습니다(사용자 경로는 지웁니다).
+
+### 4. 설정
+
+GPU 백엔드(자동 · CUDA · Vulkan), Vulkan 장치, 동시 처리 수(동시에 답하는 채팅 수 1 ~ 8)와 채팅마다 문맥 길이, 모델 폴더, 새 버전 알림.
+바꾸면 바로 저장됩니다.
+
+### 다른 프로그램에서 쓰기 (OpenAI 호환 API)
+
+앱에서 모델을 불러온 상태(채팅을 한 번 보내면 불러옵니다)에서 `http://127.0.0.1:44544/v1` 을 OpenAI 호환 주소로 씁니다. `model` 값은
+아무 이름이나 됩니다(지금 불러온 모델이 답합니다).
+
+PowerShell 창에 붙여 넣어 실행합니다(한글이 깨지지 않게 응답을 UTF-8로 읽습니다 — `.ps1` 파일로 저장하려면 'UTF-8(BOM)'으로).
+
+```powershell
+$body = @{ messages = @(@{ role = 'user'; content = '안녕하세요' }) } | ConvertTo-Json -Depth 4
+$r = Invoke-WebRequest -Uri http://127.0.0.1:44544/v1/chat/completions -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -UseBasicParsing
+([Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json).choices[0].message.content
+```
+
+```python
+from openai import OpenAI   # pip install openai
+client = OpenAI(base_url="http://127.0.0.1:44544/v1", api_key="geulpu")   # 키는 아무 글자나
+r = client.chat.completions.create(model="geulpu", messages=[{"role": "user", "content": "안녕하세요"}])
+print(r.choices[0].message.content)
+```
+
+- Qwen3의 생각을 끄려면 요청에 `"chat_template_kwargs": {"enable_thinking": false}` 를 넣습니다(Python은 `extra_body=` 로).
+- Qwen3 · DeepSeek-R1의 생각은 기본으로 태그 없이 답 앞에 붙어 옵니다. 요청에 `"geulpu": {"special": true}` 를 넣으면 `<think>` ·
+  `</think>` 가 글로 와서 생각과 답을 나눌 수 있습니다.
+- 이 PC 안에서만 접속되고 인증은 없습니다. 다른 웹사이트가 브라우저를 통해 보내는 요청은 막습니다.
+- `/v1/chat/completions` 는 Qwen2.5 · Qwen3의 대화 틀을 씁니다. DeepSeek-R1은 아직 `/v1/completions` 에 R1의 대화 틀을 직접 넣어 씁니다.
+
+## 지원하는 모델
+
+GGUF 파일 하나를 받습니다(여러 조각으로 나뉜 파일은 llama.cpp의 `llama-gguf-split --merge` 로 합쳐서).
+
+| 구조 | 모델 | 크기 |
+|---|---|---|
+| qwen2 | Qwen2.5-Instruct · Qwen2.5-Coder · DeepSeek-R1-Distill-Qwen과 그 미세조정 모델 | 1.5B 이상(헤드 크기 128) — 7B · 14B를 돌려 봄 |
+| qwen3 | Qwen3와 그 미세조정 모델 | 1.7B · 8B · 14B |
+
+- **형식**: Q8_0 · Q4_K_M · Q5_K_M · Q6_K, 그리고 모든 텐서가 Q4_0인 Q4_0 파일.
+- **아직 안 되는 것**: Llama · Gemma · Mistral · Phi 같은 다른 구조, Qwen3의 0.6B · 4B · 32B, Qwen2.5-0.5B, MoE(Qwen3-30B-A3B 등),
+  이미지 입력, Q2_K · Q3_K · IQ · Q5_0 · F16 · BF16. 모델 찾기는 이런 파일을 기본으로 숨깁니다.
+- **GPU에 따라**: k-양자화(Q4_K_M 등)는 CUDA와, 공유 메모리가 48 KB 이상인 Vulkan GPU에서 돕니다. 윈도의 AMD 드라이버(공유 메모리
+  32 KB)에서는 지금 Q8_0(과 Q4_0) 파일만 돕니다.
+
+### 내 PC에 맞는 모델
+
+GeulPU가 직접 돌려 본 파일입니다(앱의 **GeulPU 확인됨**). 크기는 윈도 탐색기와 같은 1024 단위입니다.
+
+| 그래픽 메모리 | 권하는 파일 |
+|---|---|
+| 6 GB | Qwen3-1.7B Q8_0 (1.7 GB) |
+| 8 GB | Qwen3-8B Q4_K_M (4.7 GB) · Qwen2.5-7B-Instruct Q4_K_M (4.4 GB) · DeepSeek-R1-Distill-Qwen-7B Q4_K_M (4.4 GB) |
+| 12 GB | Qwen3-8B Q8_0 (8.1 GB) · Qwen2.5-7B-Instruct Q8_0 · Qwen2.5-Coder-7B-Instruct Q8_0 · DeepSeek-R1-Distill-Qwen-7B Q8_0 (7.5 GB) — 14B Q4_K_M도 문맥을 줄여 돕니다 |
+| 16 GB 이상 | Qwen2.5-14B-Instruct Q4_K_M · DeepSeek-R1-Distill-Qwen-14B Q4_K_M (8.4 GB) |
+
+Qwen3-14B Q4_K_M은 같은 모양의 합성 모델로 출력이 비트까지 맞는지만 확인했고 아직 돌려 보지 않았습니다. 앱은 파일마다 이 PC의 그래픽
+메모리에 맞는지 미리 알려 줍니다.
+
+## 실행 방식
+
+```mermaid
+flowchart LR
+    B["브라우저<br/>127.0.0.1:44544"] -- "화면 · /api · /v1" --> M["GeulPU.exe<br/>관리자"]
+    M -- "모델을 처음 쓸 때" --> G["kernel-gen.exe<br/>ptx-backend.exe · spirv-backend.exe"]
+    G -- "이 GPU용 커널" --> K[("모듈 폴더")]
+    M -- "띄우고 /v1 을 넘김" --> S["server-cuda.exe<br/>server-vulkan.exe"]
+    K --> S
+    S -- "nvcuda.dll · vulkan-1.dll" --> GPU[("GPU")]
+```
+
+1. **관리자**(`GeulPU.exe`)가 `127.0.0.1:44544` 에서 화면을 열고 브라우저를 띄웁니다. 이 PC 안에서만 들리고, 같은 포트에 이미 떠 있으면
+   그 화면을 엽니다. 44544는 '글'의 유니코드 번호(U+AE00)입니다.
+2. 처음에 GPU를 확인합니다 — NVIDIA RTX 30 이상이면 CUDA(`nvcuda.dll`), 아니면 Vulkan(`vulkan-1.dll`). 설정에서 바꿀 수 있습니다.
+3. 모델을 처음 쓸 때 **커널을 만듭니다**. 커널 생성기(`kernel-gen.exe`)가 그 모델의 구조 · 모양 · 형식에 맞는 GPU 커널 소스를 글(geul)로
+   쓰고, 글 컴파일러의 뒷단(`ptx-backend.exe` · `spirv-backend.exe`)이 그것을 PTX(NVIDIA) · SPIR-V(Vulkan)로 바꿔 자료 폴더에 둡니다.
+   앱 버전마다 한 번입니다.
+4. **추론 서버**(`server-cuda.exe` · `server-vulkan.exe`)가 GGUF를 그래픽 메모리에 올리고, 그 커널을 그래픽 드라이버로 바로 돌립니다.
+   CUDA 툴킷 · 런타임 · Python이 필요 없습니다.
+5. 채팅은 브라우저 → 관리자 → 추론 서버(OpenAI 꼴 API)로 가고, 답은 토큰마다 흘러 돌아옵니다.
+6. 검은 창을 닫으면 관리자와 그 아래 프로세스(서버 · 도구)가 함께 꺼집니다.
+
+관리자 · 추론 서버 · 커널 생성기 · 뒷단 모두 글(geul)로 썼고, 가져오는 것은 윈도의 DLL(관리자: kernel32 · ws2_32 · shell32 · winhttp ·
+bcrypt · advapi32)과 그래픽 드라이버의 DLL뿐입니다.
+
+**zip 안**
+
+| 파일 | 하는 일 |
+|---|---|
+| `GeulPU.exe` | 관리자 — 화면, 모델 받기 · 확인, 서버와 도구 띄우기 |
+| `bin\server-cuda.exe` · `bin\server-vulkan.exe` | 추론 서버(OpenAI 꼴 HTTP API) |
+| `bin\kernel-gen.exe` | 커널 생성기 — 모델 모양에 맞는 커널 소스(글) |
+| `bin\ptx-backend.exe` · `bin\spirv-backend.exe` | 글 컴파일러의 뒷단 — 커널을 PTX · SPIR-V로 |
+| `bin\device-*.exe` · `bin\diag-*.exe` · `kernels\` | GPU 확인 · 하드웨어 진단 |
+| `web\` | 화면(HTML · CSS · JavaScript) |
+| `data\` | 받을 수 있는 모델 목록 · 재현성 검증 기준 |
+| `version.json` | 버전 · 커밋 · 파일마다 SHA-256 |
+
+**자료 폴더** — `%USERPROFILE%\GeulPU` (버전을 바꿔도 그대로 남습니다)
+
+| | |
+|---|---|
+| `모델\` | 받은 모델(GGUF) |
+| `모듈\<버전>\` | 이 GPU에 맞춰 만든 커널 |
+| `결과\` | 벤치마크 결과 |
+| `기록\` | 서버 · 작업 기록 — 문제가 생기면 여기를 봅니다 |
+| `설정.json` · `모델목록.json` · `허깅목록.json` | 설정 · 내 모델 목록 · Hugging Face에서 고른 파일 |
+
+자료 폴더를 옮기려면 환경 변수 `GEULPU_HOME` 을 두거나 `GeulPU.exe --자료 <폴더>` 로 실행합니다. 그 밖의 실행 옵션은
+`--포트 <번호>`(다른 포트) · `--열지않음`(브라우저를 띄우지 않음)입니다.
+
+**네트워크 · 개인정보**
+
+- 관리자와 추론 서버는 `127.0.0.1` 에서만 듣습니다 — 다른 기기에서는 접속할 수 없습니다.
+- 인터넷은 세 곳에만 씁니다: 모델 찾기(화면이 Hugging Face API를 직접 읽음), 모델 받기(huggingface.co), 새 버전 확인(GitHub — 설정의 새 버전
+  알림으로 끔).
+- 사용 통계를 보내지 않습니다. 대화는 브라우저의 저장소에만 남습니다.
+- 설치 프로그램이 없고 레지스트리에 쓰지 않습니다.
+
+**빌드 · 신뢰**: 릴리스 zip은 태그를 밀면 GitHub Actions가 이 저장소의 소스로 빌드합니다(`앱/꾸리기.ps1` — 글 컴파일러를 고정점까지 빌드한
+뒤 뒷단 · 서버 · 도구 · 관리자). 서버 · 생성기 · 뒷단은 재현성 검증 기준(`교차검증/expected.json`)의 빌드 해시와 같은 바이트인지 확인한 뒤에야
+꾸립니다.
+
+## 문제 해결
+
+| 증상 | 할 일 |
+|---|---|
+| 브라우저가 열리지 않음 | 주소창에 `http://127.0.0.1:44544` 를 직접 입력합니다. |
+| "Windows의 PC 보호" | **추가 정보 → 실행**(서명하지 않은 실행 파일). |
+| 백신이 실행을 막음 | 풀어 둔 GeulPU 폴더를 예외로 둡니다. 소스와 빌드 과정은 이 저장소에 공개되어 있습니다. |
+| 포트 44544를 다른 프로그램이 씀 | `GeulPU.exe --포트 44600` 처럼 다른 포트로 실행합니다. |
+| "쓸 수 있는 GPU 없음" | 그래픽 드라이버를 최신으로 올린 뒤 **하드웨어 → 다시 확인**. |
+| "이 GPU 미지원" · "그래픽 메모리 부족" | 더 작은 파일(Q4_K_M)이나 작은 모델을 고릅니다. 설정에서 채팅마다 문맥 길이나 동시 처리 수를 줄이면 메모리가 덜 듭니다. |
+| 첫 메시지가 오래 걸림 | 처음 한 번은 커널을 만듭니다(1 ~ 3분). 다음부터는 모델을 올리는 시간(수십 초)만 듭니다. |
+| 다운로드가 멈춤 | **내 모델** 또는 상태 막대에서 **이어서 다운로드** — 받은 데부터 잇습니다. |
+| 그 밖 | `%USERPROFILE%\GeulPU\기록\` 의 기록과 함께 [이슈](https://github.com/wwoosshh/GeulPU/issues)를 남겨 주세요. |
+
+## 업데이트 · 삭제
+
+- **새 버전**: 앱 화면이 GitHub의 새 릴리스를 알려 줍니다. 앱을 끄고 새 zip을 풀어 그 `GeulPU.exe` 를 실행하면 됩니다. 모델 · 설정 · 결과는
+  자료 폴더에 그대로 있어 다시 받지 않습니다(커널만 새 버전에 맞춰 한 번 다시 만듭니다). 바뀐 것은 [바뀐것.md](바뀐것.md).
+- **삭제**: 앱을 끄고 GeulPU 폴더를 지웁니다. 받은 모델까지 지우려면 `%USERPROFILE%\GeulPU` 도 지웁니다.
 
 ## 무엇이 다른가
 
@@ -59,19 +265,25 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
     근사 지수: 거의 0. 생성은 약 1.0 배(가중치를 읽는 시간이 정한다). 결정성만의 값은 따로 떼어 재지 못했다.
   - 숫자와 재는 법은 [문서/단계기록.md](문서/단계기록.md).
 
-## 지금 되는 것 · 안 되는 것 (2026-10)
+## 개발 · 연구
+
+아래는 엔진을 소스에서 빌드하거나 연구 기록을 보려는 분을 위한 내용입니다. 앱만 쓰려면 위의 [설치](#설치)로 충분합니다.
+
+### 지금 되는 것 · 안 되는 것 (2026-10)
 
 | | |
 |---|---|
-| 모델 | **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0 · **k-양자화(Q4_K · Q5_K · Q6_K — 텐서마다 형식이 다른 Q4_K_M · Q5_K_M · Q6_K 섞음 그대로, 26단계 — 이 PC 에서 다시 양자화한 파일로 시험)**. k-양자화도 CPU 참조와 비트까지 같고, 7B 생성은 llama.cpp 의 0.977 ~ 1.009배 시간(아홉 칸) — 14B Q4_K_M 생성 1.009 · 1.012배([26단계](문서/26단계.md)). 27단계에서 프롬프트의 타일 판을 고쳐(값은 비트까지 그대로) 7B 프롬프트가 llama.cpp 의 1.25 · 1.39배(Q4_K_M) · 1.37 · 1.49배(Q5_K_M) · 1.45 · 1.56배(Q6_K) · 1.13 · 1.29배(Q4_0) · 1.14 · 1.30배(Q8_0)다(2048 · 8192, [27단계](문서/27단계.md)). 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트는 23단계에 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192)였다 ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
+| 모델 | **Qwen3-1.7B · 8B · 14B**(37단계 — 머리마다 Q · K 정규화를 계약 4.6 과 판 하나로, CPU 참조와 비트까지 같음 · 14B 는 모양을 합성 모델로 — [37단계](문서/37단계.md)) · **Qwen2.5-0.5B-Instruct** · **Qwen2.5-7B-Instruct** · **Qwen2.5-14B-Instruct** · DeepSeek-R1-Distill-Qwen (채팅 — Llama 계열 블록: RMSNorm · RoPE · SwiGLU · GQA, 머리 크기 64 · 128) — GGUF Q8_0 · Q4_0 · **k-양자화(Q4_K · Q5_K · Q6_K — 텐서마다 형식이 다른 Q4_K_M · Q5_K_M · Q6_K 섞음 그대로, 26단계 — 이 PC 에서 다시 양자화한 파일로 시험)**. k-양자화도 CPU 참조와 비트까지 같고, 7B 생성은 llama.cpp 의 0.977 ~ 1.009배 시간(아홉 칸) — 14B Q4_K_M 생성 1.009 · 1.012배([26단계](문서/26단계.md)). 27단계에서 프롬프트의 타일 판을 고쳐(값은 비트까지 그대로) 7B 프롬프트가 llama.cpp 의 1.25 · 1.39배(Q4_K_M) · 1.37 · 1.49배(Q5_K_M) · 1.45 · 1.56배(Q6_K) · 1.13 · 1.29배(Q4_0) · 1.14 · 1.30배(Q8_0)다(2048 · 8192, [27단계](문서/27단계.md)). 24단계부터 머리 크기 128 의 Qwen2 는 모양(너비 · 머리 · KV 머리 · 확장폭 · 낱말)을 GGUF 의 설정에서 받는다 — 14B 는 실제로(llama.cpp 대비 생성 0.982 · 0.986 · 0.994배, 프롬프트 1.22 · 1.34배), 이 PC 에 들지 않는 32B · 72B 모양은 층을 줄인 합성 모델로 비트까지 시험했다([24단계](문서/24단계.md)). 7B 는 22단계부터, Q4_0 은 23단계부터: CPU 참조와 비트까지 같고, llama.cpp(같은 GGUF) 대비 생성 0.97 ~ 0.99배 시간(Q8_0 0.980 ~ 0.990 · Q4_0 0.970 ~ 0.985 — 문맥 짧을 때 · 2048 · 8192), 프롬프트는 23단계에 1.15 · 1.30배(Q8_0) · 1.23 · 1.38배(Q4_0, 2048 · 8192)였다 ([22단계](문서/22단계.md) · [23단계](문서/23단계.md)). GPT-2 (small 124M · XL 1.5B) — GGUF Q8_0 · Q4_0, 시험용 합성 긴 모델(위치 102400) |
 | 터미널 실행기 | `빌드/글/실행기.exe 모델.gguf` — 글(geul) 언어 프로그램(18단계). 채팅(ChatML), 답을 흘려 보이고, 차례마다 KV 캐시를 이어 쓴다. 탐욕(같은 대화면 같은 답). 프롬프트까지 약 0.3 초(일꾼 스레드로 겹쳐 올린다 — 파이썬판은 2.9 초). 파이썬판 `python 실행.py 모델.gguf` 도 같은 답 |
 | 서버 | `빌드/글/서버.exe 모델.gguf` — 글(geul) 언어 프로그램(28단계). OpenAI 꼴 HTTP API(채팅 · completions · SSE 흘려보내기), 슬롯 · 연속 배치 · 프롬프트 캐시, 뽑기 계약(씨앗이 같으면 같은 토큰). 같은 요청은 함께 도는 요청과 상관없이 같은 비트다 — 네 모델 × 요청 열둘 × 차례 넷에서 다른 것 0 (llama-server 는 함께 돈 요청에 따라 12 경우 중 11 에서 탐욕 답이 바뀌었다). 머리 128 의 Qwen2(7B · 14B). 7B Q4_0 합 처리량은 넷 스트림 302 · 여덟 508 토큰/초(llama-server 360 · 632 — 행 여럿 줄 판이 다음 일), 한 스트림은 llama-server 보다 4 % 짧다([28단계](문서/28단계.md)). 캐시를 쓴 첫 토큰은 13.8 ms(llama-server 13.0 ms — 30단계부터 남은 행을 생성 걸음으로, [30단계](문서/30단계.md)) |
 | 실행 환경 | Windows 또는 Linux x86-64(glibc) + NVIDIA Ampere(RTX 30) 이상 + 드라이버 (이 저장소의 숫자는 RTX 4070 Ti 에서 잰 것). 리눅스는 29단계에 WSL2 Ubuntu 24.04 에서 시험했다 — 같은 GPU 에서 윈도와 같은 비트, 속도는 0.5 % 안팎([29단계](문서/29단계.md)). 실행기는 글 실행 파일 하나 + nvcuda.dll(리눅스는 libc.so.6 · libcuda.so.1) — 파이썬이 들지 않는다. 빌드(생성기 → 커널 소스 → PTX → 실행기)도 글 컴파일러만으로(19단계). 시험 · 재기 · 파이썬 연구 엔진(GPT-2)은 Python 3.12 + numpy. **Vulkan(31단계)**: 글 호스트의 Vulkan 판(`시험_엔진V` · `시험_7BV` · `재기_7BV` — 가져오는 것은 kernel32 · shell32 · vulkan-1.dll, 커널은 글 컴파일러의 SPIR-V 뒷단)이 NVIDIA(0.5B · 7B 다섯 형식 · 14B)와 Intel 내장 그래픽(0.5B)에서 CUDA 의 기록과 바이트까지 같은 출력을 낸다. 속도는 아직 못 미친다 — 34단계에서 텐서곱의 흉내를 협력 행렬로 바꾸고(`--협력` 모듈) 뒷단 · Vulkan 층을 고쳐, 7B 가 llama.cpp Vulkan 대비 프롬프트 1.15 ~ 1.41배(31단계 4.4 ~ 6.1배), 생성 1.00 ~ 1.04배(31단계 1.09 ~ 1.24배)다 — 기록이고 아직 판정은 아니다. 실행기 · 서버의 Vulkan 판은 아직 |
-| 앱 | 36단계 — `GeulPU.exe`(글로 쓴 관리자) + 웹 화면: 모델 받기 · 더하기 · 확인, 채팅(Qwen2.5 의 ChatML · R1 의 틀), 자기 진단 · 속도 · 교차검증, 결과 zip, 새 판 알림. 릴리스 zip(1.2 MB)은 태그를 밀면 CI 가 소스에서 꾸린다(초안 — 공개는 사람이). Windows x64 만 |
+| 앱 | 36 · 37단계 — `GeulPU.exe`(글로 쓴 관리자) + 웹 화면: 모델 찾기(Hugging Face 의 GGUF 전체를 정렬해 둘러보기) · 받기 · 더하기 · 확인, 채팅(Qwen2.5 의 ChatML · Qwen3 의 틀과 생각 켬 · 끔 · R1 의 틀), 자기 진단 · 속도 · 교차검증, 결과 zip, 새 판 알림. 릴리스 zip(1.3 MB)은 태그를 밀면 CI 가 소스에서 꾸린다(초안 — 공개는 사람이). Windows x64 만 — 쓰는 법은 위 [설치](#설치) |
 | 층 나누기 | 25단계 — 한 GPU 에 들지 않는 모델을 층으로 나눠 여러 GPU 에(`--나누기 P` · `--장치 a,b,…` · `--예산 GB`). 이 PC 에는 GPU 가 한 장이라 한 장 안의 여러 쿠다 문맥으로 흉내 냈다: 나눠 돌린 길 16 개가 한 조각과 바이트까지 같고, 7B 두 조각의 생성은 한 조각의 1.025 ~ 1.029 배(조각마다 문맥 — 그 차이의 대부분은 한 GPU 에서 문맥을 오가는 흉내의 값) · 1.002 ~ 1.003 배(문맥 하나). 14B 두 조각은 12 GB 한 장에 문맥 8192 로 들지 않아 그 칸을 재지 못했다 — 판정 25c 는 통과하지 못함([25단계](문서/25단계.md)) |
-| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 네이티브 리눅스(실제 리눅스 컴퓨터)에서의 GPU 실행(WSL2 에서만 시험), 애플 GPU 에서의 실행과 재현(NVIDIA 세 세대와 AMD RX 9060 XT 가 비트까지 같다 — [교차검증](교차검증/), Intel 내장 그래픽은 Vulkan 으로 0.5B 가 같다 — [31단계](문서/31단계.md)), AMD 에서의 속도(RX 9060 XT 의 R1 생성이 RTX 4070 Ti 의 3 배 남짓 — 어텐션이 느리다), 서버의 logprobs · tools · 벌점 · 인증 |
+| 아직 없는 것 | 실제 여러 GPU 에서의 층 나누기(이 PC 에서는 흉내뿐), 계약의 손실을 7B 이상의 실제 엔진 출력으로 fp64 참값과 견주기(실제로 잰 것은 0.5B — 7B · 14B 는 반올림 자리만 흉내 낸 fp64 계산으로 검토했다: llama.cpp 식의 1/3805 · 1/4467, [계약손실검토](문서/계약손실검토.md)), k-양자화의 Q2_K · Q3_K · IQ 계열 · Q5_0(실제 72B 의 k-양자화 파일은 ffn_down 이 Q5_0 · Q8_0 이라 아직 돌지 않는다), MoE, 네이티브 리눅스(실제 리눅스 컴퓨터)에서의 GPU 실행(WSL2 에서만 시험), 애플 GPU 에서의 실행과 재현(NVIDIA 세 세대와 AMD RX 9060 XT 가 비트까지 같다 — [교차검증](교차검증/), Intel 내장 그래픽은 Vulkan 으로 0.5B 가 같다 — [31단계](문서/31단계.md)), AMD 에서의 속도(RX 9060 XT 의 R1 생성이 RTX 4070 Ti 의 3 배 남짓 — 어텐션이 느리다), 공유 메모리 32 KB 장치(윈도의 AMD)의 k-양자화, 질의 폭이 너비와 다른 모델(Qwen3-0.6B · 4B · 32B), Llama · Gemma · Mistral 등 다른 구조, 서버의 logprobs · tools · 벌점 · 인증 |
 
-지금은 36단계 — 앱(0.2.0: 웹 화면 · 판 관리 · 릴리스, 0.3.0: x.ai 디자인 시스템으로 다시 디자인 · 목록 모델 시험 — 위 '앱으로 쓰기', [36단계](문서/36단계.md))이고, 35단계(AMD 의 속도 — [35단계](문서/35단계.md))는 친구 PC 의
+지금은 37단계 — 두 번째 모델 계열 Qwen3 와 앱 0.4.0(모델 찾기 · README 의 설치 · 사용 안내)이다. 검증의 단위를 모델이 아니라 구조 · 모양 ·
+형식으로 잡고(큰 모양은 합성 모델), 37a(비트) · 37b(길 · 그대로 · 교차검증)를 통과했으며, 생성 속도(37c)는 공식으로 재지 않았다([37단계](문서/37단계.md)).
+36단계는 앱(0.2.0: 웹 화면 · 판 관리 · 릴리스, 0.3.0: x.ai 디자인 시스템으로 다시 디자인 · 목록 모델 시험 — [36단계](문서/36단계.md))이었고, 35단계(AMD 의 속도 — [35단계](문서/35단계.md))는 친구 PC 의
 재기를 기다린다. 34단계는 Vulkan 의 속도였다 — 텐서곱의 흉내를 협력 행렬(텐서 코어)로 바꾸고(타일 판 · 어텐션 · 생성 줄 판), SPIR-V 뒷단의
 나눗셈 · 비정규수 버림(이미 버린 값은 다시 버리지 않음) · Vulkan 층의 장벽 · 타일 판의 올리기를 고쳤다. 값은 CPU 와 비트까지 · CUDA 의 기록과 바이트까지 같다. 같은 때 번갈아 재면
 7B 의 Vulkan 이 CUDA 의 프롬프트 1.19 ~ 1.27 배(31단계 4.3 ~ 5.5 배), 생성 1.00 ~ 1.06 배(31단계 1.09 ~ 1.27 배 — 짧은 문맥의
@@ -87,7 +299,7 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
 ([커널/커널생성.gl](커널/커널생성.gl))로 옮겼다. 파이썬 생성기와 바이트까지 같은 소스를 0.04 초에 낸다(파이썬판은 0.09 초) — Qwen2 채팅은
 빌드부터 실행까지 글 컴파일러와 nvcuda.dll 만으로 된다([문서/19단계.md](문서/19단계.md)). 남은 파이썬은 대조 · 시험 · 재기 도구와 GPT-2 연구 엔진이다.
 
-## 구조
+### 구조
 
 | 폴더 | 무엇 |
 |---|---|
@@ -102,7 +314,7 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
 | [호스트/](호스트/) | 글(geul) 언어 호스트 — `실행기.gl`(터미널 실행기), `엔진.gl` · `가중치.gl` · `로프.gl` · `토크나이저.gl` · `gguf.gl` · `쿠다.gl` · `일꾼.gl`(겹친 올림), 시험 · 재기의 글 쪽 |
 | [실행.py](실행.py) | 파이썬 터미널 실행기(대조용 — 글 실행기와 같은 답) |
 
-## 빠른 시작
+### 소스에서 빌드하기
 
 1. **준비물**: Windows 또는 Linux x86-64(glibc — 리눅스는 아래 7), NVIDIA 드라이버(Ampere 이상). 채팅만 하려면 이것과 글 컴파일러로 충분하다. 시험 · 재기 · GPT-2 는 Python 3.12 와
    `pip install numpy` 가 더 든다(`torch` 는 숨은 손실의 참값 — `시험/참값.py` · `퍼플렉시티20.py` — 과 GPT-2 시절의 견주기 — `재기/엔진들.py` ·
@@ -213,7 +425,7 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
    서버도 같다(`호스트/서버.gl`). WSL2 에서는 윈도 드라이버가 `/usr/lib/wsl/lib/libcuda.so.1` 을 준다. 윈도에서 리눅스용을 만들 수도
    있다 — 글 컴파일러에 `--대상 리눅스`(만든 바이트는 리눅스에서 만든 것과 같다). 네이티브 리눅스에서 GPU 로는 아직 돌려 보지 않았다.
 
-## 연구 기록
+### 연구 기록
 
 이 엔진은 2026-10-08 ~ 10-10 의 연구 0~13단계에서 나왔다. 단계마다 판정 기준을 실험보다 먼저 적고, 모든 변형을 비트 대조한 뒤에
 시간을 적었다. 판정 · 측정 · 실패한 시도의 전문은 글 저장소의 `research/gpu` 가지(docs/17 · research/gpu/N단계)에 있고, 요약은
@@ -222,9 +434,12 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
 [18단계 — 호스트를 글로](문서/18단계.md) · [19단계 — 커널 생성기를 글로](문서/19단계.md) · [20단계 — 퍼플렉시티로 본 숨은 손실](문서/20단계.md) ·
 [21단계 — 7B 의 행렬곱](문서/21단계.md) · [22단계 — 7B 전체](문서/22단계.md) · [23단계 — 4비트(Q4_0)](문서/23단계.md) ·
 [24단계 — 설정에서 모양](문서/24단계.md) · [25단계 — 층 나누기](문서/25단계.md) · [계약 손실 검토](문서/계약손실검토.md) ·
-[26단계 — k-양자화](문서/26단계.md).
+[26단계 — k-양자화](문서/26단계.md) · [27단계 — 프롬프트 타일](문서/27단계.md) · [28단계 — 서버](문서/28단계.md) ·
+[29단계 — 리눅스](문서/29단계.md) · [30단계 — 프롬프트 · 첫 토큰](문서/30단계.md) · [31단계 — Vulkan](문서/31단계.md) ·
+[32단계 — 기기에 맞추기](문서/32단계.md) · [33단계 — 계약의 값(멈춤)](문서/33단계.md) · [34단계 — Vulkan 의 속도](문서/34단계.md) · [35단계 — AMD 의 속도](문서/35단계.md) ·
+[36단계 — 앱](문서/36단계.md) · [37단계 — Qwen3](문서/37단계.md).
 
-## 점검 — 커밋마다의 빠른 점검(CI)과 단계마다의 공식 실행
+### 점검 — 커밋마다의 빠른 점검(CI)과 단계마다의 공식 실행
 
 [![빠른 점검](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml/badge.svg)](https://github.com/wwoosshh/GeulPU/actions/workflows/ci.yml)
 
@@ -241,34 +456,3 @@ DLL(kernel32 · ws2_32 · shell32 · winhttp · bcrypt · advapi32)만 가져옵
 ## 라이선스
 
 MIT — [LICENSE](LICENSE). 글 앞단 사본(`컴파일러/ref/`)도 같은 저자의 MIT.
-
----
-
-**In short (English).** GeulPU is an LLM inference engine whose GPU kernels are written in the Korean programming language *geul* and
-compiled to PTX by geul's own backend; the host (GGUF loading, weight layout, RoPE tables, tokenizer, CUDA graphs, terminal runner) and the
-kernel-source generator are geul too, so the chat runner is a single executable that imports only kernel32, shell32 and nvcuda.dll (Python
-remains for the CPU reference, tests and benchmarks). Precision is a written contract — activations and the KV cache are 2-digit block
-integers (2^-14 of the block maximum, 128x finer than llama.cpp's 8-bit activations), sums are exact integer tensor-core sums, exp is a
-written polynomial — so GPU results match a CPU reference bit for bit and stay identical however the input is split or batched (batch- and
-split-invariant). On an RTX 4070 Ti: Qwen2.5-0.5B-Instruct Q8_0 is faster than llama.cpp b11496 at every prompt length (0.55-0.82x time) and
-decode context (0.63-0.65x), with a hidden loss against an fp64 reference of the same weights 1/615 of llama.cpp's (perplexity
-indistinguishable from fp64; llama.cpp +0.34%). Qwen2.5-7B-Instruct (Q8_0, Q4_0) and 14B (Q4_0) run bit-exact to the CPU reference: decode
-0.97-0.99x llama.cpp's time, prompt 1.15-1.38x (stages 22-24); shapes are read from the GGUF config (32B/72B tested on 4-layer synthetic
-models). Stage 25 adds layer splitting across GPUs (`--장치 0,1`), emulated on one GPU with one CUDA context per part: 16 split runs are
-bit-identical to the single-part run; 7B decode with two parts takes 1.025-1.029x the single-part time (mostly the one-GPU context-switch
-cost of the emulation; 1.002-1.003x with a shared context), and 14B with two parts did not fit at context 8192 on 12 GB, so that cell of the
-pre-registered speed check was not measured. A contract-loss review simulated only the rounding points in an fp64 forward pass: at 7B and
-14B the contract's loss is 1/3805 and 1/4467 of a llama.cpp-like pipeline, with attention probabilities the one place at f16 level.
-Stage 26 adds k-quants (Q4_K, Q5_K, Q6_K, with a per-tensor format mix as in Q4_K_M/Q5_K_M/Q6_K files, requantized on this PC): kernels and
-end-to-end logits are bit-exact to the CPU reference, 7B decode takes 0.977-1.009x llama.cpp's time in all nine cells. Stage 27 reworked
-the prompt tile kernels without changing a bit (one m16n8k16 integer MMA per Q6_K sub-block, a magic-number accumulator for Q4_0/Q4_K, hoisted
-prefetch addressing): 7B prompts now take 1.13-1.30x (Q4_0, Q8_0) and 1.25-1.56x (k-quants) llama.cpp's time. Stage 30 withdrew the old
-motto's "not slower": at equal optimization the two-digit activations double the integer tensor-core work, which hides behind the weight
-reads in decode but shows in compute-bound prompts (7B Q4_0 takes 1.06-1.29x the time of the latest llama.cpp release, b11567); the 0.5B and
-GPT-2 wins come from kernel engineering (fusion, a decode megakernel), not from the contract being free. Whether determinism itself costs
-work at equal optimization has not been measured separately (a one-digit contract and an on/off ablation are deferred); stage 31 takes GeulPU to AMD GPUs through Vulkan. Not yet: real multi-GPU runs, measuring
-the contract's loss with the real engine on 7B+ weights (done for 0.5B), Q2_K/Q3_K/IQ/Q5_0, MoE, sampling (greedy only), server features,
-a GPU run on native Linux (Linux is tested under WSL2: same bits as Windows, stage 29), Apple GPUs and AMD speed (three NVIDIA generations — RTX 3080 Ti, 4070 Ti, 5070 — and an AMD Radeon RX 9060 XT through Vulkan match bit for bit, including every step's logits; 교차검증/).
-Every stage pre-registers its criteria before measuring and keeps failures (see 문서/단계기록.md; English: [docs/research-log.md](docs/research-log.md));
-run scripts are in 공식실행/. Full English README: [README.en.md](README.en.md); contract, reproduction guide, glossary and a brief for
-reviewers: [docs/](docs/).

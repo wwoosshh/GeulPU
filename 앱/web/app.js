@@ -48,6 +48,9 @@ const IC = {
   terminal: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="m7.5 9.5 3 2.5-3 2.5M12.5 15h4"/>',
   eject: '<path d="M12 5.5 5 13.5h14z"/><path d="M5 18.5h14"/>',
   forward: '<path d="M5 12h12M12.5 6.5 18 12l-5.5 5.5"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
+  heart: '<path d="M12 19.6s-7.6-4.5-7.6-9.8A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.6 2.4c0 5.3-7.6 9.8-7.6 9.8z"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
 };
 const svg = (n, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
 
@@ -358,16 +361,15 @@ const byName = (a, b) => a.localeCompare(b, 'en', { numeric: true });
 function sortedModels() {
   return [...S.st.models].sort((a, b) => byName(displayName(a), displayName(b)) || qRank(quantOf(a)) - qRank(quantOf(b)));
 }
-// 모델의 종류 아이콘 — 추론(생각을 먼저 쓰는 R1) · 코드(Coder) · 일반 대화. 이름은 GGUF(띄어 씀)와 목록(하이픈) 어느 꼴이든
+// 모델의 종류 — 추론(생각을 먼저 쓰는 R1) · 코드(Coder) · 일반 대화. 이름은 GGUF(띄어 씀)와 목록(하이픈) 어느 꼴이든.
+// 이름 앞에 종류 아이콘(동그라미)은 두지 않는다 — 종류는 글로 보인다
 function kindKey(x) {
   const n = [x && x.catalog, x && x.id, x && x.name].filter(Boolean).join(' ').toLowerCase();
   if ((x && x.template === 'deepseek-r1') || /deepseek[\s_-]*r1/.test(n)) return 'think';
-  if (/coder/.test(n)) return 'code';
+  if (/(^|[^a-z])coder/.test(n)) return 'code';          // 'text-encoder' 는 코드 모델이 아니다
+  if ((x && x.template === 'qwen3') || /qwen3/.test(n)) return 'think';   // Qwen3 — 생각 켬 · 끔을 고르는 모델
   return 'chat';
 }
-// 일반 모델은 말풍선(채팅 탭 · 채팅 동작의 아이콘)과 겹치지 않게 '글자' 아이콘
-const KINDICON = { think: 'spark', code: 'code', chat: 'type' };
-const mg = x => h('span', { class: 'mg', 'aria-hidden': 'true' }, I(KINDICON[kindKey(x)], 's'));
 const qtag = m => (quantOf(m) ? h('span', { class: 'qlab' }, quantOf(m)) : null);
 const kindOf = m => ({ think: '추론 모델', code: '코드 모델', chat: '일반 모델' })[kindKey(m)];
 function jobName(j) { return { diag: '하드웨어 진단', speed: '속도 측정', crosscheck: '재현성 검증', server: '모델 불러오기', device: '하드웨어 확인' }[j.kind] || j.title; }
@@ -512,7 +514,7 @@ async function checkUpdate() {
 // ---------- 채팅 ----------
 const R1_BOS = '<｜begin▁of▁sentence｜>', R1_USER = '<｜User｜>', R1_ASSIST = '<｜Assistant｜>', R1_EOS = '<｜end▁of▁sentence｜>';
 const THINK_END_ID = 151649;   // R1-Distill-Qwen 의 </think> — GGUF 토큰 종류 4(사용자 정의). 서버는 글로 내지 않는다.
-const OPT = Object.assign({ temp: 0, max: 4096, system: '' }, load('geulpu.opt', {}));
+const OPT = Object.assign({ temp: 0, max: 4096, system: '', think: true }, load('geulpu.opt', {}));
 function saveRooms() { store('geulpu.rooms', S.rooms); store('geulpu.room', S.roomId); }
 function curRoom() { return S.rooms.find(r => r.id === S.roomId) || null; }
 function runnable(m) { return !!(m && m.shape && m.shape.ok && !m.device_reason); }
@@ -644,8 +646,7 @@ function renderChatTop(force) {
   const m = room && modelOf(room.model);
   const sv = st.server, d = st.device;
   if (!changed('chattop', [room && room.model, m && [displayName(m), quantOf(m), m.device_reason, runnable(m)], sv.state, sv.model, sv.layer, st.models.length, d.checked, d.layer, S.conn, !!S.streaming, benchBusy()]) && !force) return;
-  put($('#model-pill'), m ? h('span', { class: 'badge' }, mg(m)) : h('span', { class: 'badge' }, I('box', 's')),
-    h('span', { class: 'name' }, m ? displayName(m) : (st.models.length ? '모델 선택' : '모델 없음')), m && quantOf(m) ? h('span', { class: 'q' }, quantOf(m)) : null, I('chevD', 's'));
+  put($('#model-pill'), h('span', { class: 'name' }, m ? displayName(m) : (st.models.length ? '모델 선택' : '모델 없음')), m && quantOf(m) ? h('span', { class: 'q' }, quantOf(m)) : null, I('chevD', 's'));
   const ms = $('#model-state');
   delete ms.dataset.tip;
   if (!S.conn) put(ms, h('i', { class: 'dot err' }), h('span', null, '연결 끊김'));
@@ -677,12 +678,12 @@ $('#model-pill').addEventListener('click', e => {
   }
   const body = [];
   if (locked) body.push(h('div', { class: 'pad small muted' }, '답이 끝나면 모델을 바꿀 수 있습니다.'));
-  // 모델마다 머리(아이콘 · 이름 · 종류) 아래에 양자화 줄 — 이 PC 에서 도는 모델이 먼저
+  // 모델마다 머리(이름 · 종류) 아래에 양자화 줄 — 이 PC 에서 도는 모델이 먼저
   groups.sort((a, b) => (a.items.some(runnable) ? 0 : 1) - (b.items.some(runnable) ? 0 : 1));
   for (const g of groups) {
     const g0 = g.items[0];
     body.push(h('div', { role: 'group', 'aria-label': g.name },
-      h('div', { class: 'mhd', 'aria-hidden': 'true' }, h('span', { class: 'ico' }, mg(g0)), h('span', { class: 'nm' }, g.name), h('span', { class: 'kd' }, kindOf(g0))),
+      h('div', { class: 'mhd', 'aria-hidden': 'true' }, h('span', { class: 'nm' }, g.name), h('span', { class: 'kd' }, kindOf(g0))),
       g.items.map(m => {
         const ok = runnable(m);
         const sel = room && room.model === m.id;
@@ -708,6 +709,8 @@ $('#optbtn').addEventListener('click', e => {
   const temp = h('input', { type: 'number', min: '0', max: '2', step: '0.1', value: OPT.temp, 'aria-label': '온도' });
   const max = h('input', { type: 'number', min: '16', max: '32768', step: '256', value: OPT.max, 'aria-label': '최대 답변 길이(토큰)' });
   const sys = h('textarea', { rows: '4', placeholder: '비워 두면 모델 기본값', 'aria-label': '시스템 프롬프트', class: 'w100' }, OPT.system || '');
+  const think = h('input', { type: 'checkbox', 'aria-label': '생각 과정 쓰기(Qwen3)', onchange: () => { OPT.think = think.checked; store('geulpu.opt', OPT); } });
+  think.checked = OPT.think !== false;
   // 쓰는 동안은 그대로 두고, 칸을 떠날 때(또는 Enter) 범위에 맞춰 칸에도 다시 적는다(온도 0~2 · 길이 16~32768)
   const clampNum = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
   const save = () => { OPT.temp = clampNum(parseFloat(temp.value), 0, 2, 0); OPT.max = Math.round(clampNum(parseInt(max.value, 10), 16, 32768, 4096)); OPT.system = sys.value; store('geulpu.opt', OPT); };
@@ -718,6 +721,7 @@ $('#optbtn').addEventListener('click', e => {
     h('div', { class: 'eyebrow' }, '생성 설정 · 이 브라우저에 저장'),
     h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '온도'), h('div', { class: 'small muted' }, '0이면 같은 질문에 늘 같은 답')), temp),
     h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '최대 답변 길이'), h('div', { class: 'small muted' }, '토큰 · 추론 모델은 생각 과정도 포함')), max),
+    h('div', { class: 'lrow' }, h('div', null, h('div', { class: 'ink' }, '생각 과정 쓰기'), h('div', { class: 'small muted' }, 'Qwen3 · 끄면 생각 없이 바로 답합니다')), h('label', { class: 'switch' }, think, h('i'))),
     h('div', { class: 'col' }, h('div', { class: 'ink' }, '시스템 프롬프트'), sys)), 'right');
 });
 
@@ -948,8 +952,19 @@ $('#msgs').addEventListener('click', async e => {
 
 // R1 의 생각 · 답 나누기. 서버는 <think> · </think>(토큰 종류 4)를 글로 내지 않아 "\n</think>\n\n" 자리에 줄바꿈 셋이 남는다 —
 // 교차검증 응답 64개를 토큰 번호로 풀어 보니 </think> 가 있는 40개 모두 첫 "\n\n\n" 이 바로 그 경계였다(다른 곳에 먼저 나온 것 0).
+// Qwen3 — 화면이 geulpu.special 로 <think> · </think> 를 글로 받으므로 토큰 경계(</think>, 151668) 그대로 나눈다. 생각 끔이면
+// 답이 <think> 없이 바로 온다(채팅 틀이 빈 생각을 프롬프트에 넣는다).
+function splitThinkQwen3(t0, done) {
+  if (!t0.startsWith('<think>')) return { think: null, answer: t0 };
+  const t = t0.slice(7);
+  const k = t.indexOf('</think>');
+  if (k >= 0) return { think: t.slice(0, k).trim() || null, answer: t.slice(k + 8).replace(/^\s+/, '') };
+  if (!done) return { think: t.trim(), answer: '', open: true };
+  return { think: t.trim(), answer: '', unfinished: true };
+}
 function splitThink(m, done) {
   const t0 = String(m.content || '');
+  if (m.template === 'qwen3') return splitThinkQwen3(t0, done);
   if (m.template !== 'deepseek-r1') return { think: null, answer: t0 };
   let t = t0.startsWith('<think>') ? t0.slice(7) : t0;
   let k = t.indexOf('</think>');
@@ -1037,8 +1052,7 @@ function msgEl(m, room, opts) {
   }
   const mm = modelOf(m.model || room.model);
   const e = h('div', { class: 'msg assistant' },
-    opts.who ? h('div', { class: 'who' }, h('span', { class: 'av', 'aria-hidden': 'true' }, mm ? mg(mm) : I('box', 's')),
-      h('span', { class: 'eyebrow' }, mm ? `${displayName(mm)} · ${quantOf(mm)}` : labelById(m.model || room.model))) : null,
+    opts.who ? h('div', { class: 'who' }, h('span', { class: 'eyebrow' }, mm ? `${displayName(mm)} · ${quantOf(mm)}` : labelById(m.model || room.model))) : null,
     h('div', { class: 'body' }), h('div', { class: 'tools' }));
   e._last = !!opts.last;
   e._vk = opts.vk;   // 이 답이 끝맺는 차례(사용자 메시지 번호) — 버전 넘기기
@@ -1074,7 +1088,7 @@ function fillMsg(e, m, room, done) {
   body.append(a);
   if (cut) {
     const r1 = m.template === 'deepseek-r1';
-    const noAns = r1 && !sp.answer;
+    const noAns = (r1 || m.template === 'qwen3') && !sp.answer;
     const max = (m.max || OPT.max);
     body.append(h('div', { class: 'cut-note' }, I('info', 's'),
       h('div', { class: 'col g12' },
@@ -1221,7 +1235,7 @@ function renderMsgs() {
         recDl ? dlBox(recC) : null,
         h('div', { class: 'row mt24' },
           recC && !recC.installed && !recDl ? h('button', { class: 'btn primary needs-conn', onclick: () => startDownload(recC) }, I('download', 's'), '추천 모델 다운로드') : null,
-          !recC && st.device.variant !== '공유32' ? h('button', { class: 'btn primary needs-conn', onclick: openHfSearch }, I('download', 's'), 'Hugging Face에서 찾기') : null,
+          !recC && st.device.variant !== '공유32' ? h('button', { class: 'btn primary needs-conn', onclick: openHfSearch }, I('search', 's'), '모델 찾기') : null,
           !recC ? h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가') : null,
           !recC && st.device.variant === '공유32' ? h('button', { class: 'btn ghost', onclick: () => show('device') }, I('cpu', 's'), '하드웨어 보기') : null,
           recC ? h('button', { class: 'btn' + (!recDl ? ' ghost' : ''), onclick: () => show('models') }, recDl ? '다운로드 진행 보기' : '모델 둘러보기') : null));
@@ -1433,6 +1447,7 @@ async function streamReply(asst, room, url, body) {
           if (!tFirst) tFirst = performance.now();
           asst.content += piece;
           if (tpl === 'deepseek-r1' && !asst.thinkMs && (asst.content.includes('</think>') || asst.content.includes('\n\n\n'))) asst.thinkMs = performance.now() - tFirst;
+          if (tpl === 'qwen3' && !asst.thinkMs && asst.content.startsWith('<think>') && asst.content.includes('</think>')) asst.thinkMs = performance.now() - tFirst;
         }
         if (c && c.finish_reason) finish = c.finish_reason;
         if (j.usage) usage = j.usage;
@@ -1504,6 +1519,10 @@ async function replyTo(room, maxOverride) {
       if (OPT.system) msgs.push({ role: 'system', content: OPT.system });
       for (const x of room.messages) if (x.role === 'user' || (x.role === 'assistant' && !x.partial)) msgs.push({ role: x.role, content: x.content });
       body = { messages: msgs, max_tokens: max, temperature: OPT.temp, stream: true, stream_options: { include_usage: true }, geulpu: {} };
+      if (tpl === 'qwen3') {                 // 서버의 Qwen3 틀 — 앞 답의 생각은 서버가 뗀다, <think> 는 글로 받아 접는다
+        body.geulpu.special = true;
+        body.chat_template_kwargs = { enable_thinking: OPT.think !== false };
+      }
     }
     room.messages.push(asst);
     S.streaming.msg = asst;
@@ -1589,45 +1608,103 @@ function pageHead(eyebrow, title, lede, actions) {
     actions ? h('div', { class: 'row' }, actions) : null);
 }
 function catDesc(c) {
-  return /r1/i.test(c.id) ? `생각을 먼저 쓰고 답하는 추론 모델${NB}수학${NB}논리` : /coder/i.test(c.id) ? `코드 작성${NB}설명` : `한국어${NB}영어 일반 대화`;
+  return /r1/i.test(c.id) ? `생각을 먼저 쓰고 답하는 추론 모델${NB}수학${NB}논리` : /coder/i.test(c.id) ? `코드 작성${NB}설명`
+    : /qwen3/i.test(c.id) ? `생각 켬${NB}끔을 고르는 대화 모델${NB}한국어${NB}영어` : `한국어${NB}영어 일반 대화`;
 }
 const vramNeed = c => Math.ceil((c.size + (isBig(c) ? 4 : 2.5) * GIB) / GIB);
+// 모델 화면은 두 칸 — 내 모델(받는 중 · 설치된 모델) · 모델 찾기(Hugging Face 의 GGUF 저장소 전체를 정렬해 둘러보고, 고르면 옆에 자세히)
+function modelsTab() {
+  if (!S.mtab) S.mtab = load('geulpu.mtab', '') || (S.st && (S.st.models.length || dlList().length) ? 'mine' : 'find');
+  return S.mtab;
+}
+function setModelsTab(t, focus) {
+  if (S.mtab !== t) {
+    S.mtab = t;
+    store('geulpu.mtab', t);
+    resetSig();
+    renderModels();
+  }
+  if (focus) { const b = document.querySelector(`[data-fk="mtab:${t}"]`); if (b) b.focus({ preventScroll: true }); }
+}
+function modelTabs(tab) {
+  const n = S.st.models.length + dlList().length;
+  const b = (t, label, extra) => h('button', {
+    role: 'tab', class: tab === t ? 'on' : '', 'aria-selected': tab === t ? 'true' : 'false', tabindex: tab === t ? '0' : '-1', 'data-fk': 'mtab:' + t,
+    onclick: () => setModelsTab(t),
+  }, label, extra);
+  return h('div', {
+    class: 'seg-ctl mtabs', role: 'tablist', 'aria-label': '모델 화면',
+    onkeydown: ev => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); setModelsTab(tab === 'mine' ? 'find' : 'mine', true); } },
+  }, b('mine', '내 모델', n ? h('span', { class: 'cnt' }, String(n)) : null), b('find', '모델 찾기'));
+}
 function renderModels() {
   const st = S.st;
   const page = $('#page-models');
+  const tab = modelsTab();
   const rec = recommendId(st);
-  // 받는 동안 바뀌는 수(받은 바이트 · 여유 공간)는 넣지 않는다 — 제자리에서 고친다(다시 그리면 초점 · 열린 메뉴가 사라진다)
-  const struct = [st.models.map(m => [m.id, m.name, m.size, m.verified, !!m.verifying, m.sha256, m.catalog, m.device_reason, m.shape && m.shape.ok]),
-    st.catalog.map(c => [c.id, c.installed, dlStateOf(c), c.download && c.download.state, c.download && c.download.reason]), st.device.checked, st.device.layer, st.device.variant, st.device.memory,
-    st.server.model, st.server.state, rec, S.catSel, st.settings.context, !!S.streaming];
-  const eyebrow = `설치 ${st.models.length}개${st.app.disk_free >= 0 ? NB + '여유 ' + fmtBytes(st.app.disk_free) : ''}`;
+  const dls = dlList();
+  const eyebrow = `설치 ${st.models.length}개${dls.length ? NB + '받는 중 ' + dls.length + '개' : ''}${st.app.disk_free >= 0 ? NB + '여유 ' + fmtBytes(st.app.disk_free) : ''}`;
+  // 받는 동안 바뀌는 수(받은 바이트 · 여유 공간)는 넣지 않는다 — 제자리에서 고친다(다시 그리면 초점 · 열린 메뉴가 사라진다).
+  // 모델 찾기는 칸(목록 · 자세히)을 한 번 만들어 두고 다시 쓴다 — 상태가 바뀌어도 목록의 스크롤 · 고른 것이 그대로다
+  const struct = tab === 'mine'
+    ? [tab, st.models.map(m => [m.id, m.name, m.size, m.verified, !!m.verifying, m.sha256, m.catalog, m.device_reason, m.shape && m.shape.ok]),
+      dls.map(c => [c.id, dlStateOf(c), c.download.state, c.download.reason]), st.device.checked, st.device.layer, st.server.model, st.server.state,
+      st.settings.context, !!S.streaming]
+    : [tab, st.models.length + dls.length];
   if (changed('models', struct)) {
-    const nInst = st.models.length;
-    const reasons = [...new Set(st.models.filter(m => m.shape && m.shape.ok && m.device_reason).map(m => m.device_reason))];
-    // Hugging Face 칸을 쓰는 중에 다시 그려지면 그 칸의 초점을 돌려준다(쓴 글은 HFQ.draft 에 있다)
-    const hfA = document.activeElement;
-    const hfFk = hfA && hfA.closest && hfA.closest('#hf-box') ? hfA.dataset.fk : null;
+    page.classList.toggle('wide', tab === 'find');
     rebuild(page,
       pageHead(eyebrow, '모델', null,
         [h('button', { class: 'btn needs-conn', 'data-fk': 'add', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가'),
           h('button', { class: 'icon-btn needs-conn', 'data-tip': '모델 폴더 열기', 'data-tip-pos': 'bottom', 'aria-label': '모델 폴더 열기', onclick: () => api('/api/open', { what: 'models' }).catch(e => toast(e.message, 'err')) }, I('folder'))]),
-      h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '설치된 모델')),
-      // 이 GPU 에서 못 도는 까닭은 여기 한 번만(줄에는 꼬리표만)
-      reasons.length ? h('div', { class: 'note-line note-gap' }, I('info', 's'), h('span', null, reasons.length === 1 ? reasons[0] : '일부 모델은 이 GPU에서 실행할 수 없습니다. 꼬리표에 마우스를 올리면 까닭이 보입니다.')) : null,
-      nInst ? h('div', { class: 'list mlist' }, modelBlocks()) : h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '아직 설치된 모델이 없습니다'), h('div', null, '아래에서 다운로드하거나 이미 있는 GGUF 파일을 추가하세요.')),
-      catalogSection(rec),
-      h('div', { id: 'hf-box', class: 'section' }));
-    renderHf(hfFk);
+      modelTabs(tab),
+      tab === 'mine' ? mineView() : finderEl());
+    if (tab === 'find') finderStart();
   } else {
     const e = page.querySelector('.page-head .eyebrow');
     if (e && e.textContent !== eyebrow) e.textContent = eyebrow;
   }
+  // 모델 찾기의 파일 줄(설치됨 · 받는 중 · 이 PC 에 맞는지)은 목록 · 장치가 바뀔 때만 다시 그린다(받는 % 는 updateDlBars 가 제자리에서)
+  if (tab === 'find' && changed('finder-st', [st.device.checked, st.device.layer, st.device.variant, st.device.memory, rec,
+    st.catalog.map(c => [c.id, c.installed, dlStateOf(c), c.download && c.download.state]), st.models.map(m => m.path)])) fdRedraw();
   for (const m of st.models) {
     const e = document.getElementById('vf-' + m.id);
     if (e && m.verifying) e.textContent = `무결성 확인 중${NB}${m.size > 0 ? Math.round(100 * m.verify_bytes / m.size) : 0}%`;
   }
 }
-// 설치된 모델 — 모델마다 머리(아이콘 · 이름 · 크기 · 종류 · 문맥) 하나, 그 아래 양자화 줄(양자화 · 파일 크기 · 상태 · 동작)
+// 내 모델 — 받는 중(멈춤 · 실패 포함)과 설치된 모델
+function mineView() {
+  const st = S.st;
+  const nInst = st.models.length;
+  const reasons = [...new Set(st.models.filter(m => m.shape && m.shape.ok && m.device_reason).map(m => m.device_reason))];
+  const dls = dlList();
+  return h('div', { class: 'mine' },
+    dls.length ? h('div', { class: 'section mt0' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '받는 중')),
+      h('div', { class: 'list dllist' }, dls.map(dlRow))) : null,
+    h('div', { class: 'section' + (dls.length ? '' : ' mt0') }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '설치된 모델')),
+      // 이 GPU 에서 못 도는 까닭은 여기 한 번만(줄에는 꼬리표만)
+      reasons.length ? h('div', { class: 'note-line note-gap' }, I('info', 's'), h('span', null, reasons.length === 1 ? reasons[0] : '일부 모델은 이 GPU에서 실행할 수 없습니다. 꼬리표에 마우스를 올리면 까닭이 보입니다.')) : null,
+      nInst ? h('div', { class: 'list mlist' }, modelBlocks())
+        : h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '아직 설치된 모델이 없습니다'),
+          h('div', null, 'Hugging Face의 모델을 둘러보고 받거나, 이미 있는 GGUF 파일을 추가하세요.'),
+          h('div', { class: 'row center mt16' },
+            h('button', { class: 'btn primary needs-conn', onclick: () => setModelsTab('find') }, I('search', 's'), '모델 찾기'),
+            h('button', { class: 'btn needs-conn', onclick: () => browse('') }, I('plus', 's'), 'GGUF 파일 추가')))));
+}
+// 받는 중인 파일 한 줄 — 상태 막대의 다운로드 목록과 같은 단추(이름 앞 동그라미 아이콘은 두지 않는다)
+function dlRow(c) {
+  const ds = dlStateOf(c), d = c.download;
+  return h('div', { class: 'item dlitem' },
+    h('div', { class: 'main' },
+      h('div', { class: 'title' }, h('span', { class: 'nm' }, c.name), h('span', { class: 'qlab' }, c.quant)),
+      ds === 'fail' ? dlWhyLine(d.reason, c) : dlBox(c, true)),
+    h('div', { class: 'acts needs-conn' },
+      ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost', onclick: () => pauseDownload(c) }, I('pause', 's'), '일시정지') : null,
+      ds === 'pause' ? h('button', { class: 'btn sm', onclick: () => resumeDownload(c) }, I('download', 's'), '이어서 다운로드') : null,
+      ds === 'fail' ? h('button', { class: 'btn sm', onclick: () => startDownload(c) }, I('refresh', 's'), '다시 다운로드') : null,
+      ds !== 'run' ? h('button', { class: 'icon-btn', 'data-tip': '받은 것 지우기', 'data-tip-pos': 'top', 'aria-label': `받은 것 지우기: ${c.name} ${c.quant}`, onclick: () => discardDownload(c) }, I('trash', 's')) : null));
+}
+// 설치된 모델 — 모델마다 머리(이름 · 크기 · 종류 · 문맥) 하나, 그 아래 양자화 줄(양자화 · 파일 크기 · 상태 · 동작)
 function modelBlocks() {
   const groups = [];
   for (const m of sortedModels()) {
@@ -1641,7 +1718,7 @@ function modelBlocks() {
     const ctxNow = Math.min(s.context || 0, S.st.settings.context || s.context || 0);
     const sub = s.ok ? `${s.params ? (s.params / 1e9).toFixed(1) + 'B' + NB : ''}${kindOf(head)}${NB}문맥 ${fmtCtx(ctxNow)}${s.context > ctxNow ? ` (최대 ${fmtCtx(s.context)})` : ''}` : kindOf(head);
     return h('div', { class: 'mblock' },
-      h('div', { class: 'mhead' }, h('div', { class: 'ico' }, mg(head)),
+      h('div', { class: 'mhead' },
         h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, g.name)), h('div', { class: 'sub' }, sub))),
       g.items.map(quantLine));
   });
@@ -1772,84 +1849,12 @@ function radioKeys(ev) {
   const again = fk ? document.querySelector(`[data-fk="${CSS.escape(fk)}"]`) : null;
   (again || nx).focus();
 }
-// 다운로드할 수 있는 모델 — 모델마다 카드 하나, 양자화는 카드 안에서 고른다(크기 · 맞음 · 받기는 고른 양자화로)
-function catalogSection(rec) {
-  const st = S.st;
-  const groups = new Map();
-  for (const c of st.catalog) { if (!groups.has(c.name)) groups.set(c.name, []); groups.get(c.name).push(c); }
-  const cards = [];
-  for (const [name, list] of groups) {
-    if (list.every(c => c.installed)) continue;
-    list.sort((a, b) => qRank(a.quant) - qRank(b.quant));
-    // 처음 보이는 양자화: 받는 중 → 멈춤 → 실패(받는 일이 있는 것) → 추천 → 이 PC 에 가장 맞는 것
-    const busy = list.find(c => dlStateOf(c) === 'run') || list.find(c => dlStateOf(c) === 'pause') || list.find(c => dlStateOf(c) === 'fail');
-    const notInst = list.filter(c => !c.installed);
-    const fitBest = [...notInst].sort((a, b) => (FITRANK[(fitOf(a) || {}).k] ?? 9) - (FITRANK[(fitOf(b) || {}).k] ?? 9) || b.size - a.size)[0];
-    let sel = list.find(c => c.id === S.catSel[name]);
-    if (!sel) sel = busy || list.find(c => c.id === rec) || fitBest || list[0];
-    cards.push({ name, list, sel, rank: (list.some(c => c.id === rec) ? -1 : 0) * 10 + (FITRANK[(fitOf(fitBest || sel) || {}).k] ?? 5) });
-  }
-  cards.sort((a, b) => a.rank - b.rank || byName(a.name, b.name));
-  return h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('span', { class: 'sec' }, '다운로드할 수 있는 모델')),
-    cards.length ? h('div', { class: 'cat-grid' }, cards.map(g => catalogCard(g, rec)))
-      : h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '목록의 모델을 모두 설치했습니다'), h('div', null, "다른 GGUF 파일은 'GGUF 파일 추가'로 넣을 수 있습니다.")));
-}
-// 양자화 고르기 칸의 내용 — 이름 · 크기 · 받는 상태(설치됨 ✓ · 받는 중 % · 멈춤 · 실패)
-// 이 PC 에서 못 도는 양자화(미지원 · 메모리 부족)는 칸에 표시 — 눌러 보기 전에 알 수 있게
-const quantBad = x => { const f = !x.installed && !dlStateOf(x) ? fitOf(x) : null; return f && (f.k === 'unsup' || f.k === 'no' || f.k === 'nogpu') ? f : null; };
-function quantSeg(x) {
-  const s = dlStateOf(x), bad = quantBad(x);
-  return [x.installed ? I('check', 's') : null, h('span', { class: 'ql' }, x.quant), h('span', { class: 'sz' }, fmtBytes(x.size)),
-    s === 'run' ? h('span', { class: 'qdl', 'data-dlp': x.id }, '') : s === 'pause' ? h('span', { class: 'qst' }, I('pause', 's')) : s === 'fail' ? h('span', { class: 'qst err' }, I('alert', 's'))
-      : bad ? h('span', { class: 'qst', 'aria-hidden': 'true' }, I(bad.k === 'unsup' ? 'x' : 'alert', 's')) : null];
-}
-const quantSegLabel = x => `${x.quant} ${fmtBytes(x.size)}${x.installed ? ', 설치됨' : ''}${{ run: ', 다운로드 중', pause: ', 다운로드 멈춤', fail: ', 다운로드 실패' }[dlStateOf(x)] || ''}${quantBad(x) ? ', ' + quantBad(x).t : ''}`;
-function catalogCard(g, rec) {
-  const c = g.sel;
-  const d = c.download;
-  const f = fitOf(c);
-  const isRec = c.id === rec;
-  const ds = dlStateOf(c);
-  let foot;
-  if (c.installed) foot = h('div', { class: 'foot' }, h('span', { class: 'tag' }, I('check'), '설치됨'), h('span', { class: 'grow' }),
-    h('button', { class: 'btn sm', 'data-fk': 'cchat:' + c.id, onclick: () => chatWith(c.installed) }, I('chat', 's'), '채팅'));
-  else if (ds === 'run') foot = dlBox(c);
-  else {
-    const blocked = f && f.k === 'unsup';
-    foot = h('div', { class: 'col g12' },
-      ds === 'pause' ? dlBox(c) : null,
-      d && d.state === 'failed' && d.reason ? dlWhyLine(d.reason, c) : null,
-      h('div', { class: 'foot' },
-        ds || c.check === 'hf' ? h('button', { class: 'btn sm ghost needs-conn', 'data-fk': 'discard:' + c.id, onclick: () => discardDownload(c) }, I('trash', 's'), ds ? '받은 것 지우기' : '목록에서 빼기') : null,
-        h('span', { class: 'grow' }),
-        h('button', { class: 'btn sm needs-conn' + (isRec && !ds ? ' primary' : ''), 'data-fk': 'dl:' + c.id, disabled: blocked ? true : null, onclick: () => (ds === 'pause' ? resumeDownload(c) : startDownload(c)) },
-          I(ds === 'fail' ? 'refresh' : 'download', 's'), ds === 'fail' ? '다시 다운로드' : ds === 'pause' ? '이어서 다운로드' : '다운로드')));
-  }
-  const pick = g.list.length > 1
-    ? h('div', { class: 'seg-ctl qsel', role: 'radiogroup', 'aria-label': `${g.name} 양자화`, onkeydown: radioKeys }, g.list.map(x =>
-      h('button', {
-        class: x.id === c.id ? 'on' : '', role: 'radio', 'aria-checked': x.id === c.id ? 'true' : 'false', tabindex: x.id === c.id ? '0' : '-1', 'data-fk': 'q:' + x.id, 'aria-label': quantSegLabel(x),
-        onclick: () => { if (S.catSel[g.name] === x.id && x.id === c.id) return; S.catSel[g.name] = x.id; resetSig(); renderModels(); },
-      }, quantSeg(x))))
-    : h('div', { class: 'qone' }, quantSeg(c));   // 양자화가 하나뿐이면 고를 것이 없으니 글로만
-  return h('div', { class: 'card cat-card' + (isRec ? ' rec' : '') },
-    h('div', { class: 'row top' }, h('span', { class: 'eyebrow caps' }, `${c.params} · ${c.license}`), h('span', { class: 'grow' }),
-      isRec ? h('span', { class: 'tag' }, I('star'), '이 PC 추천') : null),
-    h('div', { class: 'name' }, mg(c), h('span', null, g.name)),
-    h('div', { class: 'desc' }, catDesc(c)),
-    pick,
-    h('div', { class: 'fitline' }, fitTag(f), h('span', { class: 'need' }, `그래픽 메모리 ${vramNeed(c)} GB 이상 권장`),
-      c.check === 'hf' ? h('span', { class: 'tag dim', 'data-tip': `${c.source} — 목록에 없던 파일(구조 · 형식은 받기 전에 확인)`, 'data-tip-pos': 'top' }, 'Hugging Face')
-        : c.check === 'crosscheck' ? h('span', { class: 'tag', 'data-tip': '재현성 검증의 기준 모델 — 출력이 기준 PC와 비트 단위로 같은지 확인할 수 있습니다', 'data-tip-pos': 'top' }, I('target'), '기준 모델')
-        : c.check === 'untested' ? h('span', { class: 'tag dim', 'data-tip': '엔진이 지원하는 형식이지만 이 파일로는 아직 실행해 보지 않았습니다', 'data-tip-pos': 'top' }, '실행 확인 전') : null),
-    h('div', { class: 'cfoot' }, foot));
-}
 // 다운로드 목록(상태 막대에서 연다) — 받는 중 · 멈춤 · 실패를 모두, 그 자리에서 멈추고 잇는다
 function dlPopBody() {
   const rows = dlList().map(c => {
     const ds = dlStateOf(c), d = c.download;
     return h('div', { class: 'dlrow' },
-      h('div', { class: 'dlh' }, mg(c), h('span', { class: 'nm' }, c.name), h('span', { class: 'qlab' }, c.quant)),
+      h('div', { class: 'dlh' }, h('span', { class: 'nm' }, c.name), h('span', { class: 'qlab' }, c.quant)),
       ds === 'fail' ? dlWhyLine(d.reason, c) : dlBox(c, true),
       h('div', { class: 'row' },
         ds === 'run' && d.state === 'downloading' ? h('button', { class: 'btn sm ghost needs-conn', onclick: () => pauseDownload(c) }, I('pause', 's'), '일시정지') : null,
@@ -1927,165 +1932,502 @@ async function browse(path, pick) {
   const go = () => browse(inp.value.trim(), pick);
   inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); });
   modal(h('div', null, h('h2', null, pick ? '모델 폴더 고르기' : 'GGUF 파일 추가'),
-    h('p', { class: 'small muted m0 mb12' }, pick ? '받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.' : 'GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.'),
+    h('p', { class: 'small muted m0 mb12' }, pick ? '받은 모델을 둘 폴더를 고르세요. 다음 실행부터 적용됩니다.' : 'GeulPU는 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen, 7B 이상)와 qwen3 구조(Qwen3 1.7B · 8B · 14B)의 GGUF를 실행합니다. 추가하면 지원 여부를 바로 확인합니다.'),
     h('div', { class: 'fs-path' }, inp, h('button', { class: 'btn', onclick: go }, '이동')), list),
     [h('button', { class: 'btn ghost', onclick: () => closeModal() }, '닫기'),
       pick ? h('button', { class: 'btn primary', disabled: j.path ? null : true, onclick: () => { closeModal(); pick(j.path); } }, '이 폴더 선택') : null].filter(Boolean), false, '.fs-item');
 }
 
-// ---------- Hugging Face 에서 찾기(LM Studio 처럼) ----------
-// 검색 · 파일 목록은 브라우저가 Hugging Face API 에 바로 묻는다(검색어가 Hugging Face 로 간다). 받기 전 확인(파일 앞 몇 MB 의 GGUF 머리)과
-// 받기는 관리자가 — 주소는 관리자가 저장소 · 파일 이름으로 짓는다.
+// ---------- 모델 찾기 — Hugging Face 의 GGUF 저장소 전체를 정렬해 둘러본다(검색은 좁히는 도구) ----------
+// 목록 · 자세히 · 파일 목록 · 모델 설명(README)은 브라우저가 Hugging Face API 에 바로 묻는다(정렬 · 거르기 · 검색어가 Hugging Face 로 간다).
+// 받기 전 확인(파일 앞 몇 MB 의 GGUF 머리)과 받기는 관리자가 — 주소는 관리자가 저장소 · 파일 이름으로 짓는다.
 const HFHOST = 'https://huggingface.co';
-const HFQ = { search: '', draft: '', busy: false, list: null, err: '', runnable: true, seq: 0 };
 // GeulPU 가 받는 형식(엔진: Q8_0 · Q4_0 · Q4_K · Q5_K · Q6_K) — 파일 이름으로 먼저 어림한다(확인은 GGUF 머리로)
 const quantFromName = n => { const m = /(IQ\d_[A-Z]+|Q\d_K(?:_[SML])?|Q\d_\d|BF16|F16|F32)/i.exec(n || ''); return m ? m[1].toUpperCase() : ''; };
 const quantOk = q => /^(Q8_0|Q4_0|Q4_K(_[SM])?|Q5_K(_[SM])?|Q6_K)$/.test(q);
 const hfName = id => String(id).split('/').pop().replace(/[-_.]?GGUF$/i, '');
-const archOk = a => a === 'qwen2';
-// 모델 화면의 Hugging Face 칸으로 가서 검색 칸에 초점(처음이면 많이 받은 Qwen2.5 를 보인다)
+const archOk = a => a === 'qwen2' || a === 'qwen3';
+// 크기로 어림하는 지원 여부(확인은 받기 전에 GGUF 머리로) — 매개변수 수(미세조정도 바탕과 같고, 출력을 따로 둔 변환은 낱말표만큼 크다).
+// Qwen3: 1.7B · 8B · 14B 는 실행(질의 폭 = 너비), 0.6B · 4B · 32B 는 아직 아님(질의 폭 ≠ 너비), 그 밖의 크기는 받기 전 확인.
+// Qwen2: 헤드 크기 64 인 작은 것(0.5B 등)은 아직 아님
+const Q3OK = [[1.6e9, 2.1e9], [7.9e9, 8.4e9], [14.5e9, 15.0e9]];
+const Q3BAD = [[0.55e9, 0.8e9], [3.9e9, 4.5e9], [32e9, 33.5e9]];
+const inRange = (p, rs) => rs.some(([lo, hi]) => p >= lo && p <= hi);
+// 대화용이 아닌 모델(이미지 생성의 텍스트 인코더 · 임베딩 · 순위 매기기 · 음성) — 같은 구조라도 채팅에 쓰지 못한다(꼬리표 · 용도 · 이름으로)
+const NONCHAT = ['text-to-image', 'image-to-image', 'feature-extraction', 'sentence-similarity', 'text-classification', 'text-ranking',
+  'text-to-speech', 'automatic-speech-recognition', 'text-to-audio', 'audio-to-audio'];
+const fdNonChat = m => {
+  const pipe = m && m.cardData && m.cardData.pipeline_tag;
+  return (pipe && NONCHAT.includes(pipe)) || ((m && m.tags) || []).some(t => NONCHAT.includes(t)) || /text[-_ ]?encoder|embedding|reranker|[-_]tts\b/i.test((m && m.id) || '');
+};
+function fdSupport(m) {
+  const g = (m && m.gguf) || {};
+  const a = g.architecture, p = g.total || 0;
+  if (!a) return { k: 'unknown', t: '구조 정보 없음' };
+  if (!archOk(a)) return { k: 'arch', t: `${a} · 미지원 구조` };
+  if (fdNonChat(m)) return { k: 'task', t: '대화용 모델 아님', why: '이미지 생성용 텍스트 인코더 · 임베딩 · 음성처럼 채팅에 쓰는 모델이 아닙니다.' };
+  if (a === 'qwen3') {
+    if (inRange(p, Q3OK)) return { k: 'ok', t: 'GeulPU에서 실행됨' };
+    if (inRange(p, Q3BAD)) return { k: 'size', t: '이 크기는 아직 미지원', why: 'Qwen3의 0.6B · 4B · 32B는 질의 폭이 너비와 달라 GeulPU가 아직 실행하지 않습니다.' };
+    return { k: 'check', t: '크기 확인 필요', why: '흔한 Qwen3 크기(1.7B · 8B · 14B)가 아닙니다. 받기 전에 파일 앞부분을 받아 실행되는지 확인합니다.' };
+  }
+  if (p > 0 && p < 1.4e9) return { k: 'size', t: '이 크기는 아직 미지원', why: '헤드 크기가 64인 작은 Qwen2(0.5B 등)는 GeulPU가 아직 실행하지 않습니다.' };
+  return { k: 'ok', t: 'GeulPU에서 실행됨' };
+}
+const fmtParams = p => (p >= 1e9 ? (p / 1e9).toFixed(p >= 1e10 ? 0 : 1) + 'B' : Math.round(p / 1e6) + 'M');
+// 수는 만 · 억으로(55.5만 · 1.2억)
+function fmtCount(n) {
+  n = n || 0;
+  if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, '') + '억';
+  if (n >= 1e4) return (n >= 1e6 ? String(Math.round(n / 1e4)) : (n / 1e4).toFixed(1).replace(/\.0$/, '')) + '만';
+  return fmtNum(n);
+}
+function fmtAgo(iso) {
+  const t = Date.parse(iso || '');
+  if (!(t > 0)) return '-';
+  const d = Math.floor((Date.now() - t) / 86400000);
+  if (d < 1) return '오늘';
+  if (d < 2) return '어제';
+  if (d < 7) return `${d}일 전`;
+  if (d < 31) return `${Math.floor(d / 7)}주 전`;
+  if (d < 365) return `${Math.floor(d / 30)}개월 전`;
+  return `${Math.floor(d / 365)}년 전`;
+}
+const fmtDate = iso => { const t = Date.parse(iso || ''); return t > 0 ? new Date(t).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; };
+const asList = v => (Array.isArray(v) ? v : v ? [v] : []).map(String);
+// 저장소의 라이선스 — cardData.license, 없으면 꼬리표(license:…)
+const fdLicense = m => (m && m.cardData && m.cardData.license) || ((m && m.tags) || []).map(String).filter(t => t.startsWith('license:')).map(t => t.slice(8))[0] || '';
+// 목록(앱에 든 받을 수 있는 모델 · Hugging Face 에서 더한 것)의 항목이 어느 저장소의 것인가
+const fdRepoOf = c => { const m = /huggingface\.co\/([^/]+\/[^/]+)\/resolve\//.exec(c.url || ''); return m ? m[1] : String(c.source || '').replace(/^huggingface\.co\//, ''); };
+const fdCat = repo => ((S.st && S.st.catalog) || []).filter(c => fdRepoOf(c).toLowerCase() === String(repo).toLowerCase());
+const fdChecked = repo => fdCat(repo).some(c => c.check === 'tested' || c.check === 'crosscheck');
+// 매개변수 수로 Q4_K_M 파일 크기를 어림한다(4.85 비트/매개변수) — '이 PC 메모리에 맞는 크기' 거르기
+const fdEst = p => p * 4.85 / 8;
+const fdFits = p => { const f = fitOf({ size: fdEst(p), params: fmtParams(p), id: '' }); return !!f && (f.k === 'ok' || f.k === 'tight'); };
+
+// 기본은 '요즘 뜨는'(Hugging Face 의 트렌드 점수) — 30일 다운로드 순은 다운로드가 부풀려진 저장소가 위에 오기 쉽다
+const FD_SORTS = [['trendingScore', '요즘 뜨는', 'Hugging Face의 트렌드 점수 순'], ['downloads', '인기', '최근 30일 다운로드가 많은 순'],
+  ['likes', '좋아요', '좋아요가 많은 순'], ['lastModified', '최근 업데이트', '최근에 고친 저장소 순']];
+const FD_SIZES = [['all', '모든 크기'], ['s', '~4B'], ['m', '4~10B'], ['l', '10~20B'], ['xl', '20B~']];
+const FD_EXPAND = ['gguf', 'downloads', 'likes', 'lastModified', 'cardData', 'trendingScore', 'author', 'createdAt', 'tags'].map(x => 'expand[]=' + x).join('&');
+const FD = {
+  el: null, bar: null, sum: null, list: null, more: null, scroll: null, det: null, y: [0, 0],
+  // only: GeulPU 에서 실행되는 것만 — 늘 켠 채로 시작한다(실행 안 되는 모델도 보기는 그때그때 켠다 — 저장하지 않음)
+  sort: load('geulpu.fd.sort', 'trendingScore'), only: true, size: load('geulpu.fd.size', 'all'), fit: load('geulpu.fd.fit', false),
+  checked: false, q: '', draft: '',
+  items: [], seen: new Set(), srcs: [], busy: false, done: false, err: '', seq: 0, started: false, dry: 0,
+  sel: null, modal: null, info: {}, chk: new Map(), readmeOpen: {},
+};
+// 모델 화면의 '모델 찾기' 칸으로(첫 화면의 단추 등) — 검색 칸에 초점
 function openHfSearch() {
   show('models');
-  setTimeout(() => {
-    const box = document.getElementById('hf-box');
-    if (!box) return;
-    box.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    const i = box.querySelector('input[type=text]');
-    if (i) i.focus({ preventScroll: true });
-    if (!HFQ.list && !HFQ.busy) { HFQ.draft = HFQ.draft || 'qwen2.5'; hfSearch(HFQ.draft); }
-  }, 60);
+  setModelsTab('find');
+  setTimeout(() => { const i = FD.bar && FD.bar.querySelector('input'); if (i) i.focus({ preventScroll: true }); }, 60);
 }
-async function hfSearch(q) {
-  const my = ++HFQ.seq;
-  HFQ.search = q; HFQ.busy = true; HFQ.err = '';
-  renderHf();
-  try {
-    const u = `${HFHOST}/api/models?search=${encodeURIComponent(q || 'qwen2.5')}&filter=gguf&sort=downloads&direction=-1&limit=50`
-      + '&expand[]=gguf&expand[]=downloads&expand[]=likes&expand[]=lastModified&expand[]=cardData';
-    const r = await fetch(u);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    if (my !== HFQ.seq) return;
-    HFQ.list = Array.isArray(j) ? j : [];
-  } catch (_) { if (my === HFQ.seq) HFQ.err = 'Hugging Face에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 검색하세요.'; }
-  if (my === HFQ.seq) { HFQ.busy = false; renderHf(); }
+// 찾기 칸 — 한 번 만들어 두고 다시 쓴다(위: 검색 · 정렬 · 거르기, 아래: 왼쪽 목록 · 오른쪽 자세히).
+// 넓은 창에서는 화면 전체가 아니라 목록 칸과 자세히 칸이 저마다 스크롤된다 — 좁은 창은 목록 하나라 화면 전체가 스크롤되고, 자세히는 창으로 연다
+function finderEl() {
+  if (FD.el) return FD.el;
+  FD.bar = h('div', { class: 'fd-bar' });
+  FD.sum = h('div', { class: 'fd-sum', 'aria-live': 'polite' });
+  FD.list = h('div', { class: 'fd-list', 'aria-label': '모델 목록' });
+  FD.more = h('div', { class: 'fd-more' });
+  FD.scroll = h('div', { class: 'fd-scroll' }, FD.list, FD.more);
+  FD.det = h('aside', { class: 'fd-detail', 'aria-label': '모델 자세히' });
+  FD.el = h('div', { class: 'finder' }, FD.bar, h('div', { class: 'fd-body' }, FD.sum, FD.scroll, FD.det));
+  fdBar();
+  // 두 칸의 스크롤 자리를 적어 둔다 — 화면을 다시 짜면(받기를 시작해 칸 수가 바뀔 때 · 다른 화면에 다녀올 때) 칸이 떨어졌다 붙어 처음으로 가므로 되돌린다
+  [FD.scroll, FD.det].forEach((el, i) => el.addEventListener('scroll', () => { if (el.getClientRects().length) FD.y[i] = el.scrollTop; }, { passive: true }));
+  // 목록 끝이 가까워지면 더 불러온다('더 보기' 단추도 그대로 둔다 — 키보드 · 화면 낭독기)
+  FD.scroll.addEventListener('scroll', fdAutoMore, { passive: true });
+  $('#view-models').addEventListener('scroll', fdAutoMore, { passive: true });
+  return FD.el;
 }
-const fmtCount = n => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n || 0));
-function renderHf(focusFk) {
-  const box = document.getElementById('hf-box');
-  if (!box) return;
-  const inp = h('input', { type: 'text', class: 'grow', placeholder: '모델 이름으로 검색(예: qwen2.5 coder, deepseek r1 qwen)', 'aria-label': 'Hugging Face 검색', 'data-fk': 'hf-q' });
-  inp.value = HFQ.draft;
-  inp.addEventListener('input', () => { HFQ.draft = inp.value; });
-  const go = () => hfSearch(inp.value.trim());
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } });
-  const only = h('input', { type: 'checkbox', 'data-fk': 'hf-only' });
-  only.checked = HFQ.runnable;
-  only.addEventListener('change', () => { HFQ.runnable = only.checked; renderHf(); });
-  let body;
-  if (HFQ.busy) body = h('div', { class: 'empty-box' }, h('div', null, '검색하는 중…'));
-  else if (HFQ.err) body = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, HFQ.err));
-  else if (!HFQ.list) body = h('div', { class: 'empty-box' }, h('div', { class: 'big' }, 'Hugging Face의 GGUF 모델을 찾아 받을 수 있습니다'),
-    h('div', null, 'GeulPU는 지금 qwen2 구조(Qwen2.5 · DeepSeek-R1-Distill-Qwen과 그 미세조정 모델)를 실행합니다. 받기 전에 파일 앞부분만 받아 실행되는지 확인합니다.'),
-    h('button', { class: 'btn needs-conn', onclick: () => { HFQ.draft = 'qwen2.5'; hfSearch('qwen2.5'); } }, I('refresh', 's'), '많이 받은 Qwen2.5 모델 보기'));
-  else {
-    const rows = HFQ.list.filter(x => !HFQ.runnable || archOk(x.gguf && x.gguf.architecture));
-    const hidden = HFQ.list.length - rows.length;
-    body = h('div', { class: 'col g8' },
-      rows.length ? h('div', { class: 'list' }, rows.map(hfRow)) : h('div', { class: 'empty-box' }, h('div', null, '실행할 수 있는 구조의 결과가 없습니다.')),
-      hidden ? h('div', { class: 'small muted' }, `GeulPU가 아직 실행하지 않는 구조의 저장소 ${hidden}개를 숨겼습니다.`) : null);
+function finderStart() {
+  if (!FD.started) { FD.started = true; fdReload(); return; }
+  FD.scroll.scrollTop = FD.y[0];
+  FD.det.scrollTop = FD.y[1];
+  fdDrawList();
+  fdRedraw();
+}
+function fdAutoMore() { if (FD.started && !FD.busy && !FD.done && !FD.err && fdNearEnd()) fdMore(); }
+function fdBarFocus(fn) {
+  const a = document.activeElement;
+  const fk = a && FD.bar.contains(a) ? a.dataset.fk : null;
+  fn();
+  if (fk) { const b = FD.bar.querySelector(`[data-fk="${CSS.escape(fk)}"]`); if (b) b.focus({ preventScroll: true }); }
+}
+function fdBar() {
+  fdBarFocus(() => {
+    const inp = h('input', { type: 'text', placeholder: '이름으로 좁히기 — 예: qwen3, coder, r1, 14b', 'aria-label': '모델 이름으로 좁히기', 'data-fk': 'fd-q', enterkeyhint: 'search' });
+    inp.value = FD.draft;
+    let t = 0;
+    inp.addEventListener('input', () => { FD.draft = inp.value; clearTimeout(t); t = setTimeout(() => fdSearch(inp.value.trim()), 450); fdClearBtn(); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); clearTimeout(t); fdSearch(inp.value.trim()); }
+      if (e.key === 'Escape' && inp.value) { e.preventDefault(); inp.value = ''; FD.draft = ''; clearTimeout(t); fdSearch(''); fdClearBtn(); }
+    });
+    const clear = h('button', { class: 'icon-btn sm', 'aria-label': '검색어 지우기', 'data-fk': 'fd-qx', hidden: FD.draft ? null : true,
+      onclick: () => { inp.value = ''; FD.draft = ''; fdSearch(''); fdClearBtn(); inp.focus(); } }, I('x', 's'));
+    const radio = (list, cur, label, fk, set) => h('div', { class: 'seg-ctl fd-seg', role: 'radiogroup', 'aria-label': label, onkeydown: radioKeys }, list.map(([k, text, tip]) =>
+      h('button', {
+        role: 'radio', class: cur === k ? 'on' : '', 'aria-checked': cur === k ? 'true' : 'false', tabindex: cur === k ? '0' : '-1', 'data-fk': fk + ':' + k,
+        'data-tip': tip || null, 'data-tip-pos': 'bottom', onclick: () => { if (cur !== k) set(k); },
+      }, text)));
+    const chip = (on, text, tip, fk, flip) => h('button', { class: 'fchip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', 'data-fk': fk, 'data-tip': tip, 'data-tip-pos': 'bottom', onclick: flip },
+      on ? I('check', 's') : null, text);
+    // 기본은 GeulPU 에서 실행되는 것만 — 켜면 실행 안 되는 모델(다른 구조 · 아직 미지원 크기)도 흐리게 함께 보인다
+    const all = h('input', { type: 'checkbox', role: 'switch', 'data-fk': 'fd-all', 'aria-label': '실행 안 되는 모델도 보기',
+      onchange: () => { FD.only = !all.checked; fdBar(); fdReload(); } });
+    all.checked = !FD.only;
+    const allSw = h('label', { class: 'fd-toggle', 'data-tip': '끄면 GeulPU에서 실행되는 구조(qwen2 · qwen3)와 크기만 보입니다', 'data-tip-pos': 'bottom' },
+      h('span', { class: 'switch' }, all, h('i')), h('span', null, '실행 안 되는 모델도 보기'));
+    put(FD.bar,
+      h('div', { class: 'fd-line' },
+        h('div', { class: 'fd-search' }, I('search', 's'), inp, clear),
+        radio(FD_SORTS, FD.sort, '정렬', 'fd-sort', k => { FD.sort = k; store('geulpu.fd.sort', k); fdBar(); fdReload(); })),
+      h('div', { class: 'fd-line' },
+        allSw,
+        h('span', { class: 'fd-div', 'aria-hidden': 'true' }),
+        chip(FD.checked, 'GeulPU 확인됨', 'GeulPU에서 실제로 돌려 본 파일이 있는 저장소만', 'fd-checked', () => { FD.checked = !FD.checked; fdBar(); fdReload(); }),
+        chip(FD.fit, '이 PC에 맞는 크기', '매개변수 수로 어림한 Q4_K_M 파일이 이 PC의 그래픽 메모리에 들어가는 것만', 'fd-fit', () => { FD.fit = !FD.fit; store('geulpu.fd.fit', FD.fit); fdBar(); fdReload(); }),
+        h('span', { class: 'grow' }),
+        radio(FD_SIZES, FD.size, '크기', 'fd-size', k => { FD.size = k; store('geulpu.fd.size', k); fdBar(); fdReload(); })));
+  });
+}
+function fdClearBtn() { const b = FD.bar.querySelector('[data-fk="fd-qx"]'); if (b) b.hidden = !FD.draft; }
+function fdSearch(q) { if (q === FD.q) return; FD.q = q; fdReload(); }
+// 정렬 · 거르기 · 검색어가 바뀌면 처음부터 — '실행되는 것만'은 꼬리표 qwen2 · qwen3 의 두 목록을 정렬 열쇠로 맞물려 하나로
+function fdReload() {
+  FD.seq++;
+  FD.items = []; FD.seen = new Set(); FD.done = false; FD.err = ''; FD.busy = false; FD.dry = 0;
+  const base = `${HFHOST}/api/models?filter=gguf&sort=${FD.sort}&direction=-1&limit=100&${FD_EXPAND}${FD.q ? '&search=' + encodeURIComponent(FD.q) : ''}`;
+  FD.srcs = FD.checked ? [] : (FD.only ? [base + '&filter=qwen2', base + '&filter=qwen3'] : [base]).map(u => ({ next: u, buf: [] }));
+  fdDrawList();
+  FD.scroll.scrollTop = FD.y[0] = 0;
+  fdMore();
+}
+const fdKey = m => (FD.sort === 'lastModified' ? Date.parse(m.lastModified || '') || 0 : Number(m[FD.sort]) || 0);
+function fdPass(m) {
+  const sup = fdSupport(m);
+  if (FD.only && sup.k !== 'ok') return false;
+  const p = (m.gguf && m.gguf.total) || 0;
+  if (FD.size !== 'all') {
+    if (!p) return false;
+    const b = p / 1e9;
+    if (FD.size === 's' && b > 4.5) return false;
+    if (FD.size === 'm' && (b <= 4.5 || b > 10.5)) return false;
+    if (FD.size === 'l' && (b <= 10.5 || b > 20.5)) return false;
+    if (FD.size === 'xl' && b <= 20.5) return false;
   }
-  const fk = focusFk || (document.activeElement && box.contains(document.activeElement) ? document.activeElement.dataset.fk : null);
-  put(box,
-    h('div', { class: 'section-head' }, h('span', { class: 'sec' }, 'Hugging Face에서 찾기'), h('span', { class: 'grow' }),
-      h('label', { class: 'check' }, only, '실행할 수 있는 구조만')),
-    h('div', { class: 'hf-bar' }, inp, h('button', { class: 'btn needs-conn', onclick: go }, '검색')),
-    h('div', { class: 'small muted hf-note' }, '검색어와 저장소 목록은 Hugging Face와 직접 주고받습니다. 파일은 누른 뒤에만 받습니다.'),
-    body);
-  if (fk) { const e = box.querySelector(`[data-fk="${fk}"]`); if (e) e.focus({ preventScroll: true }); }
+  if (FD.fit && !(p && fdFits(p))) return false;
+  if (FD.q && FD.checked && !m.id.toLowerCase().includes(FD.q.toLowerCase())) return false;
+  return true;
 }
-function hfRow(x) {
-  const arch = (x.gguf && x.gguf.architecture) || '?';
-  const ok = archOk(arch);
-  const lic = x.cardData && x.cardData.license;
-  return h('button', { class: 'item hf-item' + (ok ? '' : ' dimmed'), onclick: () => hfOpen(x) },
-    h('div', { class: 'ico' }, mg({ id: x.id })),
-    h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, hfName(x.id))),
-      h('div', { class: 'sub' }, `${x.id.split('/')[0]}${NB}다운로드 ${fmtCount(x.downloads)}${lic ? NB + lic : ''}`)),
-    h('div', { class: 'meta' }, ok ? h('span', { class: 'tag' }, I('check'), '실행할 수 있는 구조') : h('span', { class: 'tag dim', 'data-tip': '이 구조는 아직 GeulPU 엔진에 없습니다', 'data-tip-pos': 'left' }, `${arch} · 미지원`)),
-    I('chevR', 's'));
+async function fdFetch(s) {
+  const r = await fetch(s.next);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (Array.isArray(j)) s.buf.push(...j);
+  const m = /<([^>]+)>;\s*rel="next"/.exec(r.headers.get('Link') || '');
+  s.next = m ? m[1] : null;
 }
-// 저장소 하나의 GGUF 파일들 — 파일마다 받기 전 확인 · 다운로드
-async function hfOpen(x) {
-  modal(h('div', null, h('h2', null, hfName(x.id)), h('p', { class: 'muted m0' }, '파일 목록을 불러오는 중…')), null, true);
-  let files = [];
+// 다음 n 개(거른 뒤) — 목록마다 정렬된 차례라 머리끼리 견주어 큰 것부터(같은 저장소는 한 번만). 한 번에 받는 쪽수는 여덟까지
+async function fdMore(n = 30) {
+  if (FD.busy || FD.done) return;
+  const my = FD.seq;
+  const before = FD.items.length;
+  FD.busy = true; FD.err = '';
+  fdDrawMore();
   try {
-    const r = await fetch(`${HFHOST}/api/models/${x.id}/tree/main?recursive=true`);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    files = (await r.json()).filter(f => f.type === 'file' && /\.gguf$/i.test(f.path));
-  } catch (_) {
-    modal(h('div', null, h('h2', null, hfName(x.id)), h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, '파일 목록을 받지 못했습니다. 인터넷 연결을 확인하세요.'))), [h('button', { class: 'btn', onclick: () => closeModal() }, '닫기')], true);
-    return;
-  }
-  const arch = (x.gguf && x.gguf.architecture) || '';
-  const st = new Map();   // 파일 → { state: 'checking'|'ok'|'bad', why, shape }
-  const list = h('div', { class: 'list' });
-  const draw = () => put(list, files.length ? files.sort((a, b) => b.size - a.size).map(f => hfFile(x, f, arch, st, draw)) : h('div', { class: 'fs-item muted' }, 'GGUF 파일이 없습니다'));
-  draw();
-  const lic = x.cardData && x.cardData.license;
-  modal(h('div', null,
-    h('div', { class: 'row g8 muted' }, I('box', 's'), h('span', { class: 'eyebrow' }, `${x.id}${lic ? ' · ' + lic : ''}`)),
-    h('h2', { class: 'mt8' }, hfName(x.id)),
-    !archOk(arch) ? h('div', { class: 'note-line err mb12' }, I('alert', 's'), h('span', null, `이 저장소의 구조(${arch || '알 수 없음'})는 아직 GeulPU 엔진에 없습니다. 지금은 qwen2 구조만 실행합니다.`))
-      : h('p', { class: 'small muted m0 mb12' }, '파일을 고르면 앞부분(GGUF 머리, 8 MB 안팎)만 받아 이 엔진 · 이 PC에서 실행되는지 먼저 확인합니다.'),
-    list,
-    h('div', { class: 'row mt12' }, h('a', { class: 'btn sm ghost', href: `${HFHOST}/${x.id}`, target: '_blank', rel: 'noopener' }, 'Hugging Face에서 보기', I('ext', 's')))),
-  [h('button', { class: 'btn', onclick: () => closeModal() }, '닫기')], true, '.foot .btn');
+    if (FD.checked) await fdLoadChecked(my);
+    else {
+      let added = 0, pages = 0;
+      while (added < n && pages < 8) {
+        for (const s of FD.srcs) if (!s.buf.length && s.next) { pages++; await fdFetch(s); if (my !== FD.seq) return; }
+        const live = FD.srcs.filter(s => s.buf.length);
+        if (!live.length) { FD.done = true; break; }
+        let best = live[0];
+        for (const s of live) if (fdKey(s.buf[0]) > fdKey(best.buf[0])) best = s;
+        const m = best.buf.shift();
+        if (!m || FD.seen.has(m.id)) continue;
+        FD.seen.add(m.id);
+        if (fdPass(m)) { FD.items.push(m); added++; }
+      }
+      if (!FD.srcs.some(s => s.buf.length || s.next)) FD.done = true;
+    }
+  } catch (_) { if (my === FD.seq) FD.err = 'Hugging Face에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.'; }
+  if (my !== FD.seq) return;
+  FD.busy = false;
+  FD.dry = FD.items.length === before ? FD.dry + 1 : 0;
+  fdDrawList();
+  // 넓은 창에서는 첫 모델을 옆에 — 처음 열 때, 그리고 새로 불러온 목록에 고른 것이 없을 때
+  if (FD.items.length && !fdNarrow() && (!FD.sel || (before === 0 && !FD.items.some(i => i.id === FD.sel)))) fdSelect(FD.items[0].id, true);
+  // 목록 끝이 아직 화면 가까이에 있으면 더 — 거르기가 빡빡해 세 번 잇달아 하나도 못 얻으면 멈춘다('더 보기'로 잇는다)
+  requestAnimationFrame(() => { if (!FD.done && !FD.err && !FD.busy && FD.dry < 3 && fdNearEnd()) fdMore(); });
 }
-function hfFile(x, f, arch, st, draw) {
+function fdNearEnd() {
+  if (!FD.more || !FD.more.isConnected || !FD.more.getClientRects().length) return false;
+  // 넓은 창은 목록 칸이, 좁은 창은 화면 전체가 스크롤된다
+  const sc = fdNarrow() ? $('#view-models') : FD.scroll;
+  return FD.more.getBoundingClientRect().top < sc.getBoundingClientRect().bottom + 600;
+}
+// 'GeulPU 확인됨' — 앱의 목록에서 실제로 돌려 본 파일이 있는 저장소(몇 개라 한 번에), 정보는 Hugging Face 에서
+async function fdLoadChecked(my) {
+  const repos = [...new Set(((S.st && S.st.catalog) || []).filter(c => c.check === 'tested' || c.check === 'crosscheck').map(fdRepoOf).filter(Boolean))];
+  const got = await Promise.all(repos.map(r => fetch(`${HFHOST}/api/models/${r}?${FD_EXPAND}`).then(x => (x.ok ? x.json() : null)).catch(() => null)));
+  if (my !== FD.seq) return;
+  const list = got.map((m, i) => m || { id: repos[i] }).filter(fdPass);
+  list.sort((a, b) => fdKey(b) - fdKey(a));
+  FD.items = list;
+  FD.done = true;
+}
+const fdNarrow = () => window.matchMedia('(max-width: 960px)').matches;
+function fdDrawList() {
+  if (!FD.list) return;
+  put(FD.list, FD.items.map(fdRow));
+  const sortName = (FD_SORTS.find(s => s[0] === FD.sort) || FD_SORTS[0])[1];
+  const conds = [FD.only ? 'GeulPU에서 실행되는 것' : '실행 안 되는 것 포함', FD.checked ? 'GeulPU 확인됨' : null, FD.fit ? '이 PC에 맞는 크기' : null,
+    FD.size !== 'all' ? (FD_SIZES.find(s => s[0] === FD.size) || [])[1] : null, FD.q ? `“${FD.q}”` : null].filter(Boolean);
+  put(FD.sum, h('span', { class: 'ink' }, FD.items.length ? `${fmtNum(FD.items.length)}개${FD.done ? '' : ' 이상'}` : FD.busy ? '불러오는 중' : '0개'),
+    h('span', null, `${NB}${sortName}순${NB}${conds.join(' · ')}`),
+    h('span', { class: 'grow' }),
+    h('span', { class: 'faint' }, 'Hugging Face의 GGUF 저장소'));
+  fdDrawMore();
+}
+function fdDrawMore() {
+  if (!FD.more) return;
+  let body = null;
+  if (FD.busy) body = h('div', { class: 'row center small muted' }, h('i', { class: 'dot busy' }), '불러오는 중…');
+  else if (FD.err) body = h('div', { class: 'col center g12' }, h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, FD.err)),
+    h('button', { class: 'btn sm needs-conn', onclick: () => { FD.err = ''; fdMore(); } }, I('refresh', 's'), '다시 시도'));
+  else if (!FD.items.length && FD.done) body = h('div', { class: 'empty-box' }, h('div', { class: 'big' }, '조건에 맞는 모델이 없습니다'),
+    h('div', null, FD.only ? "거르기를 줄이거나, '실행 안 되는 모델도 보기'를 켜면 Hugging Face의 모든 GGUF 모델이 보입니다(실행되지 않는 것은 흐리게)." : '검색어나 거르기를 바꿔 보세요.'));
+  else if (!FD.done) body = h('button', { class: 'btn ghost w100 needs-conn', onclick: () => fdMore() }, I('chevD', 's'), '더 보기');
+  put(FD.more, body);
+}
+function fdStat(icon, text, label) { return h('span', { class: 'st', 'aria-label': label ? `${label} ${text}` : null }, I(icon, 's'), h('span', { 'aria-hidden': label ? 'true' : null }, text)); }
+function fdRow(m) {
+  const g = m.gguf || {};
+  const sup = fdSupport(m);
+  const cat = fdCat(m.id);
+  const st = S.st;
+  const rec = st && cat.some(c => c.id === recommendId(st));
+  const base = asList(m.cardData && m.cardData.base_model);
+  const by = [m.author || m.id.split('/')[0], base.length ? `${base[0].split('/').pop()} 기반` : null].filter(Boolean).join(NB);
+  const badge = fdChecked(m.id) ? h('span', { class: 'tag', 'data-tip': 'GeulPU에서 실제로 돌려 본 파일이 있습니다', 'data-tip-pos': 'top' }, I('shield'), 'GeulPU 확인됨')
+    : sup.k === 'ok' ? (FD.only ? null : h('span', { class: 'tag' }, I('check'), '실행됨'))
+      : h('span', { class: 'tag dim', 'data-tip': sup.why || null, 'data-tip-pos': 'top' }, sup.k === 'unknown' ? '구조 알 수 없음' : sup.t);
+  return h('button', {
+    class: 'fd-row' + (FD.sel === m.id ? ' on' : '') + (sup.k === 'arch' || sup.k === 'size' || sup.k === 'task' ? ' dim' : ''), 'data-repo': m.id, 'data-fk': 'fd:' + m.id,
+    'aria-current': FD.sel === m.id ? 'true' : null, onclick: () => fdSelect(m.id),
+  },
+    h('span', { class: 'main' },
+      h('span', { class: 'top' }, h('span', { class: 'nm' }, hfName(m.id)), g.total ? h('span', { class: 'qlab' }, fmtParams(g.total)) : null),
+      h('span', { class: 'by' }, by),
+      h('span', { class: 'foot' },
+        fdStat('download', fmtCount(m.downloads), '최근 30일 다운로드'), fdStat('heart', fmtCount(m.likes), '좋아요'), fdStat('clock', fmtAgo(m.lastModified), '업데이트'),
+        h('span', { class: 'grow' }), rec ? h('span', { class: 'tag' }, I('star'), '이 PC 추천') : null, badge)));
+}
+function fdSelect(repo, auto) {
+  FD.sel = repo;
+  for (const b of FD.list.querySelectorAll('.fd-row')) {
+    const on = b.dataset.repo === repo;
+    b.classList.toggle('on', on);
+    if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+  }
+  fdLoadInfo(repo);
+  if (fdNarrow() && !auto) {
+    FD.modal = repo;
+    modal(h('div', { class: 'fd-d-wrap' }, fdDetail(repo)), [h('button', { class: 'btn', onclick: () => closeModal() }, '닫기')], true, '.foot .btn', () => { FD.modal = null; });
+  }
+  fdRedraw();
+  if (!fdNarrow()) FD.det.scrollTop = FD.y[1] = 0;
+}
+// 저장소 하나의 정보(자세한 정보 · 파일 목록 · 모델 설명) — 셋을 함께 묻고 오는 대로 그린다
+function fdLoadInfo(repo) {
+  if (FD.info[repo] && !FD.info[repo].err) return;
+  const x = FD.info[repo] = { busy: true };
+  const done = () => { if (FD.sel === repo || FD.modal === repo) fdRedraw(); };
+  const enc = repo.split('/').map(encodeURIComponent).join('/');
+  fetch(`${HFHOST}/api/models/${enc}?${FD_EXPAND}&expand[]=downloadsAllTime`).then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+    .then(m => { x.m = m; }).catch(() => { x.err = true; }).finally(() => { x.busy = !(x.files || x.ferr); done(); });
+  fetch(`${HFHOST}/api/models/${enc}/tree/main?recursive=true`).then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+    .then(j => { x.files = (Array.isArray(j) ? j : []).filter(f => f.type === 'file' && /\.gguf$/i.test(f.path)); })
+    .catch(() => { x.ferr = true; x.err = true; }).finally(() => { x.busy = !x.m && !x.err; done(); });
+  fetch(`${HFHOST}/${enc}/resolve/main/README.md`).then(r => (r.ok ? r.text() : '')).then(t => { x.readme = t || ''; }).catch(() => { x.readme = ''; }).finally(done);
+}
+function fdRedraw() {
+  if (FD.det && FD.el && FD.el.isConnected) {
+    const top = FD.det.scrollTop;
+    put(FD.det, FD.sel ? fdDetail(FD.sel) : fdDetailEmpty());
+    FD.det.scrollTop = top;
+  }
+  if (FD.modal && !$('#modal').hidden) { const mb = $('#modalbox .mb .fd-d-wrap'); if (mb) put(mb, fdDetail(FD.modal)); }
+  updateDlBars();
+}
+function fdDetailEmpty() {
+  return h('div', { class: 'fd-empty' }, I('box', 'l'), h('div', { class: 'big' }, '모델을 고르면 자세한 정보가 여기에 보입니다'),
+    h('div', { class: 'small muted' }, `크기${NB}구조${NB}다운로드 수${NB}라이선스${NB}파일마다 이 PC에 맞는지${NB}모델 설명`));
+}
+// README — 앞머리(YAML) · 그림 · HTML 꼬리표를 떼고 마크다운만(md 는 글을 늘 탈출해서 넣고 http(s) 링크만 만든다)
+function fdReadme(text) {
+  let s = String(text || '').replace(/\r\n/g, '\n');
+  s = s.replace(/^---\n[\s\S]*?\n---\n/, '');
+  s = s.replace(/<!--[\s\S]*?-->/g, '');
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+  s = s.replace(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g, '');
+  s = s.replace(/\n{3,}/g, '\n\n').trim();
+  return s.length > 16000 ? s.slice(0, 16000) + '\n\n…' : s;
+}
+function fdDetail(repo) {
+  const st = S.st;
+  const x = FD.info[repo] || {};
+  const m = Object.assign({ id: repo }, FD.items.find(i => i.id === repo) || {}, x.m || {});
+  const g = m.gguf || {};
+  const sup = fdSupport(m);
+  const cat = fdCat(repo);
+  const rec = st && cat.some(c => c.id === recommendId(st));
+  const lic = fdLicense(m);
+  const base = asList(m.cardData && m.cardData.base_model);
+  const langs = asList(m.cardData && m.cardData.language);
+  const kind = kindOf({ id: repo });
+  const sub = [kind, g.architecture ? `${g.architecture} 구조` : null, g.total ? `매개변수 ${fmtParams(g.total)}` : null, g.context_length ? `문맥 최대 ${fmtCtx(g.context_length)}` : null].filter(Boolean).join(NB);
+  const cell = (k, v, s) => h('div', { class: 'cell' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), s ? h('div', { class: 's' }, s) : null);
+  const head = h('div', { class: 'fd-dhead' },
+    h('div', { class: 'row g8' }, h('span', { class: 'eyebrow caps' }, m.author || repo.split('/')[0]), h('span', { class: 'grow' }),
+      h('a', { class: 'btn sm ghost', href: `${HFHOST}/${repo}`, target: '_blank', rel: 'noopener' }, 'Hugging Face', I('ext', 's'))),
+    h('h2', { class: 'fd-title' }, hfName(repo)),
+    sub ? h('div', { class: 'fd-sub' }, sub) : null,
+    h('div', { class: 'fd-badges' },
+      fdChecked(repo) ? h('span', { class: 'tag' }, I('shield'), 'GeulPU 확인됨') : null,
+      rec ? h('span', { class: 'tag' }, I('star'), '이 PC 추천') : null,
+      sup.k === 'ok' ? h('span', { class: 'tag' }, I('check'), 'GeulPU에서 실행되는 구조') : h('span', { class: 'tag dim' }, I('alert'), sup.k === 'unknown' ? '구조 정보 없음' : sup.t),
+      lic ? h('span', { class: 'tag dim caps' }, lic) : null));
+  const stats = h('div', { class: 'fd-stats' },
+    cell('다운로드', fmtCount(m.downloads), '최근 30일'),
+    cell('누적 다운로드', m.downloadsAllTime != null ? fmtCount(m.downloadsAllTime) : '-'),
+    cell('좋아요', fmtCount(m.likes)),
+    cell('업데이트', fmtAgo(m.lastModified), m.lastModified ? fmtDate(m.lastModified) : null));
+  const hard = sup.k === 'arch' || sup.k === 'size' || sup.k === 'task';
+  const note = sup.k === 'ok' ? null
+    : h('div', { class: 'note-line' + (hard ? ' err' : '') }, I(hard ? 'alert' : 'info', 's'), h('span', null,
+      sup.k === 'arch' ? `이 저장소의 구조(${g.architecture})는 아직 GeulPU 엔진에 없습니다. 정보는 볼 수 있지만 받을 수 없습니다.`
+        : sup.why || 'Hugging Face가 이 저장소의 GGUF 구조를 알려 주지 않았습니다. 파일을 받기 전에 앞부분을 받아 확인합니다.'));
+  // 파일
+  let files;
+  if (x.files) files = fdFiles(repo, x.files, sup, m);
+  else if (x.ferr) files = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, '파일 목록을 받지 못했습니다. 인터넷 연결을 확인한 뒤 모델을 다시 고르세요.'));
+  else files = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), '파일 목록을 불러오는 중…');
+  const info = h('div', { class: 'kv' },
+    h('div', { class: 'k' }, '저장소'), h('div', { class: 'v small break' }, repo),
+    h('div', { class: 'k' }, '라이선스'), h('div', { class: 'v' }, lic || '저장소에 적혀 있지 않음'),
+    base.length ? [h('div', { class: 'k' }, '바탕 모델'), h('div', { class: 'v small' }, base.slice(0, 3).map((b, i) => [i ? ', ' : null, /^[\w.-]+\/[\w.-]+$/.test(b) ? h('a', { href: `${HFHOST}/${b}`, target: '_blank', rel: 'noopener' }, b) : b]), base.length > 3 ? ` 외 ${base.length - 3}개` : null)] : null,
+    langs.length ? [h('div', { class: 'k' }, '언어'), h('div', { class: 'v small' }, langs.slice(0, 12).join(', ') + (langs.length > 12 ? ` 외 ${langs.length - 12}개` : ''))] : null,
+    m.cardData && m.cardData.pipeline_tag ? [h('div', { class: 'k' }, '용도'), h('div', { class: 'v small' }, m.cardData.pipeline_tag)] : null,
+    m.createdAt ? [h('div', { class: 'k' }, '만든 날'), h('div', { class: 'v small' }, fmtDate(m.createdAt))] : null);
+  // 모델 설명(README)
+  let readme = null;
+  const rtext = x.readme ? fdReadme(x.readme) : '';
+  if (rtext) {
+    const open = !!FD.readmeOpen[repo];
+    readme = h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '모델 설명', h('span', { class: 'grow' }), h('span', { class: 'faint small' }, 'Hugging Face의 README')),
+      h('div', { class: 'md fd-readme' + (open ? ' open' : ''), html: md(rtext) }),
+      h('button', { class: 'btn sm ghost', onclick: () => { FD.readmeOpen[repo] = !open; fdRedraw(); } }, I(open ? 'chevU' : 'chevD', 's'), open ? '접기' : '모두 보기'));
+  } else if (x.readme === undefined && !x.err) readme = h('div', { class: 'row small muted' }, h('i', { class: 'dot busy' }), '모델 설명을 불러오는 중…');
+  return h('div', { class: 'fd-d' }, head, stats, note,
+    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '파일', h('span', { class: 'grow' }), h('span', { class: 'faint small' }, '양자화마다 하나 — 고르면 받기 전에 실행되는지 확인')), files),
+    h('div', { class: 'fd-sec' }, h('div', { class: 'fd-sec-t' }, '정보'), info),
+    readme);
+}
+// 이 PC 에 가장 맞는 파일 — 받는 형식 가운데 메모리에 넉넉히 맞는 것 중 Q4_K_M → 가장 큰 것, 없으면 빠듯한 것 중 가장 작은 것
+function fdBest(rows, sup) {
+  if (sup.k === 'arch' || sup.k === 'size' || sup.k === 'task') return null;
+  const ok = rows.filter(f => { const q = quantFromName(f.path); return quantOk(q) && !/-\d{5}-of-\d{5}\.gguf$/i.test(f.path); });
+  const fit = f => fitOf({ size: f.size, params: '', id: '', devices: /K/.test(quantFromName(f.path)) ? 'k' : 'all' });
+  const good = ok.filter(f => { const t = fit(f); return t && t.k === 'ok'; });
+  if (good.length) return good.find(f => quantFromName(f.path) === 'Q4_K_M') || good.sort((a, b) => b.size - a.size)[0];
+  const tight = ok.filter(f => { const t = fit(f); return t && t.k === 'tight'; }).sort((a, b) => a.size - b.size);
+  return tight[0] || null;
+}
+function fdFiles(repo, files, sup, m) {
+  if (!files.length) return h('div', { class: 'small muted' }, '이 저장소에는 GGUF 파일이 없습니다.');
+  // 받을 수 있는 형식(한 파일)이 먼저 — 양자화 차례 → 큰 것부터, 받지 못하는 것은 뒤에
+  const can = f => quantOk(quantFromName(f.path)) && !/-\d{5}-of-\d{5}\.gguf$/i.test(f.path);
+  const rows = files.slice().sort((a, b) => (can(b) - can(a)) || qRank(quantFromName(a.path)) - qRank(quantFromName(b.path)) || b.size - a.size);
+  const best = fdBest(rows, sup);
+  return h('div', { class: 'fd-files' }, rows.map(f => fdFileRow(repo, f, sup, f === best, m)));
+}
+function fdFileRow(repo, f, sup, best, m) {
+  const st = S.st;
   const q = quantFromName(f.path);
-  const split = /-\d{5}-of-\d{5}\.gguf$/i.test(f.path);
-  const s = st.get(f.path);
-  const sha = f.lfs && f.lfs.oid;
   const name = f.path.split('/').pop();
-  const fit = fitOf({ size: f.size, params: '', id: x.id });
-  const inst = S.st && S.st.models.some(m => m.path && m.path.toLowerCase().endsWith('\\' + name.toLowerCase()));
+  const split = /-\d{5}-of-\d{5}\.gguf$/i.test(f.path);
+  const c = fdCat(repo).find(x => (x.url || '') === `${HFHOST}/${repo}/resolve/main/${f.path}` || (x.file || '').toLowerCase() === name.toLowerCase());
+  const mdl = c && c.installed ? modelOf(c.installed) : st.models.find(x => x.path && x.path.toLowerCase().endsWith('\\' + name.toLowerCase()));
+  const ds = c ? dlStateOf(c) : null;
+  const fit = fitOf({ size: f.size, params: '', id: repo, devices: c && c.devices ? c.devices : (/K/.test(q) ? 'k' : 'all') });
   let why = '';
-  if (!archOk(arch)) why = '지원하지 않는 구조';
-  else if (split) why = '여러 조각으로 나뉜 파일(합친 파일만 지원)';
-  else if (q && !quantOk(q)) why = `${q} 형식은 아직 지원하지 않음`;
-  else if (!sha) why = 'SHA-256 정보가 없음';
-  let act;
-  if (inst) act = h('span', { class: 'tag' }, I('check'), '설치됨');
-  else if (why) act = h('span', { class: 'small muted' }, why);
-  else if (s && s.state === 'checking') act = h('span', { class: 'small muted row g8 nowrap' }, h('i', { class: 'dot busy' }), '확인하는 중');
-  else if (s && s.state === 'bad') act = h('span', { class: 'small err-text' }, s.why);
-  else if (s && s.state === 'ok') act = h('button', { class: 'btn sm primary needs-conn', onclick: () => hfDownload(x, f, q, s.shape) }, I('download', 's'), '다운로드');
-  else act = h('button', { class: 'btn sm needs-conn', onclick: () => hfCheck(x, f, st, draw) }, '확인');
-  return h('div', { class: 'fs-item hf-file' + (why ? ' dimmed' : '') },
-    h('span', { class: 'qlab hf-q' }, q || '?'),
-    h('span', { class: 'n' }, name, h('span', { class: 'small muted' }, `${NB}${fmtBytes(f.size)}`)),
-    !why && fit && fit.k !== 'ok' ? fitTag(fit) : null,
-    act);
+  if (sup.k === 'arch') why = '지원하지 않는 구조';
+  else if (sup.k === 'size') why = '아직 미지원 크기';
+  else if (sup.k === 'task') why = '대화용 모델이 아님';
+  else if (split) why = '여러 조각으로 나뉜 파일 — 합친 파일만 받습니다';
+  else if (q && !quantOk(q)) why = `${q} 형식은 아직 미지원`;
+  else if (!q) why = '양자화 형식을 알 수 없는 파일';
+  else if (!c && !(f.lfs && f.lfs.oid)) why = 'SHA-256 정보가 없는 파일';
+  const k = repo + '/' + f.path;
+  const chk = FD.chk.get(k);
+  let act = null, extra = null;
+  if (mdl) act = [h('span', { class: 'tag ok' }, I('check'), '설치됨'), h('button', { class: 'btn sm needs-conn', onclick: () => chatWith(mdl.id) }, I('chat', 's'), '채팅')];
+  else if (ds === 'run') extra = dlBox(c);
+  else if (ds === 'pause') { act = h('button', { class: 'btn sm needs-conn', onclick: () => resumeDownload(c) }, I('download', 's'), '이어서 다운로드'); extra = dlBox(c, true); }
+  else if (ds === 'fail') { act = h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(c) }, I('refresh', 's'), '다시 다운로드'); extra = dlWhyLine(c.download.reason, c); }
+  else if (why) act = h('span', { class: 'why' }, why);
+  else if (chk && chk.state === 'checking') act = h('span', { class: 'why row g8 nowrap' }, h('i', { class: 'dot busy' }), '실행되는지 확인하는 중');
+  else act = h('button', { class: 'btn sm needs-conn' + (best ? ' primary' : ''), 'data-fk': 'get:' + k, onclick: () => (c ? startDownload(c) : fdGet(repo, f, q, m)) }, I('download', 's'), '다운로드');
+  if (!extra && chk && chk.state === 'bad') extra = h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, chk.why));
+  const verified = c && (c.check === 'tested' || c.check === 'crosscheck');
+  return h('div', { class: 'fd-file' + (why ? ' dim' : '') + (best && !mdl ? ' best' : '') },
+    h('span', { class: 'qlab' }, q || '?'),
+    h('span', { class: 'sz' }, fmtBytes(f.size)),
+    h('span', { class: 'tags' },
+      best && !mdl && !why ? h('span', { class: 'tag' }, I('star'), '이 PC에 추천') : null,
+      verified ? h('span', { class: 'tag', 'data-tip': 'GeulPU에서 이 파일로 실제로 돌려 보았습니다', 'data-tip-pos': 'top' }, I('shield'), '실행 확인됨') : null,
+      !why && !mdl && fit && fit.k !== 'ok' ? fitTag(fit) : null),
+    h('span', { class: 'grow' }),
+    act ? h('span', { class: 'act' }, act) : null,
+    extra ? h('div', { class: 'ext' }, extra) : null,
+    h('span', { class: 'fname small faint break' }, name));
 }
-async function hfCheck(x, f, st, draw) {
-  st.set(f.path, { state: 'checking' });
-  draw();
+// 받기 — 먼저 파일 앞부분(GGUF 머리)을 받아 이 엔진 · 이 PC 에서 실행되는지 확인하고, 되면 받을지 묻는다
+async function fdGet(repo, f, q, m) {
+  const k = repo + '/' + f.path;
+  let s = FD.chk.get(k);
+  if (!s || s.state !== 'ok') {
+    FD.chk.set(k, { state: 'checking' });
+    fdRedraw();
+    s = await hfCheckFile(repo, f);
+    FD.chk.set(k, s);
+    fdRedraw();
+    if (s.state !== 'ok') return;
+  }
+  hfDownload(m || { id: repo }, f, q, s.shape);
+}
+async function hfCheckFile(repo, f) {
   try {
-    await api('/api/hf/check', { repo: x.id, file: f.path, size: f.size });
+    await api('/api/hf/check', { repo, file: f.path, size: f.size });
     for (let i = 0; i < 240; i++) {
       await new Promise(r => setTimeout(r, 400));
       const r = await api('/api/hf/check');
       if (r.state === 'done' || r.state === 'failed') {
-        if (r.state === 'failed') st.set(f.path, { state: 'bad', why: checkWhy(r.reason) });
-        else if (!r.shape || !r.shape.ok) st.set(f.path, { state: 'bad', why: (r.shape && r.shape.reason) || '이 엔진이 받지 않는 파일입니다' });
-        else if (r.device_reason) st.set(f.path, { state: 'bad', why: r.device_reason });
-        else st.set(f.path, { state: 'ok', shape: r.shape });
-        break;
+        if (r.state === 'failed') return { state: 'bad', why: checkWhy(r.reason) };
+        if (!r.shape || !r.shape.ok) return { state: 'bad', why: (r.shape && r.shape.reason) || '이 엔진이 받지 않는 파일입니다' };
+        if (r.device_reason) return { state: 'bad', why: r.device_reason };
+        return { state: 'ok', shape: r.shape };
       }
     }
-  } catch (e) { st.set(f.path, { state: 'bad', why: e.message }); }
-  if (!$('#modal').hidden) draw();
+    return { state: 'bad', why: '확인이 너무 오래 걸립니다. 잠시 뒤 다시 누르세요.' };
+  } catch (e) { return { state: 'bad', why: e.message }; }
 }
 async function hfDownload(x, f, q, shape) {
   const st = S.st;
@@ -2093,7 +2435,7 @@ async function hfDownload(x, f, q, shape) {
   const c = { size: f.size, params: (shape.params / 1e9).toFixed(1) + 'B', id: x.id };
   const fit = fitOf(c);
   const bad = fit && (fit.k === 'no' || fit.k === 'nogpu');
-  const lic = (x.cardData && x.cardData.license) || '';
+  const lic = fdLicense(x);
   const body = h('div', { class: 'col g16' },
     h('p', { class: 'muted m0' }, `${hfName(x.id)} ${q}${NB}${(shape.params / 1e9).toFixed(1)}B${NB}문맥 최대 ${fmtCtx(shape.context)}`),
     bad ? h('div', { class: 'note-line err' }, I('alert', 's'), h('span', null, `이 PC의 그래픽 메모리(${fmtBytes(st.device.memory)})로는 실행되지 않을 수 있습니다. 그래픽 메모리 ${vramNeed(c)} GB 이상을 권장합니다.`)) : null,
@@ -2105,12 +2447,12 @@ async function hfDownload(x, f, q, shape) {
       h('div', { class: 'k' }, '라이선스'), h('div', { class: 'v' }, lic || '저장소에 적혀 있지 않음 — 저장소에서 확인하세요')),
     h('details', { class: 'fold' }, h('summary', null, I('chevR', 's'), '기술 정보'),
       h('div', { class: 'small mono muted break' }, `SHA-256 ${f.lfs.oid}`)),
-    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '목록에 없던 파일이라 GeulPU에서 답의 품질은 확인하지 않았습니다. 구조와 형식은 받기 전에 확인했고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.')));
+    h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '이 파일의 답 품질은 GeulPU에서 확인하지 않았습니다. 구조와 형식은 받기 전에 확인했고, 다 받으면 SHA-256으로 파일이 맞는지 확인합니다.')));
   if (!(await confirmBox('모델 다운로드', body, '다운로드', bad ? 'quiet' : null))) return;
   try {
     const r = await api('/api/hf/add', { repo: x.id, file: f.path, size: f.size, sha256: f.lfs.oid, name: hfName(x.id), quant: q, license: lic });
     await api('/api/models/download', { id: r.id });
-    toast('다운로드를 시작했습니다 — 진행은 상태 막대와 모델 화면에서 볼 수 있습니다', 'ok');
+    toast("다운로드를 시작했습니다 — 진행은 상태 막대와 '내 모델'에서 볼 수 있습니다", 'ok');
     resetSig(); refresh();
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -2122,11 +2464,11 @@ async function discardDownload(c) {
 
 // ---------- 벤치마크 ----------
 const BENCH = [
-  { kind: 'diag', icon: 'pulse', title: '하드웨어 진단', needModel: true, time: '1~6분',
+  { kind: 'diag', title: '하드웨어 진단', needModel: true, time: '1~6분',
     desc: '이 PC의 메모리 대역폭과 정수 연산 성능을 측정하고, 엔진의 각 연산이 하드웨어 한계에 얼마나 가까운지 보여 줍니다.' },
-  { kind: 'speed', icon: 'bolt', title: '속도 측정', needModel: true, time: '1~3분',
+  { kind: 'speed', title: '속도 측정', needModel: true, time: '1~3분',
     desc: '프롬프트 처리(512 · 2048토큰)와 답 생성 속도를 토큰/초로 세 번씩 측정합니다.' },
-  { kind: 'crosscheck', icon: 'shield', title: '재현성 검증', needModel: false, time: '경로마다 5~20분',
+  { kind: 'crosscheck', title: '재현성 검증', needModel: false, time: '경로마다 5~20분',
     desc: 'DeepSeek-R1-Distill-Qwen-7B Q8_0으로 수학 문제 32개를 풀어 기준 PC의 출력과 비트 단위로 비교합니다. 빌드와 커널의 해시도 함께 확인합니다.' },
 ];
 const KIND = { '진단': ['pulse', '하드웨어 진단'], '속도': ['bolt', '속도 측정'], '교차검증': ['shield', '재현성 검증'] };
@@ -2210,7 +2552,6 @@ function rerun(j) {
 }
 function jobCard(j) {
   const tone = { running: 'acc', done: 'ok', failed: 'err', cancelled: 'dim' }[j.state] || '';
-  const kindIcon = { diag: 'pulse', speed: 'bolt', crosscheck: 'shield', server: 'box', device: 'cpu' }[j.kind] || 'terminal';
   const benchDef = BENCH.find(b => b.kind === j.kind);
   const k = j.summary && j.state === 'done' ? kpiFromText(j.kind, j.summary) : null;
   const quick = j.kind === 'crosscheck' && /줄인|빠른/.test(j.title || '');
@@ -2222,7 +2563,7 @@ function jobCard(j) {
     fail = errorCard(rt, rd, (j.state === 'failed' || j.state === 'cancelled') && benchDef ? [h('button', { class: 'btn sm needs-conn', 'data-fk': 'rerun', onclick: () => rerun(j) }, I('refresh', 's'), '같은 설정으로 다시 실행')] : null, j.reason, live);
   }
   return h('div', { class: 'card job' },
-    h('div', { class: 'head' }, h('div', { class: 'ico' }, I(kindIcon)),
+    h('div', { class: 'head' },
       h('div', { class: 't' }, h('div', { class: 'ink h3' }, jobTitle(j)), h('div', { class: 'small muted', id: 'job-step' }, j.state === 'running' ? (j.step || '') : '')),
       h('span', { class: 'tag ' + tone, id: 'job-time' }, ''),
       j.state === 'running' ? h('button', { class: 'btn sm needs-conn', 'data-fk': 'job-stop', onclick: () => api('/api/job/cancel', {}).then(refresh).catch(e => toast(e.message, 'err')) }, I('stop', 's'), '중지')
@@ -2246,7 +2587,7 @@ function benchCard(b, runnables, hasR1, busy, r1c) {
     r1c && !r1c.installed ? h('div', null, h('button', { class: 'btn sm needs-conn', onclick: () => startDownload(r1c) }, I('download', 's'), `다운로드(${fmtBytes(r1c.size)})`)) : null));
   else if (!can) need = h('div', { class: 'note-line' }, I('info', 's'), h('span', null, '먼저 모델을 설치하세요.'));
   return h('div', { class: 'card bench-card', 'data-kind': b.kind },
-    h('div', { class: 'row g12 nowrap' }, h('div', { class: 'ico' }, I(b.icon)), h('div', null, h('h2', null, b.title), h('div', { class: 'eyebrow' }, b.time))),
+    h('div', null, h('h2', null, b.title), h('div', { class: 'eyebrow' }, b.time)),
     h('p', null, b.desc), extra, need,
     h('div', null, h('button', {
       class: 'btn run needs-conn', disabled: (busy || !can) ? true : null, onclick: async ev => {
@@ -2451,7 +2792,6 @@ async function renderDevice() {
     put($('#dev-vk'), vl.length ? h('div', { class: 'list' }, vl.map(v => {
       const integrated = v['종류'] === 1;
       return h('div', { class: 'item' },
-        h('div', { class: 'ico' }, I('layers')),
         h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, v['이름']), integrated ? h('span', { class: 'tag dim' }, '내장') : null),
           h('div', { class: 'sub' }, `Vulkan ${v['API']}${NB}드라이버 ${v['드라이버'] ? v['드라이버']['정보'] : '-'}${NB}공유 메모리 ${(v['공유메모리'] / 1024) | 0}\u00a0KB${NB}텐서 코어 ${v['권하는_협력'] || '없음'}`),
           ...(v['막는것'] || []).map(x => h('div', { class: 'sub bad' }, x))),
@@ -2461,7 +2801,6 @@ async function renderDevice() {
     })) : h('div', { class: 'muted' }, '없음'));
     const cl = raw.cuda && raw.cuda.devices ? raw.cuda.devices : [];
     put($('#dev-cu'), cl.length ? h('div', { class: 'list' }, cl.map(c => h('div', { class: 'item' },
-      h('div', { class: 'ico' }, I('cpu')),
       h('div', { class: 'main' }, h('div', { class: 'title' }, h('span', { class: 'nm' }, c.name)), h('div', { class: 'sub' }, `Compute Capability ${c.cc_major}.${c.cc_minor}${NB}SM ${c.sm}개${NB}CUDA ${(raw.cuda.driver_version / 1000) | 0}.${(raw.cuda.driver_version % 1000) / 10}`)),
       h('div', { class: 'meta' }, d.layer === 'cuda' && c.ok ? h('span', { class: 'tag' }, h('i', { class: 'dot ok' }), '사용 중') : null, c.ok ? h('span', { class: 'tag' }, I('check'), '지원') : h('span', { class: 'tag err' }, I('alert'), '8.0 미만 · 지원 안 함'),
         h('span', { class: 'num muted memv' }, fmtBytes(c.memory)))))) :
