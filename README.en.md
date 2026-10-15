@@ -73,13 +73,19 @@ Double-click `GeulPU.exe`.
 | 실행 안 되는 모델도 보기 | Also show models that don't run |
 | GeulPU 확인됨 · 이 PC에 맞는 크기 | Verified by GeulPU · Fits this PC |
 | 다운로드 · 이어서 다운로드 · 일시정지 | Download · Resume download · Pause |
-| 맞음 · 빠듯함 · 부족 · 추천 | Fits · Tight (context is reduced) · Not enough memory · Recommended |
+| 이 PC에 추천 · 실행 확인됨 · 빠듯함 · 그래픽 메모리 부족 | Recommended for this PC · Verified to run · Tight (context is reduced) · Not enough graphics memory |
 | GGUF 파일 추가 | Add a GGUF file |
 | 생성 설정 · 생각 과정 쓰기 · 온도 · 최대 답변 길이 | Generation settings · Write the thinking process · Temperature · Max answer length |
 | 생각 과정 · N초 동안 생각함 | Thinking · Thought for N seconds |
 | 하드웨어 진단 · 속도 측정 · 재현성 검증 · 빠른 확인 | Hardware diagnosis · Speed test · Reproducibility check · Quick check |
 | 실행 · 결과 보기 · zip 내보내기 | Run · View result · Export zip |
 | GPU 백엔드 · 자동 · 동시 처리 수 · 채팅마다 문맥 길이 · 모델 폴더 · 새 버전 알림 | GPU backend · Auto · Concurrent chats · Context length per chat · Model folder · New-version notice |
+| 먼저 모델이 필요합니다 · 추천 모델 다운로드 · 모델 둘러보기 | A model is needed first · Download the recommended model · Browse models |
+
+With no model installed, the app first shows this screen. **Download the recommended model** (추천 모델 다운로드) fetches a model
+chosen for your graphics memory right away; **Browse models** (모델 둘러보기) opens Find models, described below.
+
+![First screen — a model is needed first](docs/img/first-run.png)
 
 ### 1. Get a model — Models → Find models (모델 → 모델 찾기)
 
@@ -88,13 +94,20 @@ Double-click `GeulPU.exe`.
 - By default only **models GeulPU can run** are shown. **Also show models that don't run** (실행 안 되는 모델도 보기) shows everything,
   with the ones that don't run dimmed and the reason given. **Fits this PC** (이 PC에 맞는 크기) keeps only models that fit your
   graphics memory.
-- Click a model to see its description, downloads, license and **file list** on the right. Every file is marked with whether it fits
-  this PC (fits · tight · not enough) and which one is **recommended**. Click **Download** (다운로드) on the file you want.
+- New to this? Switch on **Verified by GeulPU** (GeulPU 확인됨): only repositories with files GeulPU has run itself remain (picture
+  below); see [which model fits your PC](#which-model-fits-your-pc).
+
+![Find models — the list on the left, details of the selected model on the right](docs/img/find-models.png)
+
+- Click a model to see its description, downloads, license and **file list** on the right. The file that suits this PC best is marked
+  **Recommended for this PC** (이 PC에 추천), files GeulPU has run are marked **Verified to run** (실행 확인됨), and files that are tight
+  or too large for your graphics memory say so. Click **Download** (다운로드) on the file you want.
+
+![File list — "recommended for this PC" and "verified to run" marks with download buttons](docs/img/model-files.png)
+
 - Before downloading, the app reads only the beginning of the file to check that it will run; interrupted downloads resume; finished
   files are verified with SHA-256. Downloads in progress appear under **My models** (내 모델) and in the status bar at the bottom,
   where you can pause or resume them.
-- New to this? Start with a model marked **Verified by GeulPU** (GeulPU 확인됨) — files GeulPU has run itself; see
-  [which model fits your PC](#which-model-fits-your-pc).
 - GGUF files you already have can be added with **Add a GGUF file** (GGUF 파일 추가) at the top; they stay where they are.
 
 ### 2. Chat (채팅)
@@ -102,10 +115,17 @@ Double-click `GeulPU.exe`.
 - Pick a model with the model button at the top and send a message (**Enter** sends, **Shift+Enter** adds a line).
 - **The first time**, GeulPU builds the kernels for your GPU and model (about 10 seconds on a fast CPU, 1–3 minutes on a slow one) and
   loads the model into graphics memory (about 20 seconds for 7B). Later only the loading happens.
-- **Reasoning models** (Qwen3, DeepSeek-R1) think before answering. The thinking is folded; click it to expand.
+- **Reasoning models** (Qwen3, DeepSeek-R1) think before answering. The thinking is folded as "N초 동안 생각함" (thought for N seconds);
+  click it to expand. Token count and speed (tokens/s) appear under the answer.
+
+![Chat — Qwen3-8B Q4_K_M with its thinking folded and the speed under the answer](docs/img/chat-en.png)
+
 - **To turn Qwen3's thinking off**: **Generation settings** (생성 설정 — the slider icon at the top right) → switch off **Write the
   thinking process** (생각 과정 쓰기). It then answers directly.
-- Generation settings also hold the temperature (0 gives the same answer to the same question every time) and the maximum answer length.
+- Generation settings also hold the temperature (0 gives the same answer to the same question every time), the maximum answer length
+  and a system prompt (시스템 프롬프트), saved in this browser.
+
+![Generation settings — temperature, max answer length, thinking switch, system prompt](docs/img/generation-settings.png)
 - You can regenerate an answer or edit and resend your message; earlier answers stay as versions you can flip through (‹ 1 / 2 ›).
   Code, tables and math (LaTeX) are rendered.
 - Conversations are stored only in this browser.
