@@ -106,6 +106,66 @@
       "check": "tested",
       "devices": "k",
       "note": "14B 추론 모델입니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)에서 실행을 확인했습니다(2026-10-15)."
+    },
+    {
+      "id": "qwen3-8b-q8_0",
+      "name": "Qwen3-8B",
+      "params": "8B",
+      "quant": "Q8_0",
+      "file": "Qwen3-8B-Q8_0.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf",
+      "source": "huggingface.co/Qwen/Qwen3-8B-GGUF",
+      "size": 8709518112,
+      "sha256": "408b955510e196121c1c375201744783b5c9a43c7956d73fc78df54c66e883d6",
+      "license": "Apache-2.0",
+      "check": "tested",
+      "devices": "all",
+      "note": "Qwen3 대화 모델입니다. 답하기 전에 생각 과정을 쓰며, 생성 설정의 '생각 과정 쓰기'를 끄면 바로 답합니다. Q8_0 파일이라 공유 메모리가 32 KB인 GPU(AMD 등)에서도 실행되지만 그래픽 메모리가 16 GB 이상이어야 합니다. 이 파일은 CUDA(RTX 4070 Ti)와 Vulkan에서 실행을 확인했습니다(2026-10-15)."
+    },
+    {
+      "id": "qwen3-8b-q4_k_m",
+      "name": "Qwen3-8B",
+      "params": "8B",
+      "quant": "Q4_K_M",
+      "file": "Qwen3-8B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf",
+      "source": "huggingface.co/Qwen/Qwen3-8B-GGUF",
+      "size": 5027783488,
+      "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785",
+      "license": "Apache-2.0",
+      "check": "tested",
+      "devices": "k",
+      "note": "Qwen3-8B의 작은 파일입니다. 답하기 전에 생각 과정을 쓰며, 생성 설정에서 끌 수 있습니다. CUDA나 공유 메모리 48 KB 이상인 Vulkan GPU에서 실행됩니다. 이 파일은 CUDA(RTX 4070 Ti)와 Vulkan에서 실행을 확인했습니다(2026-10-15)."
+    },
+    {
+      "id": "qwen3-1.7b-q8_0",
+      "name": "Qwen3-1.7B",
+      "params": "1.7B",
+      "quant": "Q8_0",
+      "file": "Qwen3-1.7B-Q8_0.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf",
+      "source": "huggingface.co/Qwen/Qwen3-1.7B-GGUF",
+      "size": 1834426016,
+      "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a",
+      "license": "Apache-2.0",
+      "check": "tested",
+      "devices": "all",
+      "note": "작은 Qwen3 모델입니다(1.8 GB). 그래픽 메모리가 적은 PC에서도 실행됩니다. 생각 과정을 쓰며, 생성 설정에서 끌 수 있습니다. 이 파일은 CUDA(RTX 4070 Ti) · Vulkan · 공유 메모리 32 KB 장치의 한도를 흉내 낸 Vulkan에서 실행을 확인했습니다(2026-10-15)."
+    },
+    {
+      "id": "qwen3-14b-q4_k_m",
+      "name": "Qwen3-14B",
+      "params": "14B",
+      "quant": "Q4_K_M",
+      "file": "Qwen3-14B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-14B-GGUF/resolve/main/Qwen3-14B-Q4_K_M.gguf",
+      "source": "huggingface.co/Qwen/Qwen3-14B-GGUF",
+      "size": 9001752960,
+      "sha256": "500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0",
+      "license": "Apache-2.0",
+      "check": "untested",
+      "devices": "k",
+      "note": "14B Qwen3 모델입니다. 이 모양(너비 5120 · 헤드 40/8 · FFN 17408)은 같은 모양의 합성 모델로 출력이 비트 단위로 맞는지 확인했지만, 이 파일로는 아직 실행해 보지 않았습니다. 문맥 길이는 엔진이 그래픽 메모리에 맞춰 자동으로 줄입니다."
     }
   ]
 }

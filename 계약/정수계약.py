@@ -432,6 +432,16 @@ def rope(x, cos, sin, 위치):
     return np.concatenate([fma32(a, c, -곱(b, s)), fma32(b, c, 곱(a, s))], 1).astype(f32)
 
 
+def 머리정규화(x, w, eps=1e-6, hd=128):
+    """37단계 — 머리마다 Q · K 정규화(Qwen3 — 계약 4.6): x [n][머리 수 · hd] 의 머리마다(행 하나의 hd 칸) rms정규화 를 D = hd 로 —
+    가닥 t < 128 에 칸 하나씩, 128 접기는 +0 이라 p_t = x_t · x_t 를 64 부터 반씩 접은 S, r = 1 / 제곱근(S / hd + eps), y = (x · r) · w.
+    w 는 hd 칸(머리끼리 같은 무게). RoPE 앞에 q · k 에 — v 는 하지 않는다."""
+    x = np.asarray(x, f32)
+    n, A = x.shape
+    assert A % hd == 0, (A, hd)
+    return rms정규화(x.reshape(n * (A // hd), hd), w, eps).reshape(n, A)
+
+
 def swiglu(g, u):
     """SwiGLU 의 h = silu(g) · u — e = 적힌지수(0 − |g|), s = g ≥ 0 이면 g / (1 + e), 아니면 (g · e) / (1 + e), h = s · u (연산마다 IEEE 반올림)."""
     g, u = np.asarray(g, f32), np.asarray(u, f32)

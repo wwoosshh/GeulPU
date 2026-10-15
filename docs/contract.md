@@ -119,6 +119,14 @@ the reason short chunks at long contexts became fast. Accuracy is unchanged (med
 4. **GQA**: query head h reads the cache of KV head ⌊h / (query heads / KV heads)⌋ — the attention contract (sections 2 · 3) is unchanged.
 5. Linear layers without a bias (o · gate · up · down · logits) add a bias of 0. The embedding is the token table's q · d (exact); there
    is no position embedding.
+6. **Per-head Q · K normalization** (stage 37 — Qwen3): after the q · k · v linear layers (models without biases add 0, as in 5) and
+   before RoPE, every q head and every k head (one head of one row = 128 values x_0 … x_127) gets the RMSNorm of 1 with D = 128. Each
+   lane t < 128 holds one value and the 128-fold adds +0, so it reads: p_t = x_t · x_t, folded in halves from 64 down to S
+   (p_t ← p_t + p_{t+fold}); r = 1 / sqrt(S / 128 + eps); y_t = (x_t · r) · w_t. The weights w are the layer's `attn_q_norm` ·
+   `attn_k_norm` (128 float32 values shared by all heads); eps is the model's (it must equal the generator's constant). v is not
+   normalized. RoPE (head size 128, item 2 below) and the integer KV cache follow unchanged. The kernel gives lane l the values
+   d = l + 32·i (i = 0 … 3), so the 64-fold is two adds (p_l + p_{l+64}, p_{l+32} + p_{l+96}), the 32-fold adds those two, and xor
+   shuffles 16 · 8 · 4 · 2 · 1 finish the fold — bit-identical to the order above (checked over 4,096 heads in the contract self-test).
 
 ### Head size 128 (stage 22 — Qwen2.5-7B and larger)
 
@@ -181,4 +189,5 @@ to the temperature-1 distribution and the temperature last. This contract applie
 | Qwen2 ([`시험/qwen2.py`](../시험/qwen2.py)) | every linear kernel (row-major · column-major · row · batched-row) · RMSNorm · RoPE+KV · SwiGLU conversions · GQA attention (five kernels + the decode kernel) against the CPU reference; paths (all at once · one at a time · two pieces · split feeding · small chunks · conversation) — logits and cache; all rows of logits for three chat prompts, and the last row beyond position 1024, against the CPU reference's full forward pass; repeatability of the terminal runner; GPT-2 module source unchanged |
 | Qwen2 decode megakernel ([`시험/메가15.py`](../시험/메가15.py)) | megakernel vs the stage-14 decode graph — logits and tokens at each of 64 steps for three chat prompts and contexts 1024 · 2100 · 8192, then the KV cache bytes; three turns of the runner's conversation (stopping inside the kernel at the end token) — tokens and cache; GPT-2 module source unchanged |
 | k-quants (stage 26) | every k-quant kernel (243 cases: 11 tile shapes × epilogues × formats, row kernels, embeddings) on real weights of three GGUF files; full forward passes of Q4_K_M · Q5_K_M · Q6_K against the CPU reference |
+| Qwen3 (stage 37 — [`시험/머리정규화37.py`](../시험/머리정규화37.py) · [`시험/참조7B.py`](../시험/참조7B.py) · [`시험/참조생성.py`](../시험/참조생성.py)) | the head-norm kernel (rows 1 · 4 · 64 · 2048 × the weights of every layer of 8B, random and extreme values) against the CPU reference — v untouched; every row's logits of three chat prompts + 16 generated tokens for 1.7B · 8B (Q8_0 · Q4_K_M) · two synthetic 14B-shape models against the CPU reference's full forward pass; five-path, Vulkan and shared32-emulation summaries equal to CUDA; greedy generation with the CPU reference (not a criterion — compared with llama.cpp) |
 | Quick check (CI) | without a GPU: the CPU reference against exact rational arithmetic and against an independent per-value dequantizer; byte-identical regeneration of every module; register spills in SASS — see [reproduce.md](reproduce.md) |

@@ -291,6 +291,39 @@ def 시험_규칙R(r):
     확인("규칙 R — 빼기 = 더(a, −b)", d == 0, f"다른 칸 {d}")
 
 
+def 시험_머리정규화(r):
+    """37단계 — 머리마다 Q · K 정규화(계약 4.6): (1) 판의 차례(워프 하나 = 머리 하나, 레인 l 이 d = l + 32·i — 64 접기를 둘로 나눠
+    a = p_l + p_{l+64} · b = p_{l+32} + p_{l+96}, 32 접기 a + b, 셔플 xor 16 · 8 · 4 · 2 · 1)가 계약의 접기(rms정규화 를 D = 128 로)와
+    비트까지 같고 모든 레인이 같은 S 를 갖는지, (2) fp64 의 정규화와의 상대 오차(공식이 맞는지 — 크기를 넓게)."""
+    hd, eps = 128, 1e-6
+    m = 4096
+    x = (r.standard_normal((m, hd)) * 10.0 ** r.uniform(-25, 17, (m, 1))).astype(f32)
+    x[:8] = 0                                                         # 0 인 머리
+    x[8:16, ::3] = 0                                                  # 칸 몇이 0
+    x[16:24] = (r.standard_normal((8, hd)) * 2.0 ** -140).astype(f32)  # 비정규수 입력
+    x[24:32, :5] = (2.0 ** r.integers(-126, 60, (8, 5))).astype(f32)  # 2 의 거듭제곱
+    w = (r.standard_normal(hd) * 2).astype(f32)
+    w[:4] = (1.0, -1.0, 0.0, 2.0 ** -20)
+    계약 = C.머리정규화(x.reshape(m // 8, 8 * hd), w, eps).reshape(m, hd)
+    p = C.곱(x, x)
+    s = C.더(C.더(p[:, 0:32], p[:, 64:96]), C.더(p[:, 32:64], p[:, 96:128]))
+    for k in (16, 8, 4, 2, 1):
+        s = C.더(s, s[:, np.arange(32) ^ k])
+    레인같음 = int(np.count_nonzero((s.view(np.int32) != s[:, :1].view(np.int32)).any(1)))
+    rr = C.나눔(f32(1), C.제곱근(C.더(C.나눔(s[:, 0], f32(hd)), f32(eps))))
+    판 = C.곱(C.곱(x, rr[:, None]), w[None, :])
+    d = 다른칸(계약, 판)
+    확인("머리 정규화 — 판의 차례(64 접기를 둘로 · 셔플 xor) 대 계약의 접기", d == 0 and 레인같음 == 0,
+         f"{m} 머리 중 다른 칸 {d}, 레인끼리 S 가 다른 머리 {레인같음}")
+    x64 = x.astype(np.float64)
+    y64 = x64 / np.sqrt((x64 * x64).mean(1, keepdims=True) + float(f32(eps))) * w.astype(np.float64)[None, :]
+    정상 = np.abs(x64).max(1) > 1e-15                                  # x · x 가 버려지지 않는 머리(규칙 R 의 경계 밖)
+    상대 = np.abs(계약[정상].astype(np.float64) - y64[정상]) / np.maximum(np.abs(y64[정상]), 1e-30)
+    상대 = np.where(np.abs(y64[정상]) > 1e-30, 상대, 0)
+    확인("머리 정규화 — fp64 의 정규화와의 상대 오차 ≤ 2⁻¹⁹", float(상대.max()) <= 2.0 ** -19,
+         f"머리 {int(정상.sum())} · 최대 {float(상대.max()):.2e} · 가운데 {float(np.median(상대)):.2e}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     r = np.random.default_rng(27)
@@ -298,6 +331,7 @@ def main():
     시험_행렬곱(r)
     시험_K(r)
     시험_규칙R(r)
+    시험_머리정규화(r)
     print("계약 자체 시험:", "모두 통과" if not 실패 else f"못 미침 {실패}", flush=True)
     return 0 if not 실패 else 1
 

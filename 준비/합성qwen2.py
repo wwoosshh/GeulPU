@@ -10,6 +10,8 @@
   Q4_0 은 니블 0 … 15 고르게 · 척도 d = 0.0043 · (0.5 … 1.5), Q8_0 은 −127 … 127 고르게 · d = 0.00027 · (0.5 … 1.5) — 값의 표준편차 약 0.02.
   RMS 감마는 1 + N(0, 0.1), 치우침은 N(0, 0.02) (F32).
 값은 학습한 모델이 아니다 — 모양 · 비트 · 길 · 속도(층마다)를 보는 데만 쓴다.
+37단계 — 바탕이 Qwen3(구조 qwen3)면 열쇠의 앞머리가 qwen3. 이고, 층마다 치우침 대신 attn_q_norm · attn_k_norm(F32 128 칸 — 감마와 같은
+1 + N(0, 0.1))을 둔다. 모양 qwen3-14B = Qwen3-14B(5120 · 40 / 8 · 17408). Qwen2 바탕의 파일은 바이트까지 그대로다.
 """
 import hashlib
 import struct
@@ -17,7 +19,8 @@ import sys
 
 import numpy as np
 
-모양들 = {"14B": (5120, 40, 8, 13824), "32B": (5120, 40, 8, 27648), "72B": (8192, 64, 8, 29568)}
+모양들 = {"14B": (5120, 40, 8, 13824), "32B": (5120, 40, 8, 27648), "72B": (8192, 64, 8, 29568),
+         "qwen3-14B": (5120, 40, 8, 17408)}
 F32, Q4_0, Q8_0 = 0, 2, 8
 파일형식 = {"Q4_0": 2, "Q8_0": 7}                                  # llama.cpp 의 LLAMA_FTYPE_MOSTLY_*
 정렬 = 32
@@ -97,11 +100,16 @@ def main():
     HD = 128
     KVD = NKV * HD
     메타 = 메타읽기(바탕)
+    구조 = next((raw[8:].decode("utf-8") for k, t, raw in 메타 if k == "general.architecture"), "qwen2")
+    assert 구조 in ("qwen2", "qwen3"), 구조
+    qwen3 = 구조 == "qwen3"
+    앞 = 구조 + "."
+    이름글 = f"합성 Qwen3 {모양} 모양 · 층 {층} · {형식} (37단계)" if qwen3 else f"합성 Qwen2 {모양} 모양 · 층 {층} · {형식} (24단계)"
     V = None
-    바꿈 = {"qwen2.block_count": (4, struct.pack("<I", 층)), "qwen2.embedding_length": (4, struct.pack("<I", D)),
-          "qwen2.feed_forward_length": (4, struct.pack("<I", F)), "qwen2.attention.head_count": (4, struct.pack("<I", NH)),
-          "qwen2.attention.head_count_kv": (4, struct.pack("<I", NKV)),
-          "general.name": (8, 문자열(f"합성 Qwen2 {모양} 모양 · 층 {층} · {형식} (24단계)")),
+    바꿈 = {앞 + "block_count": (4, struct.pack("<I", 층)), 앞 + "embedding_length": (4, struct.pack("<I", D)),
+          앞 + "feed_forward_length": (4, struct.pack("<I", F)), 앞 + "attention.head_count": (4, struct.pack("<I", NH)),
+          앞 + "attention.head_count_kv": (4, struct.pack("<I", NKV)),
+          "general.name": (8, 문자열(이름글)),
           "general.file_type": (4, struct.pack("<I", 파일형식[형식]))}
     kv = []
     for k, t, raw in 메타:
@@ -119,6 +127,12 @@ def main():
     텐서 = [("token_embd.weight", 형식, D, V)]
     for l in range(층):
         p = f"blk.{l}."
+        if qwen3:                                            # 37단계 — 치우침 없음, 머리마다 q · k 정규화의 무게
+            텐서 += [(p + "attn_norm.weight", "F32", D, 1), (p + "attn_q.weight", 형식, D, D), (p + "attn_q_norm.weight", "F32", HD, 1),
+                   (p + "attn_k.weight", 형식, D, KVD), (p + "attn_k_norm.weight", "F32", HD, 1), (p + "attn_v.weight", 형식, D, KVD),
+                   (p + "attn_output.weight", 형식, D, D), (p + "ffn_norm.weight", "F32", D, 1),
+                   (p + "ffn_gate.weight", 형식, D, F), (p + "ffn_up.weight", 형식, D, F), (p + "ffn_down.weight", 형식, F, D)]
+            continue
         텐서 += [(p + "attn_norm.weight", "F32", D, 1), (p + "attn_q.weight", 형식, D, D), (p + "attn_q.bias", "F32", D, 1),
                (p + "attn_k.weight", 형식, D, KVD), (p + "attn_k.bias", "F32", KVD, 1), (p + "attn_v.weight", 형식, D, KVD),
                (p + "attn_v.bias", "F32", KVD, 1), (p + "attn_output.weight", 형식, D, D), (p + "ffn_norm.weight", "F32", D, 1),

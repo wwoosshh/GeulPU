@@ -1,4 +1,4 @@
-# Research log — how GeulPU came about (stages 0–32, 2026-10-08 to 10-14)
+# Research log — how GeulPU came about (stages 0–37, 2026-10-08 to 10-15)
 
 *English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
 `research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
@@ -58,7 +58,7 @@ same GGUF file: r < 1 means GeulPU is faster.
 - Stage 33 (the price of the contract at equal optimization) was pre-registered and its one-digit variant built and verified, then stopped
   before timing: the same price had already been measured on 2026-10-13 in the same engine (two digits → one: prompts 1.26–1.38×, a lower
   bound; decode about 1.0×), and a price measured on an engine that has not reached its hardware floor says little.
-- Now **stage 34 — Vulkan speed**: the integer tensor op is emulated with subgroup shuffles and integer dot products; per-kernel timing
+- **Stage 34 — Vulkan speed**: the integer tensor op is emulated with subgroup shuffles and integer dot products; per-kernel timing
   showed the matrix products 4.6–10.9× and attention 7.2× slower than CUDA, everything else close. The SPIR-V backend gained
   cooperative-matrix instructions (16×16×32 integer products on tiles in shared memory, split per device shape — AMD's 16×16×16 too), and
   `커널생성 --협력` emits tile kernels with the same names, parameters and epilogues that use them. Attention's three products and the
@@ -75,7 +75,31 @@ same GGUF file: r < 1 means GeulPU is faster.
   1.00–1.06× its decode time (stage 31: 1.09–1.27×; short-context decode varies about 3% between runs) — a record, not yet the verdict. Re-running the stage-31 model tests exposed a
   fixed 512-launch plan limit (14B with many split tiles) — now sized by layer count — and the cross-check's build hashes, stale since
   stage 33, were renewed after the R1 run matched all 82,673 logit hashes.
+  An AMD cross-check (`교차검증/runV.bat` — a Vulkan device check, then one run each with the cooperative-matrix and the basic module)
+  matches R1 32/32 · 82,673 steps of the CUDA reference with both modules on this PC's Vulkan. The first AMD report (RX 9060 XT) hit
+  32 KB of shared memory and a 2 GiB single allocation, so a "shared32" kernel set (decode line kernels and attention within 32 KB — the
+  same arithmetic) and per-layer weight allocation were added (the AMD-limit emulation matches 23b's five paths). On a friend's RX 9060 XT
+  both modules (16×16×16 cooperative, basic) then matched R1 32/32 · 82,673 steps of the NVIDIA CUDA reference — the same bits on another
+  vendor's GPU. Its speed is 3.3–3.7× the reference PC's Vulkan (attention, eight-row matrix products).
 - Stage 32 waits for the diagnosis and alternation runs on friends' PCs (32c, 32d).
+- **Stage 35 — AMD speed** (shared32 attention on cooperative matrices, line tiles fitted to 32 KB): 35a passed; 35b (AMD emulation on
+  this PC) cut an eight-slot decode step from 44.3 to 22.2 ms; 35c waits for a friend's `speedV.bat` run ([35단계](../문서/35단계.md)).
+- **Stage 36 — the GeulPU app.** 0.2.0: a manager written in geul (`GeulPU.exe`) with a web UI — model download (WinHTTP, resume,
+  SHA-256) and adding GGUF files, chat (Qwen2.5, R1), self-diagnosis, speed and cross-check runs with result zips, versioning
+  (`앱/판.gl`, `바뀐것.md`, an update notice) and a release CI (tag → draft release). The released server, generator and backends are
+  byte-identical to the cross-check reference build. 0.3.0: redesigned on the x.ai design system through rounds of review by independent
+  agents; the six other catalog files were downloaded through the app and all seven run on CUDA ([36단계](../문서/36단계.md)).
+- **Stage 37 — Qwen3, the second model family.** Verification is per architecture · shape · format rather than per model (large shapes
+  on synthetic models). Per-head Q/K RMSNorm became contract §4.6 and one kernel appended to the module (`머리정규화128` — every earlier
+  kernel byte-identical); host, server (Qwen3 chat template, thinking on/off, `geulpu.special` to emit `<think>` tokens as text) and app
+  accept qwen3. 37a passed: the norm kernel and three files end to end (Qwen3-1.7B Q8_0, 8B Q8_0, 8B Q4_K_M) show 0 differing logits
+  against the CPU reference; Vulkan and the shared32 emulation are byte-identical to CUDA; two synthetic 14B-shape models also match.
+  37b passed: five paths, the nine old modules and the 7B records unchanged, R1 cross-check CUDA 32/32 and Vulkan quick check — the build
+  hashes in `expected.json` were renewed. 37c (decode speed ≤ 1.05× llama.cpp) was not measured officially: a one-run preview against
+  b11567 gave r 0.982–1.007 (Q8_0) and 1.037–1.055 (Q4_K_M), and by the user's decision speed becomes its own stage. Bit tests ran on
+  the same code before the commit, without an official run. App 0.4.0: Qwen3, a model finder that browses every Hugging Face GGUF repo
+  sorted by trending, downloads, likes or recency (runnable models only by default, with a detail pane), and install/usage guides in
+  Korean and English ([37단계](../문서/37단계.md)).
 
 ## What remains (after stage 30)
 

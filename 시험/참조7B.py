@@ -6,6 +6,8 @@ CPU 참조(정수 계약의 Qwen2 앞으로 — 계약/정수계약.py, 행렬�
 
 먼저 빠른 판(행렬곱블라스)이 정수계약.행렬곱(자리수=2)과 비트까지 같은지 무작위 값과 7B 층 0 의 실제 가중치 조각으로 본다(문서/22단계.md 에
 미리 적은 대로). 앞으로는 층마다 가중치를 한 번 풀어 세 경우의 행을 함께 행렬곱하고, RoPE · 어텐션은 경우마다(위치 0 부터).
+37단계 — 구조 qwen3(Qwen3)도: 열쇠 앞머리는 general.architecture 에서, 치우침 텐서가 없으면 0(계약 4.5), RoPE 앞에 머리마다 q · k 정규화
+(계약 4.6 — attn_q_norm · attn_k_norm), output.weight 가 없으면 낱말표(묶인 출력), 머리 크기는 key_length(없으면 너비 / 머리 수).
 """
 import json
 import os
@@ -110,30 +112,33 @@ def 자체시험(g):
     return 결과
 
 
-def main():
-    sys.stdout.reconfigure(encoding="utf-8")
-    gguf, 폴더, 출력 = sys.argv[1:4]
-    g = GR.GGUF(gguf)
+def 설정(g):
+    """모델 머리의 설정 — 구조(qwen2 · qwen3), 층 · 머리 · KV 머리, eps, RoPE θ, 머리 크기(key_length — 없으면 None: 너비 / 머리 수)."""
     m = g.meta
-    NL, NH, NKV = m["qwen2.block_count"], m["qwen2.attention.head_count"], m["qwen2.attention.head_count_kv"]
-    eps = float(m["qwen2.attention.layer_norm_rms_epsilon"])
-    θ = float(m["qwen2.rope.freq_base"])
-    결과 = {"자체시험": 자체시험(g)}
-    if "--자체시험만" in sys.argv:
-        json.dump(결과, open(출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-        return
-    # 경우들 — 글 도구가 쓴 토큰열 S 와 로짓
-    경우 = []
-    i = 0
-    while os.path.exists(os.path.join(폴더, f"경우{i}_토큰.bin")):
-        S = np.fromfile(os.path.join(폴더, f"경우{i}_토큰.bin"), np.int64)
-        경우.append(S)
-        i += 1
-    print("경우", [len(S) for S in 경우], flush=True)
-    t0 = time.time()
+    구조 = m.get("general.architecture", "qwen2")
+    assert 구조 in ("qwen2", "qwen3"), f"받지 않는 구조 {구조}"
+    k = 구조 + "."
+    return {"구조": 구조, "층": m[k + "block_count"], "머리": m[k + "attention.head_count"], "KV머리": m[k + "attention.head_count_kv"],
+            "eps": float(m[k + "attention.layer_norm_rms_epsilon"]), "θ": float(m[k + "rope.freq_base"]),
+            "머리크기": m.get(k + "attention.key_length")}
+
+
+def 치우침(g, 이름, n):
+    """치우침 텐서(없으면 0 — 계약 4.5: 치우침 없는 선형은 0 을 더한다)."""
+    return g.풀기(이름) if 이름 in g.tensors else np.zeros(n, f32)
+
+
+def 앞으로(g, 경우, 말=True, 끝행만=False):
+    """정수 계약의 앞으로 — 토큰열들(경우마다 위치 0 부터)의 모든 행 로짓 [Σ 행][어휘]과 경우의 시작 행. 끝행만: 경우마다 끝 행의 로짓만
+    [경우][어휘] (탐욕 생성 — 시험/참조생성.py; 행마다의 값은 같다)."""
+    s_ = 설정(g)
+    NL, NH, NKV, eps, θ = s_["층"], s_["머리"], s_["KV머리"], s_["eps"], s_["θ"]
+    qwen3 = s_["구조"] == "qwen3"
     we = 가중(g, "token_embd.weight")
     D = we[1].shape[1]
-    HD = D // NH
+    HD = int(s_["머리크기"] or D // NH)
+    A = NH * HD                                                       # 질의 폭(qwen2 · 이번 범위의 qwen3 는 너비와 같다)
+    KVW = NKV * HD
     G_ = NH // NKV
     if we[0] in ("Q8_0", "Q4_0"):
         eq, ed = we[1], we[2]
@@ -150,19 +155,22 @@ def main():
         h = C.rms정규화(x, g.풀기(p + "attn_norm.weight"), eps)
         ws = [가중(g, p + f"attn_{a}.weight") for a in ("q", "k", "v")]
         if all(w[0] == ws[0][0] and w[0] in ("Q8_0", "Q4_0") for w in ws):          # 22 · 23단계와 같은 길
-            bias = np.concatenate([g.풀기(p + f"attn_{a}.bias") for a in ("q", "k", "v")])
+            bias = np.concatenate([치우침(g, p + f"attn_{a}.bias", w[1].shape[0]) for w, a in zip(ws, ("q", "k", "v"))])
             qkv = C.행렬곱블라스(h, np.concatenate([w[1] for w in ws]), np.concatenate([w[2] for w in ws]), bias)
         else:                                                                           # 26단계 — 텐서마다 형식(열마다 따로라 값은 같다)
-            qkv = np.concatenate([곱(h, w, g.풀기(p + f"attn_{a}.bias")) for w, a in zip(ws, ("q", "k", "v"))], 1)
+            qkv = np.concatenate([곱(h, w, 치우침(g, p + f"attn_{a}.bias", w[1].shape[0])) for w, a in zip(ws, ("q", "k", "v"))], 1)
         del ws
+        if qwen3:                                                                       # 37단계 — 계약 4.6: RoPE 앞, v 는 그대로
+            qkv = np.concatenate([C.머리정규화(qkv[:, :A], g.풀기(p + "attn_q_norm.weight"), eps, HD),
+                                  C.머리정규화(qkv[:, A:A + KVW], g.풀기(p + "attn_k_norm.weight"), eps, HD), qkv[:, A + KVW:]], 1)
         ys = []
         for s, S in enumerate(경우):
             n = len(S)
             r = qkv[시작[s]:시작[s + 1]]
             위치 = np.arange(n)
             qh = [C.rope(r[:, HD * a:HD * a + HD], cos, sin, 위치) for a in range(NH)]
-            kh = [C.rope(r[:, D + HD * a:D + HD * a + HD], cos, sin, 위치) for a in range(NKV)]
-            vh = [np.ascontiguousarray(r[:, D + NKV * HD + HD * a:D + NKV * HD + HD * a + HD]) for a in range(NKV)]
+            kh = [C.rope(r[:, A + HD * a:A + HD * a + HD], cos, sin, 위치) for a in range(NKV)]
+            vh = [np.ascontiguousarray(r[:, A + KVW + HD * a:A + KVW + HD * a + HD]) for a in range(NKV)]
             ys.append(np.concatenate([C.어텐션(qh[a], kh[a // G_], vh[a // G_]) for a in range(NH)], 1))
         y = np.concatenate(ys, 0)
         x = (x + 곱(y, 가중(g, p + "attn_output.weight"), np.zeros(D, f32))).astype(f32)
@@ -174,11 +182,35 @@ def main():
         uu = 곱(h, 가중(g, p + "ffn_up.weight"), np.zeros(F, f32))
         f = C.swiglu(gg, uu)
         x = (x + 곱(f, 가중(g, p + "ffn_down.weight"), np.zeros(D, f32))).astype(f32)
-        print(f"층 {l}: {time.time() - tl:.1f} 초", flush=True)
+        if 말:
+            print(f"층 {l}: {time.time() - tl:.1f} 초", flush=True)
+    if 끝행만:
+        x = x[시작[1:] - 1]
     h = C.rms정규화(x, g.풀기("output_norm.weight"), eps)
-    wh = 가중(g, "output.weight")
-    V = wh[1].shape[0]
-    로짓 = 곱(h, wh, np.zeros(V, f32))
+    wh = 가중(g, "output.weight" if "output.weight" in g.tensors else "token_embd.weight")     # 37단계 — 묶인 출력(Qwen3-1.7B)
+    로짓 = 곱(h, wh, np.zeros(wh[1].shape[0], f32))
+    return 로짓, 시작
+
+
+def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    gguf, 폴더, 출력 = sys.argv[1:4]
+    g = GR.GGUF(gguf)
+    결과 = {"자체시험": 자체시험(g)}
+    if "--자체시험만" in sys.argv:
+        json.dump(결과, open(출력, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        return
+    # 경우들 — 글 도구가 쓴 토큰열 S 와 로짓
+    경우 = []
+    i = 0
+    while os.path.exists(os.path.join(폴더, f"경우{i}_토큰.bin")):
+        S = np.fromfile(os.path.join(폴더, f"경우{i}_토큰.bin"), np.int64)
+        경우.append(S)
+        i += 1
+    print("경우", [len(S) for S in 경우], flush=True)
+    t0 = time.time()
+    로짓, 시작 = 앞으로(g, 경우)
+    V = 로짓.shape[1]
     결과["경우"] = []
     for s, S in enumerate(경우):
         A = np.fromfile(os.path.join(폴더, f"경우{s}_로짓.bin"), f32).reshape(len(S), V)

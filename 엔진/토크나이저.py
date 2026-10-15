@@ -207,3 +207,32 @@ def 채팅틀(메시지들, 이어쓰기=True):
     if 이어쓰기:
         s += "<|im_start|>assistant\n"
     return s
+
+
+def 채팅틀qwen3(메시지들, 이어쓰기=True, 생각=True):
+    """37단계 — Qwen3 의 chat_template(GGUF 의 tokenizer.chat_template — 도구 없는 갈래): 기본 시스템 말이 없다. 마지막 사용자 질문 앞의
+    assistant 말은 생각(<think> … </think>)을 떼고 답만, 뒤의 것은 생각을 '<think>\\n…\\n</think>\\n\\n' 로 감싸 둔다. 이어쓰기에 생각 끔
+    (enable_thinking=False)이면 '<think>\\n\\n</think>\\n\\n' 를 붙인다."""
+    줄 = chr(10)
+    s = ""
+    if 메시지들 and 메시지들[0]["role"] == "system":
+        s += f"<|im_start|>system\n{메시지들[0]['content']}<|im_end|>\n"
+    마지막질문 = max([i for i, m in enumerate(메시지들) if m["role"] == "user"], default=len(메시지들) - 1)
+    for i, m in enumerate(메시지들):
+        if m["role"] == "user" or (m["role"] == "system" and i > 0):
+            s += f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n"
+        elif m["role"] == "assistant":
+            내용, 생각글 = m["content"], ""
+            if "</think>" in 내용:
+                생각글 = 내용.split("</think>")[0].rstrip(줄).split("<think>")[-1].lstrip(줄)
+                내용 = 내용.split("</think>")[-1].lstrip(줄)
+            if i > 마지막질문 and (i == len(메시지들) - 1 or 생각글):
+                s += f"<|im_start|>assistant\n<think>\n{생각글.strip(줄)}\n</think>\n\n{내용.lstrip(줄)}"
+            else:
+                s += f"<|im_start|>assistant\n{내용}"
+            s += "<|im_end|>\n"
+    if 이어쓰기:
+        s += "<|im_start|>assistant\n"
+        if not 생각:
+            s += "<think>\n\n</think>\n\n"
+    return s
