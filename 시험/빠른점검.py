@@ -3,7 +3,7 @@
 단계마다의 공식 실행(GPU 의 비트 대조 · 속도 — 공식실행/)은 그대로 두고, 그 가운데 GPU 가 들지 않는 몫을 여기로:
   1. 파이썬 문법(저장소의 .py 모두)과 셸 스크립트 문법(공식실행/*.sh — bash -n)
   2. 계약의 CPU 참조 자체 시험(시험/계약자체.py)
-  3. 판(타일 모양) 표가 생성기 · 호스트 · 시험에서 같은가
+  3. 판(타일 모양) 표가 생성기 · 호스트 · 시험에서 같은가, 교차검증 스크립트(run.ps1 · runV.ps1)가 지금의 토크나이저를 알아보는가(39단계)
   4. 글(geul) 언어 프로그램이 빌드되는가 — 커널 생성기와 호스트 프로그램 모두(글 컴파일러)
   5. 모듈(커널 소스 · PTX · SPIR-V 묶음)을 처음부터 만들어 시험/모듈해시.txt 와 바이트까지 견준다 — 바꾸려면 --해시갱신
      (31단계 — SPIR-V 는 글 저장소의 자체SPIRV 뒷단으로. GPU 없이 만들 수 있어 PTX 와 같이 CI 에서 본다)
@@ -170,6 +170,34 @@ def 판표():
     알림("판 표", bool(기준) and not 다름 and len(표) == 4 and bool(줄기준) and not 줄다름 and len(줄표) == 3 and bool(K기준) and not K다름 and len(K표) == 3,
          f"{len(기준)} 판 · 곳 {len(표)} · 줄 타일 판 {len(줄기준)} · 곳 {len(줄표)} · k-양자화 줄 타일 판 {len(K기준)} · 곳 {len(K표)}"
          + (f" — 생성기와 다른 곳 {다름 + 줄다름 + K다름}" if 다름 or 줄다름 or K다름 else ""))
+
+
+# ---- 3b. 교차검증 스크립트의 덧댐(39단계 — 문서/39단계.md 의 위험 1) ----
+def _ps식(글):
+    """PowerShell 의 글 식(홑따옴표 글 '…' — 안의 '' 는 ' — 과 "`n" 을 + 로 이은 것)을 파이썬 글로."""
+    out = []
+    for m in re.finditer(r"'((?:[^']|'')*)'|\"`n\"", 글):
+        out.append("\n" if m.group(1) is None else m.group(1).replace("''", "'"))
+    return "".join(out)
+
+
+def 교차검증덧댐():
+    """교차검증/run.ps1 · runV.ps1 은 저장소의 호스트/토크나이저.gl 을 복사해 R1 의 두 곳을 고치거나(옛 꼴), 이미 든 꼴(36단계 덧댐 ·
+    39단계 꼴)을 알아본다. 지금의 토크나이저가 그 가운데 하나가 아니면 친구 PC 의 교차검증이 '토크나이저.gl 이 예상과 달라'로 멈춘다."""
+    t = open(os.path.join(ROOT, "호스트", "토크나이저.gl"), encoding="utf-8").read().replace("\r\n", "\n")
+    틀림 = []
+    for 이름 in ("run.ps1", "runV.ps1"):
+        s = open(os.path.join(ROOT, "교차검증", 이름), encoding="utf-8-sig").read().replace("\r\n", "\n")
+        식 = {}
+        for 변수 in ("old1", "new1", "old2", "new2", "r39a", "r39b"):
+            m = re.search(r"^\s*\$" + 변수 + r"\s*=\s*(.*?)\n(?=\s*(?:\$\w+\s*=|#|if\b|elseif\b|else\b|\[))", s, re.S | re.M)
+            if m:
+                식[변수] = _ps식(m.group(1))
+        꼴 = [k for k, (a, b) in {"옛 꼴": ("old1", "old2"), "36단계 덧댐": ("new1", "new2"), "39단계 꼴": ("r39a", "r39b")}.items()
+             if 식.get(a) and 식.get(b) and 식[a] in t and 식[b] in t]
+        if not 꼴:
+            틀림.append(f"{이름}: 받는 꼴이 없다(읽은 식 {sorted(식)})")
+    알림("교차검증 덧댐", not 틀림, "run.ps1 · runV.ps1 이 지금의 토크나이저.gl 을 알아본다" if not 틀림 else str(틀림))
 
 
 # ---- 4 · 5 · 6. 빌드 · 모듈 · 가져오기 표 ----
@@ -399,6 +427,7 @@ def main():
     else:
         계약자체(출력)
     판표()
+    교차검증덧댐()
     도구 = [os.path.join(글, "build", x + EXE) for x in ("self_컴파일러", "자체PTX", "자체SPIRV")]
     없는것 = [x for x in 도구 if not os.path.exists(x)]
     if 없는것:
