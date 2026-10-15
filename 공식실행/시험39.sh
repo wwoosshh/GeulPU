@@ -180,7 +180,7 @@ LIST
     기록 "39a(6) $f llama.cpp 종료 $? — $(grep -c '^라마' "$D/라마.log") 경우"
     python -I -X utf8 시험/독립39.py 견주기 "$D" "$D/글" "$OUT/39a_독립_$f.json" > "$D/견주기.log" 2>&1
     기록 "39a(6) $f — $(cat "$D/견주기.log" | tr '\n' ' ')"
-    rm -f "$D"/라마*.npy
+    # 라마{i}.npy(각 1 GB 남짓)는 작업 폴더에 남긴다
   done
   ;;
 토크나이저)   # 39b (1) — 글 묶음 2,000 줄 · 서버의 /tokenize · /detokenize 와 llama-tokenize
