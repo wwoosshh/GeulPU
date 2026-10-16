@@ -17,7 +17,8 @@ On 696 Korean prompts and 600 math problems, llama.cpp changes 89–100 % of the
 disappear: text in another script 36 new vs 35 gone, wrong or unfinished math answers 25 vs 28, with 95 % intervals that bound the net
 change to between −17 % and +19 % and between −22 % and +15 % of the baseline's counts. At 10,817 fragile steps — where an abnormal token
 competes closely with the chosen one — we find no tilt toward other-script or byte-split tokens (equivalence within ±0.05 nat) and a
-small tilt toward repetition (+0.0039 nat, about 0.4 % in odds) that is specific to repeating tokens. Under greedy decoding and
+small tilt toward repetition (+0.0039 nat, about 0.4 % in odds) that is specific to repeating tokens; measured against fp64 arithmetic on a 0.5B model, the baseline's own rounding tilts
+repetition steps by only +0.0005 nat and other steps not at all. Under greedy decoding and
 contract-exact computation, most failures arise in the model itself (32 % of long-form Korean answers loop to the length limit), and
 at steps where an other-script token is already a close competitor, forcing it is followed by more other-script text in 80 % of
 continuations, against 34 % after the original token. All hypotheses, statistics and decision rules were pre-registered.
@@ -119,8 +120,9 @@ vendor, and they equal those of a CPU reference implementation of the contract i
 only numerical loss is the one the contract writes down, and it is deterministic — but it is not exact arithmetic. The contract's loss
 is small: on Qwen2.5-0.5B (Q8_0) the Kullback–Leibler divergence of its next-token distributions from an fp64 computation is
 2.24 × 10⁻⁶, against 1.38 × 10⁻³ for llama.cpp; for 7B and 14B the corresponding ratios (1/3,805 and 1/4,467) come from a simulation of
-the rounding points rather than from the engine. Whether the contract's own rounding tilts fragile steps relative to an fp64 computation
-is measured on Qwen2.5-0.5B in Appendix E *[measurement in progress]*. Exactness has a price: at equal optimization, keeping two
+the rounding points rather than from the engine. Measured against fp64 arithmetic on Qwen2.5-0.5B (Appendix E), the contract's own rounding does
+not tilt other-script or byte-split steps and tilts repetition steps by +0.0005 nat — an order of magnitude below the effects
+measured in Section 5. Exactness has a price: at equal optimization, keeping two
 activation digits instead of one makes prompt processing 1.26–1.38× slower (a lower bound measured by switching the tile kernels), while
 decoding, which is memory-bound, is unaffected.
 
@@ -274,7 +276,8 @@ whose activation rounding step is 2–4× llama.cpp's (Section 4.1), tilts about
 errors (where llama.cpp shows no tilt), and tilts *away* from other-script tokens: different losses tilt in different directions, and the
 repetition tilt grows with the coarseness of activation rounding. This is consistent with activation rounding being one source of the
 repetition tilt, but V is not a controlled replica of llama.cpp's loss, so it does not isolate the source. On R1-Distill's English
-reasoning (8,121 repetition steps) neither L nor V tilts (−0.0006, −0.0009).
+reasoning (8,121 repetition steps) neither L nor V tilts (−0.0006, −0.0009). Against fp64 arithmetic, the baseline's own
+rounding shows the same pattern at a smaller scale: +0.0005 nat toward repetition, none for the other types (Appendix E).
 
 ### 5.4 Under contract-exact computation and greedy decoding, the model produces the failures
 
@@ -320,8 +323,10 @@ absence. The harm we can see is reproducibility — the symptom status of about 
 engine — not quality.
 
 **The one tilt.** The repetition tilt is real and specific, and the coarser activation rounding of V shows it three times more strongly,
-which points to activation rounding as one contributor without isolating it. At 0.4 % in odds it did not reach the trajectory level in
-our samples, and the repetition trajectory test was the least powered of all (b + c = 34).
+which points to activation rounding as one contributor without isolating it. Even the contract-exact baseline shows it against fp64
+arithmetic, at +0.0005 nat on a 0.5B model (Appendix E): the tilt grows with the coarseness of rounding in the forward pass — contract
+(two digits) < llama.cpp (8-bit activations, half-precision attention) < V (7-bit activations). At 0.4 % in odds it did not reach the
+trajectory level in our samples, and the repetition trajectory test was the least powered of all (b + c = 34).
 
 **Under greedy decoding, the model is the main source.** With contract-exact arithmetic the model loops on a third of long Korean
 answers, mixes scripts in a sixth of LCB answers and fails most rare-syllable copies; where an other-script token is already a close
@@ -331,7 +336,9 @@ here.
 
 **What the baseline is and is not.** It is contract-exact and deterministic, not exact: it rounds activations to two digits and
 evaluates the exponential as a polynomial. Its deviation from fp64 is three orders of magnitude below llama.cpp's on 0.5B (and, by
-simulation, on 7B); whether its own rounding tilts fragile steps is the subject of Appendix E. It made a 0.004-nat shift measurable and
+simulation, on 7B); its own rounding, measured against fp64 on a 0.5B model (Appendix E), does not tilt other-script or byte-split
+steps and tilts repetition steps by +0.0005 nat, one eighth of llama.cpp's tilt — so Δ_L in Section 5.3 understates llama.cpp's tilt
+relative to fp64 by about that much, if the two add. It made a 0.004-nat shift measurable and
 every case replayable bit for bit. The same result also bounds its practical value for users: effects small enough to need such a
 baseline are too small to change what users see.
 
@@ -400,6 +407,8 @@ acquaintances of the author running the published package, not independent repli
    comparison data existed yet. The interval bounds on the net change (Section 5.2), the split of H2 into unfinished and
    wrong-but-finished answers, and the "underpowered" reading of the long-form repetition comparison were added after a reader's
    critique of the first draft; the pre-registered labels are kept in the tables.
+10. The registered expectation for Appendix E ("no tilt in all three types") was not met for repetition (+0.0005 nat, Holm
+    p = 0.0003); the result is reported under the pre-registered labels.
 
 ## Appendix C — Reproduction and data
 
@@ -512,9 +521,39 @@ Windows-first (Linux builds were tested under WSL2), uses one GPU, and needs com
 
 ## Appendix E — Does the baseline itself tilt? (Qwen2.5-0.5B against fp64)
 
-*[Measurement in progress. Design: generate G's answers for Qwen2.5-0.5B, select fragile steps with G's distribution as in Section 4.4,
-recompute the same steps with an fp64 NumPy implementation of the model without the contract's rounding, and report Δ_G = [ln p_G(b) −
-ln p_G(a)] − [ln p_64(b) − ln p_64(a)] with its bootstrap interval and the normal-alternative control, under the labels of Section 4.4.]*
+The contract-exact baseline rounds activations to two digits and evaluates the exponential as a polynomial. To measure whether this
+rounding itself tilts fragile steps, we used Qwen2.5-0.5B-Instruct (Q8_0) — the largest model whose fp64 weights (4 GB) fit the CPU —
+and the 1,296 Korean answers of G (Qwen2.5-7B) as prefixes: the arithmetic question does not depend on whose text the prefix is, and
+the 0.5B model's own Korean generations loop too often to give natural contexts. The design was registered before the measurement
+(`문서/40단계.md`, "40g", commit 73b1497).
+
+- **G-0.5B**: GeulPU's engine (the same kernels as the server) computed the contract-exact distribution at every step of the 972,380
+  answer tokens, 512 rows at a time; the logits of this path equal those of the generation path bit for bit (checked on the first
+  item). Its top-1 equals the 7B text's next token at 82.9 % of steps.
+- **fp64**: the same model computed in NumPy float64 from the GGUF weights (q · d exactly) — RMSNorm, RoPE, GQA attention, SwiGLU
+  and the output projection all in fp64, the computation of `시험/참값.py`. Its top-1 equals G-0.5B's at 99.96 % of the 7,325 steps of
+  the first 20 items.
+- **Fragile steps** were selected with the pre-registered judge from G-0.5B's top 20, at steps where its top-1 equals the next token
+  of the text (the judge's condition): O 4,070, R 1,730, C 5,155 (4.19, 1.78 and 5.30 per 1k tokens). Δ_G = [ln p_G(b) − ln p_G(a)] −
+  [ln p_64(b) − ln p_64(a)]; statistics and labels as in Section 4.4.
+
+| Type | Fragile steps | Δ_G [95 % CI] | Holm p | Label | Control Δ_G | fp64 argmax ≠ *a* |
+|---|---|---|---|---|---|---|
+| O other script | 4,070 | −0.0027 [−0.0066, +0.0001] | 0.22 | no tilt | −0.0020 | 5 |
+| R repetition | 1,730 | **+0.0005 [+0.0002, +0.0008]** | **0.0003** | **tilts toward abnormal** | −0.0002 (p = 0.15) | 4 |
+| C byte-split | 5,155 | −0.0003 [−0.0008, +0.0001] | 0.22 | no tilt | −0.0002 (167 steps) | 5 |
+
+The contract's rounding does not tilt other-script or byte-split steps (intervals within ±0.007 nat) and tilts repetition steps toward
+the repeating token by +0.0005 nat — about 0.05 % in odds, one eighth of llama.cpp's +0.0039 on 7B and one twenty-fourth of V's
++0.012 — with the control at the same steps at zero. The registered expectation (no tilt in all three types) was therefore not met
+for repetition: the measurement is precise enough to detect a tilt that small. Two cautions: selecting fragile steps by G's own margin
+(a threshold on a noisy quantity) can bias Δ_G upward for any abnormal candidate, and the O and C types, selected the same way, show
+no such bias, so it is below 0.001 nat and the effect is specific to repetition; and the model and prefixes differ from the main
+study. The ordering contract (two digits) < llama.cpp (8-bit activations, half-precision attention) < V (7-bit activations) supports
+reading the repetition tilt as a generic effect of rounding in the forward pass that grows with its coarseness. The baseline is thus
+not perfectly neutral at repetition steps; its own tilt is an order of magnitude below the effect it was used to measure, so Δ_L in
+Section 5.3 understates llama.cpp's tilt relative to fp64 by about that amount if the two add. Tools: `재기/기준40.py`; numbers in
+`문서/결과/40단계/40g_기준기울기.json`.
 
 ## Appendix F — Second human check of the strict judge
 

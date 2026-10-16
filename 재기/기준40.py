@@ -55,7 +55,7 @@ def 명령_로짓(a):
     import 글qwen2 as GQ
     gguf = os.path.join(a.모델폴더, MO.GGUF["05b"])
     m = GQ.글Qwen2(gguf, 최대행=행묶음, 최대문장=1, 최대길이=4096, 로짓행=행묶음, ptx경로=a.ptx)
-    토 = {r["id"]: r for r in MO.jsonl읽기(os.path.join(a.작업, "토큰", "7b.jsonl"))}
+    토 = MO.jsonl읽기(os.path.join(a.작업, "토큰", "7b.jsonl"))          # {id: 기록}
     G = S.색인(os.path.join(a.작업, "생성", "G_7b.jsonl"))
     out = os.path.join(폴더(a), "G05b_7b.jsonl")
     n문항 = n걸음 = 같음 = 0
@@ -108,7 +108,7 @@ def 명령_위험(a):
     수 = {"O": 0, "R": 0, "C": 0}
     n걸음 = 0
     with open(out, "w", encoding="utf-8", newline="\n") as f:
-        for r in MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl")):
+        for r in MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl")).values():
             st = Z.위험한걸음들_빠르게(r["tokens"], r["top_ids"], r["top_lp"], 표, 계통, 특수)
             for s in st:
                 수[s[1]] += 1
@@ -193,9 +193,9 @@ def 명령_참값(a):
     t0 = time.time()
     M = 참값모델(gguf)
     기록(f"fp64 가중치 올림 {time.time() - t0:.0f} 초")
-    토 = {r["id"]: r for r in MO.jsonl읽기(os.path.join(a.작업, "토큰", "7b.jsonl"))}
-    G = {r["id"]: r for r in MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl"))}
-    위험 = {r["id"]: r for r in MO.jsonl읽기(os.path.join(폴더(a), "위험_05b.jsonl"))}
+    토 = MO.jsonl읽기(os.path.join(a.작업, "토큰", "7b.jsonl"))
+    G = MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl"))
+    위험 = MO.jsonl읽기(os.path.join(폴더(a), "위험_05b.jsonl"))
     out = os.path.join(폴더(a), "참값_05b.jsonl")
     확인 = {"문항": 0, "걸음": 0, "1위같음": 0}
     n문항 = n걸음 = 0
@@ -241,9 +241,9 @@ def 명령_참값(a):
 
 # ---------------------------------------------------------------- 셈
 def 명령_셈(a):
-    G = {r["id"]: r for r in MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl"))}
-    위험 = {r["id"]: r for r in MO.jsonl읽기(os.path.join(폴더(a), "위험_05b.jsonl"))}
-    참 = {r["id"]: r for r in MO.jsonl읽기(os.path.join(폴더(a), "참값_05b.jsonl"))}
+    G = MO.jsonl읽기(os.path.join(폴더(a), "G05b_7b.jsonl"))
+    위험 = MO.jsonl읽기(os.path.join(폴더(a), "위험_05b.jsonl"))
+    참 = MO.jsonl읽기(os.path.join(폴더(a), "참값_05b.jsonl"))
     문항 = {(갈, 유형): {} for 갈 in ("G", "G대조") for 유형 in "ORC"}
     다름 = {유형: [0, 0] for 유형 in "ORC"}
     n토큰 = sum(r["n"] for r in 위험.values())
