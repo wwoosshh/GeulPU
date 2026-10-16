@@ -56,6 +56,34 @@ Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 
 - **Languages**: English, Korean
 - **Publication date**: 올리는 날
 
+## 브라우저 업로드가 끊기면 — 명령줄로 올리기
+
+작은 파일은 올라가는데 큰 zip 이 몇 % 에서 빨갛게 멈추면 연결이 중간에 끊긴 것이다(Zenodo 는 끊긴 업로드를 이어 받지 못한다 —
+휴지통으로 지우고 다시 올려야 한다). 브라우저를 바꾸거나(확장 기능 끄기, 시크릿 창), VPN · 원격 세션을 끊고, 한 번에 파일 하나씩
+올려 본다. 그래도 안 되면 API 로 올린다:
+
+1. zenodo.org → 계정 → **Applications** → **Personal access tokens** → New token, 범위 `deposit:write`. 토큰은 아무에게도 보내지 않는다.
+2. 이 PC 의 Git Bash 나 WSL 에서:
+
+   ```
+   ZENODO_TOKEN=<토큰> bash 공식실행/zenodo-올리기.sh 23417759 F:/geulpu-work/s40-zenodo
+   ```
+
+   파일 8 개를 차례로 올리고(실패하면 3 번까지 다시), 끝에 Zenodo 쪽 파일 목록과 md5 를 찍는다. 특정 파일만 올리려면 뒤에 이름을 적는다.
+
+올라간 파일이 맞는지는 Zenodo 가 보여 주는 md5 와 견준다:
+
+| 파일 | MD5 |
+|---|---|
+| geulpu-s40-generation-qwen2.5-7b.zip | `fc47265c949971aa0e9ed091c9b685c2` |
+| geulpu-s40-generation-r1-distill-7b.zip | `af11e3104544d1401698897fd162f12f` |
+| geulpu-s40-follower.zip | `b82b2de007db2b605e3053b1b4371d4c` |
+| geulpu-s40-steps-tokens.zip | `fe781edbf6a240fd7f86f07d1163e10e` |
+| geulpu-s40-engine-build.zip | `594582e6fbc7763f0d7a3b88d38901b0` |
+| MANIFEST.sha256 | `0f99804e8cabc6f20f6ae5b0e6d05b12` |
+| SHA256SUMS | `ef9ae1fd79e4da91d89bb30a7953bf2d` |
+| README.md | `00d2de9743bcf4e343866e63af020a8e` |
+
 ## 올린 뒤
 
 - DOI 와 "Zenodo" 를 논문 부록 C 의 *Raw data* 항목, 참고문헌, PDF 에 넣는다(DOI 예약 단계에서 이미 넣었으면 확인만).
