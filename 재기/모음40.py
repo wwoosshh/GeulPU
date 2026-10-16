@@ -195,8 +195,10 @@ def L요청(포, ids, 최대, 캐시=True):
     top_ids = [[t["id"] for t in e["top_logprobs"]] for e in cp]
     top_lp = [[t["logprob"] for t in e["top_logprobs"]] for e in cp]
     끝 = "length" if r.get("stop_type") == "limit" or (r.get("stopped_limit") is True) else "stop"
+    tm = r.get("timings") or {}
     return {"tokens": r.get("tokens", []), "text": r["content"], "finish": 끝, "top_ids": top_ids, "top_lp": top_lp,
-            "prompt_n": r.get("tokens_evaluated"), "stop_type": r.get("stop_type")}
+            "prompt_n": r.get("tokens_evaluated"), "stop_type": r.get("stop_type"), "cache_n": tm.get("cache_n"),
+            "셈한프롬프트": tm.get("prompt_n")}
 
 
 def 명령_생성(a):
@@ -393,6 +395,47 @@ def 명령_갈래(a):
     기록(f"갈래 끝 — {len(jsonl읽기(p))}")
 
 
+def 명령_재현(a):
+    """40a (3): G · V 를 문항 50 개(씨앗 40 — 확인문항과 같은 고르기)로 동시 요청 1 에서 다시, 그리고 갈래 50 개를 다시(G)."""
+    for 갈래 in ("G", "V"):
+        p = os.path.join(a.작업, "생성", f"재현{갈래}_{a.모델}.jsonl")
+        있음 = jsonl읽기(p)
+        할 = [r for r in 확인문항(a.작업, a.모델) if r["id"] not in 있음]
+        if not 할:
+            continue
+        s = 지울서버(a, 갈래, a.모델)
+        w = 쓰개(p)
+        try:
+            for r in 할:
+                x = G요청(포트[갈래], r["ids"], 최대(r))
+                w.쓰기({"id": r["id"], "tokens": x["tokens"]})
+        finally:
+            w.닫기()
+            s.끄기()
+    목 = os.path.join(a.작업, "위험", f"갈래목록_{a.모델}.jsonl")
+    if os.path.exists(목):
+        목록 = [json.loads(l) for l in open(목, encoding="utf-8")][:50]
+        p = os.path.join(a.작업, "생성", f"재현갈래_{a.모델}.jsonl")
+        있음 = jsonl읽기(p)
+        할 = [x for x in 목록 if x["key"] not in 있음]
+        if 할:
+            토 = jsonl읽기(os.path.join(a.작업, "토큰", f"{a.모델}.jsonl"))
+            G = jsonl읽기(os.path.join(a.작업, "생성", f"G_{a.모델}.jsonl"))
+            s = 지울서버(a, "G", a.모델)
+            w = 쓰개(p)
+            try:
+                for x in 할:
+                    P = 토[x["id"]]["ids"]
+                    앞 = G[x["id"]]["tokens"][:x["t"]]
+                    창 = min(x["창"], 문맥 - len(P) - len(앞) - 1)
+                    y = G요청(포트["G"], P + 앞 + [x["b"]], 창)
+                    w.쓰기({"id": x["key"], "tokens": y["tokens"]})
+            finally:
+                w.닫기()
+                s.끄기()
+    기록("재현 끝")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("명령")
@@ -404,7 +447,8 @@ def main():
     ap.add_argument("--빌드", required=True)
     ap.add_argument("--더", action="store_true", help="수학의 다음 600 문항도")
     a = ap.parse_args()
-    {"토큰": 명령_토큰, "생성": 명령_생성, "점수": 명령_점수, "오염": 명령_오염, "확인L": 명령_확인L, "갈래": 명령_갈래}[a.명령](a)
+    {"토큰": 명령_토큰, "생성": 명령_생성, "점수": 명령_점수, "오염": 명령_오염, "확인L": 명령_확인L, "갈래": 명령_갈래,
+     "재현": 명령_재현}[a.명령](a)
 
 
 if __name__ == "__main__":

@@ -46,9 +46,10 @@ def main():
     os.environ["GEULPU_LLAMA"] = a.llama
     import 라마 as LM
     import 모음40 as MO
+    from 셈40 import 색인
     GGUF = os.path.join(a.모델폴더, MO.GGUF[a.모델])
     토 = MO.jsonl읽기(os.path.join(a.작업, "토큰", f"{a.모델}.jsonl"))
-    G = MO.jsonl읽기(os.path.join(a.작업, "생성", f"G_{a.모델}.jsonl"))
+    G = 색인(os.path.join(a.작업, "생성", f"G_{a.모델}.jsonl"))          # 답은 그때그때 읽는다(걸음마다 상위 20 — 크다)
 
     통합 = a.통합KV
     if 통합 < 0:
@@ -59,15 +60,15 @@ def main():
         기록(f"llama-server 의 kv_unified: {'참' if 통합 else '거짓'} (기록 {os.path.basename(로그)})")
 
     if a.확인:
-        recs = [G[r["id"]] for r in MO.확인문항(a.작업, a.모델)]
+        recs = [r["id"] for r in MO.확인문항(a.작업, a.모델)]
         n_seq, n_ctx = 1, MO.문맥
         폴더 = os.path.join(a.작업, "따라", f"확인_{a.모델}")
     else:
-        recs = sorted(G.values(), key=lambda r: r["id"])
+        recs = sorted(G.keys())
         n_seq, n_ctx = MO.슬롯, MO.문맥 * MO.슬롯
         폴더 = os.path.join(a.작업, "따라", a.모델)
     os.makedirs(폴더, exist_ok=True)
-    할 = [r for r in recs if not os.path.exists(os.path.join(폴더, r["id"] + ".npz"))]
+    할 = [k for k in recs if not os.path.exists(os.path.join(폴더, k + ".npz"))]
     기록(f"따라가기 {a.모델}{' (확인)' if a.확인 else ''}: {len(할)} 문항 / {len(recs)} · 줄 {n_seq} · 문맥 {n_ctx} · 통합KV {통합}")
     if not 할:
         return 확인셈(a, 폴더, MO) if a.확인 else None
@@ -83,7 +84,8 @@ def main():
     t0 = time.time()
     끝낸 = [0, 0]
 
-    def 시작(s, r):
+    def 시작(s, k):
+        r = G[k]
         L.L.llama_memory_seq_rm(mem, s, -1, -1)
         P = 토[r["id"]]["ids"]
         O = r["tokens"]
@@ -102,7 +104,7 @@ def main():
         줄[s] = st
 
     def 적기(st, k, 행):
-        ids = st["상"][k]
+        ids = st["상"][k] if k < len(st["상"]) else []        # 끝 토큰의 걸음은 G 의 상위 목록에 없다
         ids = (ids + [ids[-1]] * 20)[:20] if ids else [0] * 20
         lp, i1, l1 = 로그확률들(행, np.asarray(ids, np.int64))
         st["lp"][k] = lp
@@ -143,7 +145,8 @@ def main():
 
 def 확인셈(a, 폴더, MO):
     """40a (5): 첫 갈림(L1 의 토큰 ≠ G 의 토큰)까지의 모든 걸음에서 따라가기의 1위 = L1 의 토큰."""
-    G = MO.jsonl읽기(os.path.join(a.작업, "생성", f"G_{a.모델}.jsonl"))
+    from 셈40 import 색인
+    G = 색인(os.path.join(a.작업, "생성", f"G_{a.모델}.jsonl"))
     L1 = MO.jsonl읽기(os.path.join(a.작업, "생성", f"L1확인_{a.모델}.jsonl"))
     n문 = n걸 = n같 = 0
     틀림 = []

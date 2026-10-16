@@ -302,7 +302,7 @@ def 위험한걸음들(답토큰, 상위번호, 상위값, 표, 계통, 특수, 
     돌려줌: [(걸음 t, 유형, a, b, 여유 m, 대조 b′ 또는 None)] — a 는 G 의 1위(= 고른 토큰), b 는 그 유형의 비정상 토큰 가운데 가장 높은 것."""
     out = []
     바이트 = bytearray()
-    n = len(답토큰)
+    n = min(len(답토큰), len(상위번호))         # GeulPU 의 tokens 는 끝 토큰을 담고 상위 목록은 그 걸음을 담지 않는다
     for t in range(n):
         ids, lps = 상위번호[t], 상위값[t]
         a = 답토큰[t]
@@ -385,7 +385,7 @@ def 위험한걸음들_빠르게(답토큰, 상위번호, 상위값, 표, 계통
     out = []
     바이트 = bytearray()
     묶 = 묶음집합(R길이)
-    n = len(답토큰)
+    n = min(len(답토큰), len(상위번호))
     for t in range(n):
         ids, lps = 상위번호[t], 상위값[t]
         a = 답토큰[t]
