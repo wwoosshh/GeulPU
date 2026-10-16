@@ -153,7 +153,7 @@ same GGUF file: r < 1 means GeulPU is faster.
   without; p 3.5 × 10⁻¹³); one injected anomaly in a previous turn does not raise symptoms in the next answer. 8.5–11.2 % of Korean
   syllables in real text are emitted split across byte-piece tokens (Qwen2.5 · Llama 3.1). Conclusion: at today's engine precision the
   arithmetic loss is not a cause of these symptoms; its harm is reproducibility (the symptom status of about 10 % of items depends on the
-  engine). The user froze this research after the result ([40단계](../문서/40단계.md)).
+  engine). Human check of the automatic judges: repetition 19/20, other-script 17/20 (below the pre-registered 90 % — explanatory hanja and quoted English titles were counted); a stricter post-hoc judge (quoted and glossed foreign text excluded) gives the same verdicts (H1 31 vs 31, propagation 78 % vs 31 %) and lowers the other-script rate of the mixed-script trigger set from 40 % to 18 %. The user froze this research after the result ([40단계](../문서/40단계.md)).
 
 ## What remains (after stage 30)
 
