@@ -2,6 +2,9 @@
 
 *English: [README.en.md](README.en.md)*
 
+> 이 저장소는 2026-10-16 부터 연구 도구로 쓴다: 계산 손실이 LLM 의 실패 증상(반복 · 엉뚱한 언어 · 깨진 맞춤법 · 틀린 답)을 만드는지
+> 잰다([방향 전환](문서/방향전환.md) · [40단계](문서/40단계.md)). 아래의 앱 안내는 그대로 쓸 수 있다.
+
 GeulPU는 Qwen3 · Qwen2.5 · DeepSeek-R1 · Llama 3 · Mistral 같은 언어 모델을 **내 PC의 그래픽카드(GPU)에서** 돌리는 Windows 앱입니다. 설치 프로그램 없이
 zip을 풀고 `GeulPU.exe`를 실행하면 브라우저에 채팅 화면이 열립니다. 모델은 앱 안에서 Hugging Face로부터 받고, 대화는 이 PC 밖으로
 나가지 않습니다.
