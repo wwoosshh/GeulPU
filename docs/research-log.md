@@ -1,4 +1,4 @@
-# Research log — how GeulPU came about (stages 0–39, 2026-10-08 to 10-16)
+# Research log — how GeulPU came about (stages 0–40, 2026-10-08 to 10-16)
 
 *English summary of [`문서/단계기록.md`](../문서/단계기록.md). Stage reports (Korean) are in [`문서/`](../문서/); stages 0–13 are in the
 `research/gpu` branch of the geul repository ([docs/17](https://github.com/wwoosshh/geul-lang/blob/research/gpu/docs/17-연구-의미를-지키는-GPU-컴파일러.md),
@@ -133,6 +133,27 @@ same GGUF file: r < 1 means GeulPU is faster.
   records or a rebuild of the previous code; R1 cross-check CUDA 32/32 and the Vulkan quick check, with renewed build hashes. 39d
   passed: in the packaged app, 57 research-panel checks equal the API across three models, and chats stop at the end tokens. Record: decode r
   0.995–1.011 (Q8_0) and 1.029–1.047 (Q4_K_M), prompts 1.19–1.44 — not pursued in a model-diversity stage ([39단계](../문서/39단계.md)).
+- **Direction change (2026-10-16).** Most of what GeulPU had claimed as its own is now provided elsewhere, often more cheaply: batch
+  and concurrency invariance on one machine (vLLM / SGLang deterministic modes, Vosti — arXiv 2609.38981), identical bits across NVIDIA
+  generations (2609.25624, linear layers), bit-exact CPU replay of unmodified engines (2606.00279), and identical bytes across NVIDIA, Apple
+  and CPU (Gensyn REE, proprietary core). The two survival criteria of 2026-10-13 (an equal-optimization price near 1.01, and a benefit no
+  one else offers) were dropped; each stage now answers one pre-registered research question ([방향전환](../문서/방향전환.md)).
+- **Stage 40 — does computational loss cause failure symptoms?** Qwen2.5-7B-Instruct and DeepSeek-R1-Distill-Qwen-7B (Q8_0, greedy) were
+  run from identical token ids on the GeulPU contract (G — loss only where written, no engine noise), llama.cpp b11669 (L — default server
+  settings, 8 concurrent) and a single-loss variant (V — linear-layer input activations at one digit, the 8-bit class). Prompt sets: the
+  Korean part of the Language Confusion Benchmark, 300 long-form Korean requests, gsm8k, and three trigger sets (copying text rich in
+  byte-split syllables, mixed-script questions, repetition requests). 40c (primary): L changes 89–100 % of the natural answers, yet the
+  symptoms appear as often as they disappear — Korean other-script output 36 new vs 35 gone (n 696), math wrong answers 25 vs 28 (n 600);
+  both "shakes but does not increase". 40b (primary): at fragile steps (a normal top-1 within ln 10 of an abnormal candidate, decided on G's
+  exact distribution) the tilt Δ_L toward the abnormal token is −0.00006 nat for other-script and −0.0034 for byte-split characters (no
+  tilt), and +0.0039 nat [+0.0015, +0.0063] for repetition (Holm p 0.003, normal–normal control −0.001) — a 0.4 % odds shift, specific to
+  repeating tokens. V tilts more (repetition +0.012, byte errors +0.012, other-script −0.018). The model itself: under exact computation
+  32 % of long-form Korean answers loop to the length limit, 16 % of LCB Korean answers mix other scripts and 58 % of rare-syllable copies
+  are wrong; forcing one other-script token at a fragile step makes further other-script text appear in 80 % of continuations (34 %
+  without; p 3.5 × 10⁻¹³); one injected anomaly in a previous turn does not raise symptoms in the next answer. 8.5–11.2 % of Korean
+  syllables in real text are emitted split across byte-piece tokens (Qwen2.5 · Llama 3.1). Conclusion: at today's engine precision the
+  arithmetic loss is not a cause of these symptoms; its harm is reproducibility (the symptom status of about 10 % of items depends on the
+  engine). The user froze this research after the result ([40단계](../문서/40단계.md)).
 
 ## What remains (after stage 30)
 

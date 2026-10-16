@@ -336,7 +336,7 @@ def 명령_오염(a):
 # ---------------------------------------------------------------- 40a (5) · 40e
 def 확인문항(작업, 모델):
     토 = [r for r in jsonl읽기(os.path.join(작업, "토큰", f"{모델}.jsonl")).values()
-         if r["묶음"].startswith("자연") and 최대(r) is not None and not r["id"] >= "gsm_0600"]
+         if r["묶음"].startswith("자연") and 최대(r) is not None and not (r["id"].startswith("gsm_") and r["id"] >= "gsm_0600")]
     토.sort(key=lambda r: r["id"])
     rng = random.Random(씨앗)
     return rng.sample(토, 50)
