@@ -1,7 +1,7 @@
 # 엔진의 계산 손실은 주사위를 다시 굴릴 뿐 망가뜨리지 않는다: 정확한 기준으로 LLM 의 실패 증상을 가른 연구
 
 *영문 초안([stage40-paper.md](stage40-paper.md) · [LaTeX](stage40-paper.tex))의 한국어 번역이다. arXiv 는 영어 전문을 요구하므로 제출본은
-영문이고, 이 글은 읽기 위한 것이다 — 두 글의 수치와 구성은 같다. 저자: WooSungHyeun, 청운대학교. 엔진과 실험: https://github.com/wwoosshh/GeulPU ·
+영문이고, 이 글은 읽기 위한 것이다 — 두 글의 수치와 구성은 같다. 저자: Sunghyeun Woo, 청운대학교. 엔진과 실험: https://github.com/wwoosshh/GeulPU ·
 언어와 컴파일러: https://github.com/wwoosshh/geul-lang*
 
 ## 요약
@@ -394,7 +394,7 @@ DeepSeek-R1-Distill-Qwen-7B Q8_0 을 받아 합성 수학 32 문제를 탐욕으
 
 ## 감사의 글과 AI 도움
 
-*[저자와 상의해 정할 문구.]* 글(geul) 컴파일러, GeulPU, 실험 코드는 저자가 AI 코딩 에이전트(Anthropic Claude)의 상당한 도움을 받아 개발했고,
+글(geul) 컴파일러, GeulPU, 실험 코드는 저자가 AI 코딩 에이전트(Anthropic Claude)의 상당한 도움을 받아 개발했고,
 이 원고의 초안도 그 도움으로 썼다. 연구의 설계, 사전 등록의 승인, 증상 판정기의 손 확인은 저자가 했다.
 
 ## 참고문헌

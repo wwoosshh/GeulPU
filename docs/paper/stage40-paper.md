@@ -1,6 +1,6 @@
 # Engine Numerical Loss Re-Rolls but Does Not Degrade: An Exact-Baseline Study of LLM Failure Symptoms
 
-*Draft for arXiv (cs.CL / cs.LG). Author: WooSungHyeun, Chungwoon University, Republic of Korea. Engine and experiments: https://github.com/wwoosshh/GeulPU ·
+*Draft for arXiv (cs.CL / cs.LG). Author: Sunghyeun Woo, Chungwoon University, Republic of Korea. Engine and experiments: https://github.com/wwoosshh/GeulPU ·
 language and compiler: https://github.com/wwoosshh/geul-lang*
 
 ## Abstract
@@ -440,7 +440,7 @@ acquaintances of the author running the published package, not independent repli
 
 ## Acknowledgements and AI assistance
 
-*[To be agreed with the author.]* The geul compiler, GeulPU and the experiment code were developed by the author with substantial
+The geul compiler, GeulPU and the experiment code were developed by the author with substantial
 assistance from AI coding agents (Anthropic Claude), which also helped draft this manuscript. The author designed the study, approved
 the pre-registration and checked the symptom judges by hand.
 
