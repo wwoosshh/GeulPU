@@ -1,6 +1,7 @@
 # 엔진의 계산 손실은 주사위를 다시 굴릴 뿐 망가뜨리지 않는다: 정확한 기준으로 LLM 의 실패 증상을 가른 연구
 
-*영문 초안([stage40-paper.md](stage40-paper.md) · [LaTeX](stage40-paper.tex) · [PDF](stage40-paper.pdf))의 한국어 번역이다. arXiv 는 영어 전문을 요구하므로 제출본은
+*영문 초안([stage40-paper.md](stage40-paper.md) · [LaTeX](stage40-paper.tex) · [PDF](stage40-paper.pdf))의 한국어 번역이다. 이 번역의
+PDF 판: [stage40-paper.ko.pdf](stage40-paper.ko.pdf)([LaTeX](stage40-paper.ko.tex)). arXiv 는 영어 전문을 요구하므로 제출본은
 영문이고, 이 글은 읽기 위한 것이다 — 두 글의 수치와 구성은 같다. 저자: Sunghyeun Woo, 청운대학교. 엔진과 실험: https://github.com/wwoosshh/GeulPU ·
 언어와 컴파일러: https://github.com/wwoosshh/geul-lang*
 
