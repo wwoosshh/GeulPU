@@ -7,7 +7,7 @@
 # 기록 번호: 초안 주소 zenodo.org/uploads/<번호> 의 번호(예약한 DOI 10.5281/zenodo.<번호> 와 같다).
 # 토큰: zenodo.org → 계정 → Applications → Personal access tokens → New token, 범위(scope) deposit:write.
 # 파일을 적지 않으면 폴더의 geulpu-s40-*.zip · MANIFEST.sha256 · SHA256SUMS · README.md 를 올린다.
-# 같은 이름이 이미 있으면 덮어쓴다(새 API 길에서는 먼저 지운다). 실패한 파일은 3 번까지 다시 시도한다. 토큰은 환경 변수로만 받는다.
+# 이미 Zenodo 에 같은 이름 · 크기 · md5 로 있는 파일은 건너뛴다. 끊기면(502 등) 8 번까지 점점 길게 기다리며 다시 시도한다(10 초 → 2 분).
 # 길: 옛 deposit API(bucket 에 PUT)를 먼저 쓰고, 그 길이 막혀 있으면(404 · 410) 새 records API(files 등록 → content PUT → commit)로.
 set -uo pipefail
 : "${ZENODO_TOKEN:?ZENODO_TOKEN 환경 변수에 토큰을 넣어라}"
@@ -16,6 +16,7 @@ DIR="${2:?파일 폴더}"
 shift 2
 API="https://zenodo.org/api"
 AUTH="Authorization: Bearer $ZENODO_TOKEN"
+시도수=8
 
 # 돌아가는 파이썬 — Windows 의 python3 는 스토어 안내 껍데기일 수 있다
 PY=""
@@ -27,6 +28,9 @@ TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 
 json() { "$PY" -c "import sys, json; d = json.load(open(sys.argv[1], encoding='utf-8')); $1" "$TMP" "${@:2}"; }
+md5() { "$PY" -c "import sys, hashlib; h = hashlib.md5(); f = open(sys.argv[1], 'rb')
+for b in iter(lambda: f.read(1 << 24), b''): h.update(b)
+print(h.hexdigest())" "$1"; }
 
 # ── 초안 정보 ──
 code="$(curl -sS -o "$TMP" -w '%{http_code}' -H "$AUTH" "$API/deposit/depositions/$REC")"
@@ -35,7 +39,7 @@ if [ "$code" = "200" ]; then
   BUCKET="$(json 'print(d["links"]["bucket"])')" && LEGACY=1
   echo "옛 deposit API — bucket: $BUCKET"
 elif [ "$code" = "401" ] || [ "$code" = "403" ]; then
-  echo "HTTP $code — 토큰이 틀렸거나 범위(deposit:write)가 모자란다: $(cat "$TMP" | head -c 300)" >&2; exit 1
+  echo "HTTP $code — 토큰이 틀렸거나 범위(deposit:write)가 모자란다: $(head -c 300 "$TMP")" >&2; exit 1
 else
   echo "옛 deposit API 는 HTTP $code — 새 records API 로 간다"
   code="$(curl -sS -o "$TMP" -w '%{http_code}' -H "$AUTH" "$API/records/$REC/draft")"
@@ -43,6 +47,17 @@ else
   FILES="$(json 'print(d["links"]["files"])')"
   echo "새 records API — files: $FILES"
 fi
+
+# Zenodo 에 있는 파일 목록 → "이름 크기 md5" 줄들
+목록() {
+  if [ $LEGACY = 1 ]; then
+    curl -sS -o "$TMP" -H "$AUTH" "$API/deposit/depositions/$REC/files" && \
+      json 'print("\n".join("%s %s %s" % (x["filename"], x["filesize"], x["checksum"].replace("md5:", "")) for x in d))'
+  else
+    curl -sS -o "$TMP" -H "$AUTH" "$FILES" && \
+      json 'print("\n".join("%s %s %s" % (x["key"], x.get("size"), str(x.get("checksum", "")).replace("md5:", "")) for x in d["entries"]))'
+  fi
+}
 
 if [ $# -eq 0 ]; then
   set -- "$DIR"/geulpu-s40-*.zip "$DIR/MANIFEST.sha256" "$DIR/SHA256SUMS" "$DIR/README.md"
@@ -66,24 +81,30 @@ fi
 }
 
 fail=0
+있음="$(목록)"
 for f in "$@"; do
   name="$(basename "$f")"
+  size="$(stat -c %s "$f" 2>/dev/null || wc -c < "$f")"
+  sum="$(md5 "$f")"
+  if grep -qF "$name $size $sum" <<<"$있음"; then
+    echo "건너뜀(이미 같음): $name"
+    continue
+  fi
   ok=0
-  for try in 1 2 3; do
-    echo "== $name ($(du -h "$f" | cut -f1)) — 시도 $try"
+  wait=10
+  for try in $(seq 1 $시도수); do
+    echo "== $name ($(du -h "$f" | cut -f1)) — 시도 $try/$시도수"
     if { [ $LEGACY = 1 ] && 올리기_옛 "$f" "$name"; } || { [ $LEGACY = 0 ] && 올리기_새 "$f" "$name"; }; then
       ok=1; break
     fi
-    sleep 5
+    echo "   끊김 — $wait 초 뒤 다시"
+    sleep "$wait"
+    wait=$(( wait * 2 > 120 ? 120 : wait * 2 ))
   done
   if [ $ok = 1 ]; then echo "올림: $name"; else echo "실패: $name" >&2; fail=1; fi
 done
 
-echo "== Zenodo 에 있는 파일(이름 · 크기 · 체크섬):"
-if [ $LEGACY = 1 ]; then
-  curl -sS -o "$TMP" -H "$AUTH" "$API/deposit/depositions/$REC/files" && json 'print("\n".join(f"{x[\"filename\"]}  {x[\"filesize\"]}  {x[\"checksum\"]}" for x in d))'
-else
-  curl -sS -o "$TMP" -H "$AUTH" "$FILES" && json 'print("\n".join(f"{x[\"key\"]}  {x.get(\"size\")}  {x.get(\"checksum\")}  {x.get(\"status\")}" for x in d["entries"]))'
-fi
-echo "zenodo.md 의 md5 표와 견주면 된다(새 API 는 md5:… 꼴로 보인다)."
+echo "== Zenodo 에 있는 파일(이름 · 크기 · md5):"
+목록
+echo "docs/paper/data/zenodo.md 의 md5 표와 견주면 된다."
 exit $fail
