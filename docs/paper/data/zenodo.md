@@ -34,8 +34,9 @@ Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 
 - **Description**:
 
   > Every token generated and every per-step probability measured in the pre-registered experiment of the paper *Engine Numerical
-  > Loss Re-Rolls but Does Not Degrade: An Exact-Baseline Study of LLM Failure Symptoms* (Sunghyeun Woo, 2026). Three inference
-  > engines — GeulPU under its written precision contract (exact baseline), llama.cpp b11669, and GeulPU with one added loss — were
+  > Loss Re-Rolls LLM Outputs but Shows No Detectable Increase in Failure Symptoms: A Contract-Exact Baseline Study at 8-Bit
+  > Precision* (Sunghyeun Woo, 2026). Three inference engines — GeulPU under its written precision contract (contract-exact
+  > baseline), llama.cpp b11669, and GeulPU with one added loss — were
   > given identical token inputs and decoded greedily: Qwen2.5-7B-Instruct (Q8_0) on 1,296 Korean prompts (Language Confusion
   > Benchmark, long-form writing, three symptom triggers) and DeepSeek-R1-Distill-Qwen-7B (Q8_0) on 600 gsm8k problems. The record
   > holds the generated tokens with top-20 log-probabilities per step for all arms, llama.cpp's per-step distributions at the

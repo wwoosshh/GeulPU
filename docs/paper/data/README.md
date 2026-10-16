@@ -1,7 +1,7 @@
 # Raw data — GeulPU stage 40: engine numerical loss and LLM failure symptoms
 
-Data for the paper *Engine Numerical Loss Re-Rolls but Does Not Degrade: An Exact-Baseline Study of LLM Failure Symptoms*
-(Sunghyeun Woo, Chungwoon University, 2026). Code, prompts, pre-registration and the analysis results live in the GeulPU
+Data for the paper *Engine Numerical Loss Re-Rolls LLM Outputs but Shows No Detectable Increase in Failure Symptoms: A
+Contract-Exact Baseline Study at 8-Bit Precision* (Sunghyeun Woo, Chungwoon University, 2026). Code, prompts, pre-registration and the analysis results live in the GeulPU
 repository: https://github.com/wwoosshh/GeulPU — paper draft in `docs/paper/`, pre-registration and record (Korean) in
 `문서/40단계.md`, computed results in `문서/결과/40단계/`, prompt sets in `시험/질문40/`, tools in `재기/*40.py`. This record holds
 what the repository cannot: every token the three engines generated and the per-step probabilities from which every number in
