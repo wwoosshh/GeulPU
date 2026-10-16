@@ -23,6 +23,7 @@
             pdfauthor={Sunghyeun Woo}}
 
 \setlist{itemsep=2pt,topsep=4pt}
+\setlength{\emergencystretch}{2em}   % lets TeX avoid overfull lines around unbreakable code spans
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \def\bibpreamble{\emph{[Draft: entries to be completed and checked.]}\par\medskip}
 
@@ -714,9 +715,9 @@ independent replicators, and the 32 problems are synthetic.
       forced-token continuations, determinism re-runs), \texttt{재기/따라40.py} (follower of llama.cpp's distributions
       through its C API), \texttt{재기/셈40.py} (analysis), \texttt{재기/사후40.py} (strict judge; 12 unit tests),
       \texttt{공식실행/시험40.sh} (the order of steps).
-\item \textbf{Command}: \texttt{bash 공식실행/시험40.sh <repo> <work dir> <ASCII model dir> <llama.cpp dir>} runs build
-      $\to$ tokenization $\to$ G $\to$ contamination $\to$ V $\to$ L $\to$ follower $\to$ checks $\to$ fragile steps
-      $\to$ forced-token continuations $\to$ determinism $\to$ analysis.
+\item \textbf{Command}: \texttt{bash 공식실행/시험40.sh}, given the repository, the work directory, an ASCII-path model
+      directory and the llama.cpp directory, runs build $\to$ tokenization $\to$ G $\to$ contamination $\to$ V $\to$ L
+      $\to$ follower $\to$ checks $\to$ fragile steps $\to$ forced-token continuations $\to$ determinism $\to$ analysis.
 \item \textbf{Versions and hashes} (\texttt{문서/결과/40단계/40\_기록.txt}): GeulPU server \texttt{010f5dae}\dots, kernel
       generator \texttt{a304a884}\dots, modules \texttt{qwen2Q8\_7b} and \texttt{qwen2Q8\_7b\_자리하나} equal to the
       repository's module-hash table; llama.cpp b11669 (commit \texttt{620d2225c}, Windows CUDA 13.4 build); models
