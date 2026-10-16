@@ -83,7 +83,7 @@ Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 
 | geulpu-s40-engine-build.zip | `594582e6fbc7763f0d7a3b88d38901b0` |
 | MANIFEST.sha256 | `0f99804e8cabc6f20f6ae5b0e6d05b12` |
 | SHA256SUMS | `ef9ae1fd79e4da91d89bb30a7953bf2d` |
-| README.md | `00d2de9743bcf4e343866e63af020a8e` |
+| README.md | `da2535114446d4435c45df4e2591ed22` (논문 제목을 고친 2026-10-16 저녁 판 — 그 전 판을 올렸다면 지우고 다시 올린다) |
 
 ## 올린 뒤
 
