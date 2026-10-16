@@ -7,7 +7,7 @@ repository: https://github.com/wwoosshh/GeulPU — paper draft in `docs/paper/`,
 what the repository cannot: every token the three engines generated and the per-step probabilities from which every number in
 the paper is computed.
 
-DOI: *[to be filled when the Zenodo DOI is reserved]*. Repository commit used for the analysis: `0a5ab97`.
+DOI: [10.5281/zenodo.23417759](https://doi.org/10.5281/zenodo.23417759). Repository commit used for the analysis: `0a5ab97`.
 
 ## Archives
 
@@ -170,4 +170,4 @@ at the commit above and `문서/결과/40단계/40_기록.txt`.
 ## Citation
 
 Woo, S. (2026). *Raw data — GeulPU stage 40: engine numerical loss and LLM failure symptoms* [Data set]. Zenodo.
-DOI *[to be filled]*.
+https://doi.org/10.5281/zenodo.23417759

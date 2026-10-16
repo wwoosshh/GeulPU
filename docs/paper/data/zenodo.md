@@ -19,8 +19,9 @@
 Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 한다). README 와 논문 부록 C 에 DOI 가 들어가야 하므로 차례가 중요하다.
 
 1. https://zenodo.org 에 로그인(GitHub 계정으로 가능) → **New upload**.
-2. 파일을 올리기 전에 **Digital Object Identifier** 칸의 **Get a DOI now**(DOI 예약)를 누른다 → `10.5281/zenodo.XXXXXXX` 가 나온다.
-   이 번호를 알려 주면 README(이 폴더와 올릴 판 둘 다)와 논문 부록 C · 참고문헌 · PDF 에 넣어 커밋한다.
+2. 파일을 올리기 전에 **Digital Object Identifier** 칸에서 **No, I need one** 을 고르고 **Get a DOI now!** 를 누른다 →
+   `10.5281/zenodo.XXXXXXX` 가 예약된다. 이 번호를 README(이 폴더와 올릴 판 둘 다)와 논문 부록 C · 참고문헌 · PDF 에 넣어 커밋한다.
+   — **예약함(2026-10-16): `10.5281/zenodo.23417759`**, 모두 넣었다.
 3. DOI 가 들어간 `README.md` 를 받아(저장소에서 내려받기) 위 파일들과 함께 올린다.
 4. 아래 메타데이터를 채운다.
 5. **Publish**. 되돌릴 수 없다 — 누르기 전에 파일 목록과 DOI 가 README 의 것과 같은지 본다.
