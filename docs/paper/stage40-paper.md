@@ -1,4 +1,4 @@
-# Engine Numerical Loss Re-Rolls but Does Not Degrade: An Exact-Baseline Study of LLM Failure Symptoms
+# Engine Numerical Loss Re-Rolls LLM Outputs but Shows No Detectable Increase in Failure Symptoms: A Contract-Exact Baseline Study at 8-Bit Precision
 
 *Draft for arXiv (cs.CL / cs.LG). Author: Sunghyeun Woo, Chungwoon University, Republic of Korea. Engine and experiments: https://github.com/wwoosshh/GeulPU ·
 language and compiler: https://github.com/wwoosshh/geul-lang. Typeset version: [stage40-paper.pdf](stage40-paper.pdf) (from [stage40-paper.tex](stage40-paper.tex));
@@ -11,14 +11,16 @@ answers. One hypothesis attributes part of these failures to the numerical loss 
 bits, half-precision attention and caches, reduction orders that change with the batch. Testing it requires separating two effects that
 look alike in aggregate: loss that merely *re-rolls* near-tie decisions, and loss that systematically *tilts* the model toward abnormal
 tokens. We use GeulPU — an inference engine whose arithmetic follows a written precision contract, is bit-identical to a CPU reference,
-and produces identical bits across GPU generations and vendors — as an exact, noise-free baseline, and compare it with llama.cpp and with
-a single-loss variant on Qwen2.5-7B-Instruct and DeepSeek-R1-Distill-Qwen-7B (Q8_0, greedy decoding, identical token inputs). On 696
-Korean prompts and 600 math problems, llama.cpp changes 89–100 % of the outputs, yet failures appear as often as they disappear (text
-in another script: 36 new vs 35 gone; wrong answers: 25 vs 28). At 10,817 fragile steps — where an abnormal token competes closely
-with the chosen one — we find no tilt toward other-script or byte-split tokens and a small tilt toward repetition (+0.0039 nat, about
-0.4 % in odds) that is specific to repeating tokens. Under exact computation the model itself produces most failures (32 % of long-form
-Korean answers loop to the length limit) and amplifies single slips: one forced other-script token is followed by more other-script
-text in 80 % of continuations, against 34 % without it. All hypotheses, statistics and decision rules were pre-registered.
+and produces identical bits across GPU generations and vendors — as a contract-exact, noise-free baseline, and compare it with llama.cpp
+and with a single-loss variant on Qwen2.5-7B-Instruct and DeepSeek-R1-Distill-Qwen-7B (Q8_0, greedy decoding, identical token inputs).
+On 696 Korean prompts and 600 math problems, llama.cpp changes 89–100 % of the outputs, yet failures appear about as often as they
+disappear: text in another script 36 new vs 35 gone, wrong or unfinished math answers 25 vs 28, with 95 % intervals that bound the net
+change to between −17 % and +19 % and between −22 % and +15 % of the baseline's counts. At 10,817 fragile steps — where an abnormal token
+competes closely with the chosen one — we find no tilt toward other-script or byte-split tokens (equivalence within ±0.05 nat) and a
+small tilt toward repetition (+0.0039 nat, about 0.4 % in odds) that is specific to repeating tokens. Under greedy decoding and
+contract-exact computation, most failures arise in the model itself (32 % of long-form Korean answers loop to the length limit), and
+at steps where an other-script token is already a close competitor, forcing it is followed by more other-script text in 80 % of
+continuations, against 34 % after the original token. All hypotheses, statistics and decision rules were pre-registered.
 
 ## 1 Introduction
 
@@ -45,15 +47,17 @@ baseline an engine whose loss is limited to what a written contract specifies an
 
 Our contributions are:
 
-1. A paired design with an exact baseline that separates *re-rolling* (symptoms appear and disappear in equal numbers) from *tilting*
-   (a systematic shift toward abnormal tokens), with two pre-registered primary tests: trajectory-level McNemar tests and a step-level
-   tilt test at fragile steps.
-2. Evidence, for two 7B models at Q8_0, that llama.cpp's numerical loss re-rolls but does not increase failures, and that its only
-   detectable tilt is toward repetition and is about 0.4 % in odds.
-3. Model-level measurements under exact computation: high failure base rates, self-amplification of a single other-script slip, no
-   effect of a single injected anomaly in the previous turn, and the fraction of Korean syllables that are emitted as byte pieces.
+1. A paired design with a contract-exact baseline that separates *re-rolling* (symptoms appear and disappear in equal numbers) from
+   *tilting* (a systematic shift toward abnormal tokens), with two pre-registered primary tests — trajectory-level McNemar tests with
+   interval bounds on the net change, and a step-level tilt test at fragile steps with an equivalence band.
+2. Evidence, for two 7B models at Q8_0 under greedy decoding, that llama.cpp's numerical loss re-rolls outputs without a detectable
+   increase in failures — the net change is bounded within about ±20 % of the baseline's symptom counts — and that its only detectable
+   tilt is toward repetition, about 0.4 % in odds.
+3. Model-level measurements under contract-exact computation and greedy decoding: high failure base rates, the effect of a single
+   other-script token at steps where it was already plausible, no effect of a single injected anomaly in the previous turn, and the
+   fraction of Korean syllables that are emitted as byte pieces.
 4. The instrument itself: an open inference engine with a written precision contract whose outputs are bit-identical across NVIDIA
-   generations, AMD and Intel GPUs and a CPU reference (Section 3, Appendix A).
+   generations, AMD and Intel GPUs and a CPU reference (Section 3, Appendices A and D).
 
 ## 2 Related work
 
@@ -76,99 +80,26 @@ written precision contract; we use such a system as an instrument rather than as
 quantization hurts non-Latin scripts most, and automatic metrics understate the harm (Marchisio et al., 2024b). Repetition is
 self-reinforcing — each repetition makes the next more likely (Xu et al., 2022) — and repetition requests can make production models
 diverge (Nasr et al., 2023). Under-trained "glitch" tokens trigger anomalous behaviour (Land & Bartolo, 2024). We are not aware of work
-that injects or removes individual sources of numerical loss and measures their effect on these failures with an exact baseline.
+that injects or removes individual sources of numerical loss and measures their effect on these failures with a contract-exact baseline.
 
-## 3 The instrument: GeulPU and the geul language
+## 3 The instrument: GeulPU
 
 Our conclusions rest on two properties of the baseline: it is a complete inference engine that runs the same quantized model files as
 llama.cpp on the same GPU, and its arithmetic is exact with respect to a written contract. Both are unusual for software that is not
-built on Python, PyTorch or the CUDA toolkit, and the language it is written in is little known. This section describes the stack from
-the bottom up; every number is taken from the two public repositories.
+built on Python, PyTorch or the CUDA toolkit, and the language it is written in is little known; Appendix D describes the language, the
+compiler and the engine from the bottom up, and Figure 1 there shows the stack. This section gives what the experiment relies on.
 
-### 3.1 The geul language and its compiler
+### 3.1 The engine in brief
 
-geul (글, "writing") is a systems programming language whose grammar follows Korean: verbs come last, and the role of each argument is
-marked by a case particle instead of its position. A function is declared with its roles, `[문자열 원본을 문자열 대상에 복사]`
-("copy a string *source* to a string *destination*"), and called by role, `원본을 대상에 복사하다.`; the particles 을/를 (object),
-에 (destination), 에서 (source), 로 (means) and 와/과 (companion) bind the arguments, and a call whose same-typed arguments carry no particle
-is a compile error. Types are ordinary — 정수 is a 64-bit integer, 짧은실수 a 32-bit float, `T 참조` a pointer — and memory is managed by
-hand.
+GeulPU is written in geul (글), a systems language with Korean grammar whose self-hosted compiler has its own x86-64 back end and uses
+no C compiler or LLVM. A kernel generator, also in geul, writes model-specific GPU kernels; two back ends in geul translate them to PTX
+(NVIDIA) and SPIR-V (Vulkan: AMD, Intel, NVIDIA). The engine hands the PTX or SPIR-V to the vendor's driver and talks only to the driver:
+nothing from the CUDA toolkit or a Vulkan SDK is used to build or run it. The host — GGUF reader, tokenizers, scheduler, sampler and an
+OpenAI-compatible HTTP server with up to 8 slots — is about 13,000 lines of geul. It reads the same GGUF files as llama.cpp (Q8_0, Q4_0
+and the k-quants; Qwen2.5, Qwen3, DeepSeek-R1-Distill-Qwen, Llama 3.1/3.2, Mistral), and on an RTX 4070 Ti decodes within ±5 % of
+llama.cpp's speed at Q8_0 and Q4_K_M. The CPU reference of the contract, the test harnesses and the benchmarks are Python (NumPy).
 
-The compiler is self-hosted: it is written in geul (about 10,000 lines) and compiles itself. A separate reference implementation in
-Python (about 7,000 lines) is kept as the bootstrap seed and as a second implementation; the build checks a fixpoint — the self-hosted
-compiler built by the reference implementation, then by itself, then by that output, is byte-identical each time. Users need neither: the released compiler
-`geulc.exe` (geul 1.3.1, October 2026, MIT license; a 182 KB zip, also packaged for Windows as the PyPI package `geul`) builds everything
-described below. The compiler has its own complete back end — lexer, parser, semantic analysis, a typed intermediate representation, an
-inliner, an x86-64 code generator with linear-scan register allocation, a hand-written instruction encoder and PE32+/ELF64 writers — and
-uses no C compiler, assembler, linker or LLVM. A Windows executable it produces imports only `kernel32.dll` (and `shell32.dll` for the
-command line); the Linux target (on the research branch) needs only `libc.so.6`. Builds are reproducible byte for byte.
-
-### 3.2 From geul source to GPU instructions
-
-GPU support lives on a research branch of the compiler. A GPU kernel is an ordinary geul function; GPU features are reached through
-declared intrinsics: thread and block indices, shared memory, barriers, warp shuffles, asynchronous copies (`cp.async`), integer
-tensor-core matrix multiply–accumulate (`mma.sync … m16n8k32 … s8.s8.s32` and `m16n8k16`), `dp4a`, and fused multiply–add, which is
-emitted only where the source writes it. Two back ends, both written in geul on top of the self-hosted front end, translate such
-kernels:
-
-- **PTX back end** (2,574 lines) — emits PTX, NVIDIA's documented virtual instruction set. Every floating-point operation carries an
-  explicit rounding mode (`.rn`), so the driver cannot fuse a multiply and an add on its own; approximate instructions and floating-point
-  tensor cores, whose summation rounding the PTX specification leaves open, are not used.
-- **SPIR-V back end** (4,006 lines) — emits SPIR-V 1.6 compute shaders for Vulkan (AMD, Intel and NVIDIA). Kernel parameters become push
-  constants and global memory becomes 64-bit device addresses; division and square root are written out to be correctly rounded,
-  integer matrix products use cooperative-matrix instructions where the device offers them and subgroup operations otherwise.
-
-```text
-Figure 1. The GeulPU stack. Everything above the dashed line is written in geul and compiled by the geul compiler.
-
-  geul source                          geul compiler (self-hosted; own x86-64 code generator, PE/ELF writers)
-   ├─ host program: GGUF reader,     ──►  server and runner executables
-   │  tokenizers, scheduler, sampler,       (import kernel32, shell32, ws2_32, and nvcuda or vulkan-1)
-   │  HTTP server
-   └─ kernel generator               ──►  kernel-generator executable
-                                            └─► model-specific kernel source (geul; 141,818 lines for 7B Q8_0)
-                                                 ├─ PTX back end (geul)    ──► PTX (73 MB, 106 kernels)
-                                                 └─ SPIR-V back end (geul) ──► SPIR-V 1.6
-  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  vendor driver: NVIDIA nvcuda.dll (PTX → SASS JIT, cuLaunchKernel, CUDA graphs) | Vulkan driver (SPIR-V → ISA)  ──►  GPU
-```
-
-At run time the engine hands PTX text to the NVIDIA driver (`cuModuleLoadData`), whose built-in just-in-time compiler translates it to the
-GPU's native machine code (SASS), and launches kernels with `cuLaunchKernel` and CUDA graphs. On Vulkan it creates shader modules and
-compute pipelines and records dispatches; a thin layer maps the driver-API calls the engine uses onto Vulkan, so the engine code is
-shared. Nothing from the CUDA toolkit — `nvcc`, `ptxas`, `cudart`, cuBLAS — or from a Vulkan SDK is used to build or run the engine; the
-continuous-integration job installs `ptxas` only to check register spills. This is the same layer at which other engines meet the GPU:
-llama.cpp ships kernels compiled ahead of time with `nvcc` and calls cuBLAS, vLLM runs PyTorch, CUDA and Triton kernels; GeulPU
-generates its own kernels and talks only to the driver. The vendors' closed compilers below PTX and SPIR-V are outside the contract,
-which is why bit-identity across devices is established empirically (Appendix A) rather than proved.
-
-### 3.3 The kernel generator and the engine
-
-A kernel generator, itself a geul program (8,056 lines), writes the kernel source specialized to a model's shape and weight format. For
-Qwen2.5-7B at Q8_0 it writes 141,818 lines of geul, which the PTX back end turns into 73 MB of PTX holding 106 kernels and 6,488
-tensor-core instructions; the module is built on the user's machine on first use, and the CI regenerates 18 such modules and compares
-their SHA-256 hashes with the recorded ones.
-
-The host — about 13,000 lines of geul (15,000 with its test programs) — is a complete serving engine:
-
-- **Models**: reads GGUF files with Q8_0, Q4_0, Q4_K, Q5_K and Q6_K weights (including the Q4_K_M and Q5_K_M mixes); architectures qwen2,
-  qwen3 and llama — Qwen2.5, Qwen3, DeepSeek-R1-Distill-Qwen, Llama 3.1 and 3.2, Mistral v0.3 — with head size 128 (Qwen2.5-0.5B only
-  through the command-line runner).
-- **Text**: byte-level BPE with Unicode NFC, the Llama 3 BPE and SentencePiece tokenizers, written in geul, which match llama.cpp token for
-  token on 2,000 lines of test text; chat templates checked against the GGUF's Jinja templates.
-- **Serving**: an OpenAI-compatible HTTP server (chat and text completions, streaming, `/tokenize`), up to 8 slots with continuous
-  batching and per-slot prompt reuse, a decode step captured as one CUDA graph, sampling and log-probabilities computed under the same
-  written contract.
-- **Footprint**: the CUDA server imports only `kernel32`, `shell32`, `ws2_32` and `nvcuda` (43 driver-API functions); the Vulkan server
-  imports `vulkan-1` (48 functions) instead of `nvcuda`. The CI checks these import tables.
-
-On an RTX 4070 Ti, its decoding speed is within ±5 % of llama.cpp for Qwen2.5-7B and Llama-3.1-8B at Q8_0 and Q4_K_M (0.97–1.05× the
-time per token, depending on the llama.cpp build and the context length); prompt processing is faster than llama.cpp below about 128
-tokens and up to 1.3–1.4× (Q8_0) and 1.4–1.6× (k-quant formats) slower at 8,192 tokens. Not everything is in geul: the CPU reference of the
-contract, the test harnesses and the benchmarks are Python (NumPy), and the optional desktop app's interface is JavaScript. The engine is
-Windows-first (Linux builds were tested under WSL2), uses one GPU, and needs compute capability 8.0 or newer on the CUDA path.
-
-### 3.4 The precision contract
+### 3.2 The precision contract
 
 GeulPU's arithmetic follows a written contract (`docs/contract.md`) that leaves the hardware no discretion:
 
@@ -184,27 +115,38 @@ GeulPU's arithmetic follows a written contract (`docs/contract.md`) that leaves 
   computed in float64 in a fixed order.
 
 Because nothing depends on how the work is split, the bits do not depend on batch, slot, chunking, prompt-versus-decode path, GPU or
-vendor, and they equal those of a CPU reference implementation of the contract in NumPy; this is checked on kernel test cases, on whole
-models end to end, and across machines (Appendix A). The contract is close to exact: on Qwen2.5-0.5B (Q8_0) the Kullback–Leibler
-divergence of its next-token distributions from an fp64 computation is 2.24 × 10⁻⁶, against 1.38 × 10⁻³ for llama.cpp; for 7B and 14B the
-corresponding ratios (1/3,805 and 1/4,467) come from a simulation of the rounding points rather than from the engine. Exactness has a
-price: at equal optimization, keeping two activation digits instead of one makes prompt processing 1.26–1.38× slower (a lower bound
-measured by switching the tile kernels), while decoding, which is memory-bound, is unaffected.
+vendor, and they equal those of a CPU reference implementation of the contract in NumPy. We call such a baseline *contract-exact*: its
+only numerical loss is the one the contract writes down, and it is deterministic — but it is not exact arithmetic. The contract's loss
+is small: on Qwen2.5-0.5B (Q8_0) the Kullback–Leibler divergence of its next-token distributions from an fp64 computation is
+2.24 × 10⁻⁶, against 1.38 × 10⁻³ for llama.cpp; for 7B and 14B the corresponding ratios (1/3,805 and 1/4,467) come from a simulation of
+the rounding points rather than from the engine. Whether the contract's own rounding tilts fragile steps relative to an fp64 computation
+is measured on Qwen2.5-0.5B in Appendix E *[measurement in progress]*. Exactness has a price: at equal optimization, keeping two
+activation digits instead of one makes prompt processing 1.26–1.38× slower (a lower bound measured by switching the tile kernels), while
+decoding, which is memory-bound, is unaffected.
+
+### 3.3 Bit identity
+
+The contract's claims are checked on kernel test cases, on whole models end to end, across execution paths, and across machines:
+identical logit hashes at every step on NVIDIA Ampere, Ada and Blackwell GPUs through CUDA, on an NVIDIA and two AMD GPUs through Vulkan,
+and against the CPU reference (Appendix A). The vendors' closed compilers below PTX and SPIR-V are outside the contract, which is why
+bit identity is established empirically rather than proved.
 
 ## 4 Method
 
 ### 4.1 Arms and inputs
 
-- **G (exact baseline)** — GeulPU under its precision contract (Section 3): loss only where the contract writes it, no dependence on
-  batch, slot or execution path. OpenAI-compatible server, 8 slots.
+- **G (contract-exact baseline)** — GeulPU under its precision contract (Section 3): loss only where the contract writes it, no
+  dependence on batch, slot or execution path. OpenAI-compatible server, 8 slots.
 - **L (production engine)** — llama.cpp build b11669 (Windows CUDA 13.4), `llama-server` with default settings (flash attention *auto*,
   F16 key–value cache, prompt cache on), 8 parallel slots, the same GGUF files.
-- **V (one loss)** — G with a single change: the input activations of all linear layers rounded to one digit instead of two (block
-  grid 2^(E−5), |n| ≤ 64 — the same class as llama.cpp's 8-bit activation re-quantization); attention and everything else unchanged.
+- **V (one loss)** — G with a single change: the input activations of all linear layers rounded to one digit instead of two — block
+  grid 2^(E−5), |n| ≤ 64, i.e. 7 bits per value with a power-of-two scale. llama.cpp's activation quantization (Q8_1: blocks of 32
+  scaled by max/127) uses 8 bits with an exact-maximum scale, so V's rounding step is 2–4× llama.cpp's: V is a coarser member of the
+  same family, not a replica of llama.cpp's loss. Attention and everything else unchanged.
 
 All prompts were rendered once with llama.cpp's `/apply-template` (the chat template stored in the GGUF) and tokenized with `/tokenize`;
 every arm received the same token ids. Decoding was greedy (temperature 0) with the same maximum length and end tokens, so the arms
-differ only in arithmetic. The context was 4,096 tokens per slot. Model: Qwen2.5-7B-Instruct (Korean prompts) and
+differ only in arithmetic. The context was 4,096 tokens per slot. Models: Qwen2.5-7B-Instruct (Korean prompts) and
 DeepSeek-R1-Distill-Qwen-7B (math), both Q8_0, so the weight loss is identical across arms and small.
 
 ### 4.2 Prompt sets
@@ -254,15 +196,18 @@ corrected with Holm's method. Decision labels (pre-registered): *tilts toward ab
 *no tilt* (corrected p ≥ 0.05 and the interval within ±0.05 nat), *undecided* otherwise or with fewer than 200 steps.
 
 To obtain L's distribution at G's prefixes we drive llama.cpp through its C API: the prompt is evaluated in one batch, as the server
-does, and G's answer tokens are then fed one at a time, eight sequences per batch, which is the server's generation path. We validated
-this against `llama-server` itself (Section 5.1).
+does, and G's answer tokens are then fed one at a time, eight sequences per batch. This reproduces one realization of llama.cpp's
+arithmetic — eight sequences of G's tokens per batch, which need not match the batch composition the server had while generating L's own
+answers — and we validated it against `llama-server` itself on the steps before the first divergence (Section 5.1). L's trajectories
+(Section 5.2) come from the server itself; only the step-level tilt uses this follower.
 
 ### 4.5 Trajectories, propagation and contamination
 
 - **Trajectories (primary).** For each prompt, a symptom present only in the arm is *new* (b), present only in G *gone* (c). H1:
   Qwen2.5-7B, natural Korean sets, S2. H2: R1-Distill, math, S4. Exact McNemar tests, Holm over the two. Labels: *increases*,
   *decreases*, *shakes but does not increase* (b + c ≥ 40, corrected p ≥ 0.05), *undecided* (b + c < 40; H2 would first add the next
-  600 problems once — not needed).
+  600 problems once — not needed). We also report the 95 % interval of the net change b − c, from the binomial distribution of the
+  discordant pairs, as the bound the data place on an increase or a decrease.
 - **Propagation.** At up to 100 fragile steps per type (seed 40) we force *b* in G and continue for 256 tokens, and compare with G's
   own continuation after *a*: does a symptom of the same type appear again?
 - **Contamination.** We insert one anomaly into G's first answer of a two-turn dialog — a Chinese word, a misspelled word, or a
@@ -270,8 +215,13 @@ this against `llama-server` itself (Section 5.1).
 
 ### 4.6 Pre-registration
 
-The design, the statistics and the decision rules were committed before any measurement (commit 9190f76); the prompt sets and tools
-before the main runs (d88b6cf, eedb304); deviations are listed in Appendix B.
+The design, hypotheses, statistics and decision rules were committed to the public repository at 09:28 on 2026-10-16 (commit 9190f76);
+the first run started at 09:51. The prompt sets and the symptom judges were committed at 10:00, while G's Qwen2.5 run (09:59–10:39) was in
+progress; fixes to the tools (the end-token step, the BOS token, the context length, the determinism re-runs) were committed at 10:44,
+after that run and before the V (from 12:19) and L (from 14:51) runs. No L or V data existed before 12:19, so no primary comparison could
+have been seen when the judges and tools were fixed. The registration lives in the author's repository rather than at an independent
+registry, and the whole study — registration, runs, analysis and this write-up — was completed within one day; deviations are listed in
+Appendix B.
 
 ## 5 Results
 
@@ -281,24 +231,33 @@ before the main runs (d88b6cf, eedb304); deviations are listed in Appendix B.
 - **Determinism**: 50 prompts re-run at concurrency 1 give identical tokens in G and in V; 50 forced-token continuations re-run give
   identical tokens.
 - **The L measurement path**: for 50 prompts generated by `llama-server` with one slot, the follower's argmax equals the server's token at
-  all 3,358 steps up to the first divergence from G.
+  all 3,358 steps up to the first divergence from G (on average 67 steps per prompt).
 - **Human check of the symptom judges** (20 items per symptom: 10 judged positive, 10 negative): repetition 19/20, other-script 17/20 —
-  below the pre-registered 90 %. The other-script judge counted Han characters used to explain a Chinese word and English song titles
-  quoted from the prompt. Because both arms of each comparison use the same judge, the paired tests are not biased toward either arm; a
-  stricter post-hoc judge (Section 5.6) leaves every conclusion unchanged.
+  below the pre-registered 90 %; with 20 items the 95 % interval of the 85 % agreement is about 62–97 %. The other-script judge counted
+  Han characters used to explain a Chinese word and English song titles quoted from the prompt. Because both arms of each comparison use
+  the same judge, the paired tests are not biased toward either arm; a stricter post-hoc judge (Section 5.6) leaves every conclusion
+  unchanged.
 
-### 5.2 Trajectories: re-rolled, not degraded
+### 5.2 Trajectories: re-rolled, with no detectable increase
 
-| Test | Items | Symptoms G · L | New (b) | Gone (c) | Holm p | Label |
-|---|---|---|---|---|---|---|
-| H1 — Qwen2.5-7B, natural Korean, other-script (S2) | 696 | 94 · 95 | 36 | 35 | 1.0 | shakes but does not increase |
-| H2 — R1-Distill-7B, gsm8k, wrong answer (S4) | 600 | 80 · 77 | 25 | 28 | 1.0 | shakes but does not increase |
+| Test | Items | Symptoms G · L | New (b) | Gone (c) | Net change b − c, 95 % CI | Holm p | Pre-registered label |
+|---|---|---|---|---|---|---|---|
+| H1 — Qwen2.5-7B, natural Korean, other-script (S2) | 696 | 94 · 95 | 36 | 35 | −16 … +18 (−17 % … +19 % of G's 94) | 1.0 | shakes but does not increase |
+| H2 — R1-Distill-7B, gsm8k, wrong or unfinished answer (S4) | 600 | 80 · 77 | 25 | 28 | −18 … +12 (−22 % … +15 % of G's 80) | 1.0 | shakes but does not increase |
 
-llama.cpp produced a different text for 89 % of the LCB prompts, all 300 long-form prompts and 97 % of the math problems; the first
-divergence came after a median of 66, 57 and 138 tokens. The single loss V changed even more (96–100 %, median first divergence 21–61
-tokens) and was equally balanced (H1′: 48 new vs 43 gone; H2′: 25 vs 28). No secondary comparison moved: endless repetition in long-form
-answers 19 new vs 15 gone, broken copies 4 vs 3, unfinished math 29 vs 35 (all p ≥ 0.25). Accuracy on the 600 math problems was 86.7 %
-(G) and 87.2 % (L).
+Neither primary test reached significance, and the intervals exclude large effects in either direction but not a moderate increase:
+the data are consistent with llama.cpp adding up to about a fifth more other-script answers, or removing about a sixth. llama.cpp
+produced a different text for 89 % of the LCB prompts, all 300 long-form prompts and 97 % of the math problems; the first divergence
+came after a median of 66, 57 and 138 tokens. The single loss V changed even more (96–100 %, median first divergence 21–61 tokens) and
+was equally balanced (H1′: 48 new vs 43 gone; H2′: 25 vs 28).
+
+H2 counts an unfinished answer as wrong, and most wrong answers were unfinished: 59 of G's 80 and 53 of L's 77 reached the 3,200-token
+limit without a boxed answer (29 new vs 35 gone). Among answers that finished, 21 (G) and 24 (L) were wrong (13 new vs 10 gone, p = 0.68);
+V finished more often (48 unfinished) and was wrong more often among finished answers (29; 17 new vs 9 gone, p = 0.17). None of the
+secondary comparisons reached significance: broken copies 4 new vs 3 gone, unfinished math 29 vs 35, endless repetition in long-form
+answers 19 vs 15 (all p ≥ 0.25). The last comparison has b + c = 34, below the 40 that the pre-registration requires for a verdict, so
+the one symptom with a detected tilt (Section 5.3) is also the one whose trajectory test is underpowered; its direction is positive.
+Accuracy on the 600 math problems was 86.7 % (G) and 87.2 % (L).
 
 ### 5.3 Tilt: only toward repetition, and small
 
@@ -310,11 +269,14 @@ answers 19 new vs 15 gone, broken copies 4 vs 3, unfinished math 29 vs 35 (all p
 
 (972,380 tokens of Qwen2.5-7B output.) The repetition tilt corresponds to a 0.39 % increase in the odds of the repeating token; the
 control at the same steps is zero, so the shift is specific to repeating tokens rather than a general flattening. llama.cpp chose the
-abnormal token only where the margin was below 0.5 nat (below 0.25 nat: 36 of 206 O steps, 101 of 754 R steps, 52 of 314 C steps). The
-single activation loss tilts about three times more toward repetition, also tilts toward byte errors (where llama.cpp shows no tilt),
-and tilts *away* from other-script tokens: different losses tilt in different directions. On R1-Distill's English reasoning (8,121 repetition steps) neither L nor V tilts (−0.0006, −0.0009).
+abnormal token only where the margin was below 0.5 nat (below 0.25 nat: 36 of 206 O steps, 101 of 754 R steps, 52 of 314 C steps). V,
+whose activation rounding step is 2–4× llama.cpp's (Section 4.1), tilts about three times more toward repetition, also tilts toward byte
+errors (where llama.cpp shows no tilt), and tilts *away* from other-script tokens: different losses tilt in different directions, and the
+repetition tilt grows with the coarseness of activation rounding. This is consistent with activation rounding being one source of the
+repetition tilt, but V is not a controlled replica of llama.cpp's loss, so it does not isolate the source. On R1-Distill's English
+reasoning (8,121 repetition steps) neither L nor V tilts (−0.0006, −0.0009).
 
-### 5.4 Under exact computation, the model produces the failures
+### 5.4 Under contract-exact computation and greedy decoding, the model produces the failures
 
 | Set (Qwen2.5-7B, G) | Items | S1 repetition | S2 other script | S6 broken copy |
 |---|---|---|---|---|
@@ -325,16 +287,19 @@ and tilts *away* from other-script tokens: different losses tilt in different di
 | Trigger · repetition | 200 | 52 (26 %) | 1 | — |
 
 R1-Distill answered 86.7 % of the math problems correctly; 59 of the 80 wrong answers did not finish within 3,200 tokens. On the
-rare-syllable trigger the exact model sometimes loops on an emoji, or invents a Chinese "user" turn and repeats a character until the
-limit. In real Korean text 11.2 % (Qwen2.5) and 8.5 % (Llama 3.1) of syllables are emitted across two or more byte-piece tokens; only
-2,512 (Qwen2.5) and 599 (Llama 3.1) of the 11,172 Hangul syllables are single tokens.
+rare-syllable trigger the model sometimes loops on an emoji, or invents a Chinese "user" turn and repeats a character until the limit.
+These rates are those of greedy decoding, which is known to favour repetition; with sampling they would differ. In real Korean text
+11.2 % (Qwen2.5) and 8.5 % (Llama 3.1) of syllables are emitted across two or more byte-piece tokens; only 2,512 (Qwen2.5) and 599
+(Llama 3.1) of the 11,172 Hangul syllables are single tokens.
 
 ### 5.5 Propagation and contamination
 
 Forcing the abnormal token at an other-script fragile step makes more other-script text appear within the next 256 tokens in 80 of 100
 continuations, against 34 after the original token (47 vs 1 discordant, p = 3.5 × 10⁻¹³); 99 of the 100 forced tokens were complete
 characters, and excluding the first two characters of the continuation gives 77 of 99, so the effect is not a mechanical completion of a
-byte sequence. For repetition and byte-split steps the measure saturated (the original continuations already showed the symptom in 89 %
+byte sequence. These steps are, by construction, contexts in which the other-script token was already among the top-20 candidates within
+ln 10 of the chosen one; the comparison shows that in such contexts a single token changes the course of the text, not that an arbitrary
+slip would. For repetition and byte-split steps the measure saturated (the original continuations already showed the symptom in 89 %
 and 97 % of cases). A single anomaly injected into the previous answer did not raise symptoms in the next one: other-script text 32 vs
 37 (5 new, 10 gone), broken copies 53 vs 54, repeated sentences 7 vs 10.
 
@@ -342,36 +307,49 @@ and 97 % of cases). A single anomaly injected into the previous answer did not r
 
 A stricter judge, defined after the human check and before re-computation, ignores foreign text inside quotes or brackets or followed by
 a Hangul gloss, and ignores Latin words that occur in the prompt. It agrees with the human labels on 19 of 20 items (the items were used
-to design it, so this is not an independent check). All conclusions hold: H1 31 new vs 31 gone, H1′ 41 vs 43, propagation 78 % vs 31 %.
-Only the rates move: the mixed-script trigger's other-script rate falls from 40 % to 18 %; the LCB rate from 16 % to 15 %.
+to design it, so this is not an independent check); a check on a fresh sample of 40 items is reported in Appendix F *[in progress]*. All
+conclusions hold: H1 31 new vs 31 gone, H1′ 41 vs 43, propagation 78 % vs 31 %. Only the rates move: the mixed-script trigger's
+other-script rate falls from 40 % to 18 %; the LCB rate from 16 % to 15 %.
 
 ## 6 Discussion
 
-**Re-rolling, not tilting.** At the precision of a mainstream engine with 8-bit weights, numerical loss behaves like re-sampling at
-near-ties: almost every long answer changes, and the failures it creates are matched by failures it removes. The harm is
-reproducibility — the symptom status of about one item in ten (71 of 696, 53 of 600) depends on the engine — not quality.
+**No detectable degradation.** At the precision of a mainstream engine with 8-bit weights, numerical loss behaves like re-sampling at
+near-ties: almost every long answer changes, and the failures it creates are matched, within our power, by failures it removes. The
+intervals leave room for a moderate increase — up to about a fifth of the other-script count — so the result is a bound, not a proof of
+absence. The harm we can see is reproducibility — the symptom status of about one item in ten (71 of 696, 53 of 600) depends on the
+engine — not quality.
 
-**The one tilt.** The repetition tilt is real and specific, and the single activation loss shows it three times more strongly, which
-points to activation rounding as one contributor. At 0.4 % in odds it did not reach the trajectory level in our samples.
+**The one tilt.** The repetition tilt is real and specific, and the coarser activation rounding of V shows it three times more strongly,
+which points to activation rounding as one contributor without isolating it. At 0.4 % in odds it did not reach the trajectory level in
+our samples, and the repetition trajectory test was the least powered of all (b + c = 34).
 
-**The model is the source.** Under exact arithmetic the model loops on a third of long Korean answers, mixes scripts in a sixth of LCB
-answers and fails most rare-syllable copies; once a single other-script token is emitted, the model continues in that script most of the
-time. Mitigations for these failures belong to the model and the decoding procedure rather than to the arithmetic.
+**Under greedy decoding, the model is the main source.** With contract-exact arithmetic the model loops on a third of long Korean
+answers, mixes scripts in a sixth of LCB answers and fails most rare-syllable copies; where an other-script token is already a close
+competitor, emitting it carries the text into that script most of the time. Mitigations for these failures belong to the model and the
+decoding procedure rather than to the arithmetic; greedy decoding favours repetition, and the base rates under sampling are not measured
+here.
 
-**What an exact baseline is for.** It made a 0.004-nat shift measurable and every case replayable bit for bit. The same result also
-bounds its practical value for users: effects small enough to need an exact baseline are too small to change what users see.
+**What the baseline is and is not.** It is contract-exact and deterministic, not exact: it rounds activations to two digits and
+evaluates the exponential as a polynomial. Its deviation from fp64 is three orders of magnitude below llama.cpp's on 0.5B (and, by
+simulation, on 7B); whether its own rounding tilts fragile steps is the subject of Appendix E. It made a 0.004-nat shift measurable and
+every case replayable bit for bit. The same result also bounds its practical value for users: effects small enough to need such a
+baseline are too small to change what users see.
 
-**Limitations.** Two 7B models of one family at Q8_0, greedy decoding, one production engine (llama.cpp) on one GPU (RTX 4070 Ti),
-mostly Korean prompts, automatic judges (the other-script judge agreed with a human on 85 %), and only engine-level loss: we did not test
-larger losses such as 4-bit key–value caches, longer contexts or sampling. Propagation could not be measured for repetition and
+**Limitations.** Two 7B models of one family at Q8_0, greedy decoding, one production engine (llama.cpp, default settings) on one GPU
+(RTX 4070 Ti), mostly Korean prompts, and only engine-level loss: we did not test larger losses such as 4-bit key–value caches, 4-bit
+weights (where Patodiya (2026) reports larger divergence), longer contexts or sampling. The judges are automatic; the other-script judge
+agreed with a human on 17 of 20 items, and the stricter judge was designed on those items. The follower reproduces one realization of
+llama.cpp's batch arithmetic. V is coarser than llama.cpp's activation quantization. Propagation could not be measured for repetition and
 byte-split steps because the measure saturated. Closed frontier models could not be studied; the mechanisms (byte pieces, near-ties,
-self-amplification) are generic, but their rates there are unknown.
+the pull of an emitted token) are generic, but their rates there are unknown.
 
 ## 7 Conclusion
 
-With an exact, noise-free baseline and identical inputs, the numerical loss of a production engine re-rolls LLM outputs without
-increasing their familiar failures; its only measurable bias is a 0.4 % tilt toward repetition. The failures come from the model, which
-also amplifies its own slips. Making inference arithmetic exact buys reproducibility, not fewer failures, at this precision.
+With a contract-exact, noise-free baseline and identical inputs, the numerical loss of a production engine re-rolls LLM outputs
+without a detectable increase in their familiar failures — the net change is bounded within about ±20 % of the baseline's symptom
+counts — and its only measurable bias is a 0.4 % tilt toward repetition. Under greedy decoding the failures come from the model, and a
+single other-script token, where it was already plausible, carries the text along. At 8-bit precision, making inference arithmetic exact
+by contract buys reproducibility, not fewer failures.
 
 ## Appendix A — Bit-identity evidence for GeulPU
 
@@ -418,11 +396,16 @@ acquaintances of the author running the published package, not independent repli
 7. A selection bug (string comparison of item ids) emptied the determinism and follower-validation samples in the first run; the steps
    were re-run after the fix, without effect on any other number.
 8. The other-script judge did not reach the pre-registered 90 % agreement with the human check (Section 5.1, 5.6).
+9. The prompt sets, judges and tool fixes were committed after the first run had started (Section 4.6), not before, although no
+   comparison data existed yet. The interval bounds on the net change (Section 5.2), the split of H2 into unfinished and
+   wrong-but-finished answers, and the "underpowered" reading of the long-form repetition comparison were added after a reader's
+   critique of the first draft; the pre-registered labels are kept in the tables.
 
 ## Appendix C — Reproduction and data
 
-- **Pre-registration and record** (Korean): `문서/40단계.md` in the repository — design (commit 9190f76, before any measurement), prompt
-  sets and tools (d88b6cf), fixes before the main runs (eedb304), results (727a218), human check and the strict-judge analysis (0a5ab97).
+- **Pre-registration and record** (Korean): `문서/40단계.md` in the repository — design (commit 9190f76, 09:28, before the first run at
+  09:51), prompt sets and judges (d88b6cf, 10:00, during G's Qwen2.5 run), tool fixes (eedb304, 10:44, after that run and before the V
+  and L runs), results (727a218), human check and the strict-judge analysis (0a5ab97).
 - **Prompt sets**: `시험/질문40/` with sources, licenses (LCB: Apache-2.0; gsm8k: MIT) and SHA-256 hashes in `시험/질문40/출처.md`; built by
   `재기/질문40.py` (seed 40).
 - **Tools**: `재기/증상40.py` (symptom and fragile-step judges, statistics; 93 unit tests), `재기/모음40.py` (tokenization through
@@ -441,11 +424,109 @@ acquaintances of the author running the published package, not independent repli
   engine executables and kernels used, with a README describing the formats and SHA-256 manifests. Every case generated by G can
   be replayed bit for bit on any supported GPU or on the CPU reference.
 
+## Appendix D — The geul language, the compiler and the engine
+
+### D.1 The geul language and its compiler
+
+geul (글, "writing") is a systems programming language whose grammar follows Korean: verbs come last, and the role of each argument is
+marked by a case particle instead of its position. A function is declared with its roles, `[문자열 원본을 문자열 대상에 복사]`
+("copy a string *source* to a string *destination*"), and called by role, `원본을 대상에 복사하다.`; the particles 을/를 (object),
+에 (destination), 에서 (source), 로 (means) and 와/과 (companion) bind the arguments, and a call whose same-typed arguments carry no particle
+is a compile error. Types are ordinary — 정수 is a 64-bit integer, 짧은실수 a 32-bit float, `T 참조` a pointer — and memory is managed by
+hand.
+
+The compiler is self-hosted: it is written in geul (about 10,000 lines) and compiles itself. A separate reference implementation in
+Python (about 7,000 lines) is kept as the bootstrap seed and as a second implementation; the build checks a fixpoint — the self-hosted
+compiler built by the reference implementation, then by itself, then by that output, is byte-identical each time. Users need neither: the
+released compiler `geulc.exe` (geul 1.3.1, October 2026, MIT license; a 182 KB zip, also packaged for Windows as the PyPI package `geul`)
+builds everything described below. The compiler has its own complete back end — lexer, parser, semantic analysis, a typed intermediate
+representation, an inliner, an x86-64 code generator with linear-scan register allocation, a hand-written instruction encoder and
+PE32+/ELF64 writers — and uses no C compiler, assembler, linker or LLVM. A Windows executable it produces imports only `kernel32.dll` (and
+`shell32.dll` for the command line); the Linux target (on the research branch) needs only `libc.so.6`. Builds are reproducible byte for
+byte.
+
+### D.2 From geul source to GPU instructions
+
+GPU support lives on a research branch of the compiler. A GPU kernel is an ordinary geul function; GPU features are reached through
+declared intrinsics: thread and block indices, shared memory, barriers, warp shuffles, asynchronous copies (`cp.async`), integer
+tensor-core matrix multiply–accumulate (`mma.sync … m16n8k32 … s8.s8.s32` and `m16n8k16`), `dp4a`, and fused multiply–add, which is
+emitted only where the source writes it. Two back ends, both written in geul on top of the self-hosted front end, translate such
+kernels:
+
+- **PTX back end** (2,574 lines) — emits PTX, NVIDIA's documented virtual instruction set. Every floating-point operation carries an
+  explicit rounding mode (`.rn`), so the driver cannot fuse a multiply and an add on its own; approximate instructions and floating-point
+  tensor cores, whose summation rounding the PTX specification leaves open, are not used.
+- **SPIR-V back end** (4,006 lines) — emits SPIR-V 1.6 compute shaders for Vulkan (AMD, Intel and NVIDIA). Kernel parameters become push
+  constants and global memory becomes 64-bit device addresses; division and square root are written out to be correctly rounded,
+  integer matrix products use cooperative-matrix instructions where the device offers them and subgroup operations otherwise.
+
+```text
+Figure 1. The GeulPU stack. Everything above the dashed line is written in geul and compiled by the geul compiler.
+
+  geul source                          geul compiler (self-hosted; own x86-64 code generator, PE/ELF writers)
+   ├─ host program: GGUF reader,     ──►  server and runner executables
+   │  tokenizers, scheduler, sampler,       (import kernel32, shell32, ws2_32, and nvcuda or vulkan-1)
+   │  HTTP server
+   └─ kernel generator               ──►  kernel-generator executable
+                                            └─► model-specific kernel source (geul; 141,818 lines for 7B Q8_0)
+                                                 ├─ PTX back end (geul)    ──► PTX (73 MB, 106 kernels)
+                                                 └─ SPIR-V back end (geul) ──► SPIR-V 1.6
+  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  vendor driver: NVIDIA nvcuda.dll (PTX → SASS JIT, cuLaunchKernel, CUDA graphs) | Vulkan driver (SPIR-V → ISA)  ──►  GPU
+```
+
+At run time the engine hands PTX text to the NVIDIA driver (`cuModuleLoadData`), whose built-in just-in-time compiler translates it to the
+GPU's native machine code (SASS), and launches kernels with `cuLaunchKernel` and CUDA graphs. On Vulkan it creates shader modules and
+compute pipelines and records dispatches; a thin layer maps the driver-API calls the engine uses onto Vulkan, so the engine code is
+shared. Nothing from the CUDA toolkit — `nvcc`, `ptxas`, `cudart`, cuBLAS — or from a Vulkan SDK is used to build or run the engine; the
+continuous-integration job installs `ptxas` only to check register spills. This is the same layer at which other engines meet the GPU:
+llama.cpp ships kernels compiled ahead of time with `nvcc` and calls cuBLAS, vLLM runs PyTorch, CUDA and Triton kernels; GeulPU
+generates its own kernels and talks only to the driver. The vendors' closed compilers below PTX and SPIR-V are outside the contract,
+which is why bit identity across devices is established empirically (Appendix A) rather than proved.
+
+### D.3 The kernel generator and the engine
+
+A kernel generator, itself a geul program (8,056 lines), writes the kernel source specialized to a model's shape and weight format. For
+Qwen2.5-7B at Q8_0 it writes 141,818 lines of geul, which the PTX back end turns into 73 MB of PTX holding 106 kernels and 6,488
+tensor-core instructions; the module is built on the user's machine on first use, and the CI regenerates 18 such modules and compares
+their SHA-256 hashes with the recorded ones.
+
+The host — about 13,000 lines of geul (15,000 with its test programs) — is a complete serving engine:
+
+- **Models**: reads GGUF files with Q8_0, Q4_0, Q4_K, Q5_K and Q6_K weights (including the Q4_K_M and Q5_K_M mixes); architectures qwen2,
+  qwen3 and llama — Qwen2.5, Qwen3, DeepSeek-R1-Distill-Qwen, Llama 3.1 and 3.2, Mistral v0.3 — with head size 128 (Qwen2.5-0.5B only
+  through the command-line runner).
+- **Text**: byte-level BPE with Unicode NFC, the Llama 3 BPE and SentencePiece tokenizers, written in geul, which match llama.cpp token for
+  token on 2,000 lines of test text; chat templates checked against the GGUF's Jinja templates.
+- **Serving**: an OpenAI-compatible HTTP server (chat and text completions, streaming, `/tokenize`), up to 8 slots with continuous
+  batching and per-slot prompt reuse, a decode step captured as one CUDA graph, sampling and log-probabilities computed under the same
+  written contract.
+- **Footprint**: the CUDA server imports only `kernel32`, `shell32`, `ws2_32` and `nvcuda` (43 driver-API functions); the Vulkan server
+  imports `vulkan-1` (48 functions) instead of `nvcuda`. The CI checks these import tables.
+
+On an RTX 4070 Ti, its decoding speed is within ±5 % of llama.cpp for Qwen2.5-7B and Llama-3.1-8B at Q8_0 and Q4_K_M (0.97–1.05× the
+time per token, depending on the llama.cpp build and the context length); prompt processing is faster than llama.cpp below about 128
+tokens and up to 1.3–1.4× (Q8_0) and 1.4–1.6× (k-quant formats) slower at 8,192 tokens. Not everything is in geul: the CPU reference of the
+contract, the test harnesses and the benchmarks are Python (NumPy), and the optional desktop app's interface is JavaScript. The engine is
+Windows-first (Linux builds were tested under WSL2), uses one GPU, and needs compute capability 8.0 or newer on the CUDA path.
+
+## Appendix E — Does the baseline itself tilt? (Qwen2.5-0.5B against fp64)
+
+*[Measurement in progress. Design: generate G's answers for Qwen2.5-0.5B, select fragile steps with G's distribution as in Section 4.4,
+recompute the same steps with an fp64 NumPy implementation of the model without the contract's rounding, and report Δ_G = [ln p_G(b) −
+ln p_G(a)] − [ln p_64(b) − ln p_64(a)] with its bootstrap interval and the normal-alternative control, under the labels of Section 4.4.]*
+
+## Appendix F — Second human check of the strict judge
+
+*[In progress: 40 fresh items (20 judged positive and 20 negative by the strict judge of Section 5.6, disjoint from the 20 used to design
+it) labelled by hand.]*
+
 ## Acknowledgements and AI assistance
 
 The geul compiler, GeulPU and the experiment code were developed by the author with substantial
 assistance from AI coding agents (Anthropic Claude), which also helped draft this manuscript. The author designed the study, approved
-the pre-registration and checked the symptom judges by hand.
+the pre-registration and checked the symptom judges by hand. A reader's critique of the first draft led to the interval bounds, the
+H2 split, the timeline of Section 4.6 and the wording of the title and conclusions.
 
 ## References
 
