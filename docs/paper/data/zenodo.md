@@ -70,7 +70,17 @@ Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 
    ZENODO_TOKEN=<토큰> bash 공식실행/zenodo-올리기.sh 23417759 F:/geulpu-work/s40-zenodo
    ```
 
-   파일 8 개를 차례로 올리고(실패하면 3 번까지 다시), 끝에 Zenodo 쪽 파일 목록과 md5 를 찍는다. 특정 파일만 올리려면 뒤에 이름을 적는다.
+   파일 8 개를 차례로 올리고(이미 같은 것이 있으면 건너뛰고, 끊기면 8 번까지 다시), 끝에 Zenodo 쪽 파일 목록과 md5 를 찍는다. 특정
+   파일만 올리려면 뒤에 이름을 적는다.
+3. 큰 zip 이 그래도 자꾸 끊기면(502) **조각으로** 올린다 — 24 MB 조각(`parts/<이름>.partNN`)과 이어 붙이는 법 · 조각 해시를 적은
+   `PARTS.txt` 가 함께 올라간다(README 에도 이어 붙이는 법이 있다):
+
+   ```
+   PARTS=24m bash 공식실행/zenodo-올리기.sh 23417759 F:/geulpu-work/s40-zenodo
+   ```
+
+   이때 Zenodo 에는 통째 zip 대신 조각이 올라가므로, 먼저 올리다 만 통째 zip 이 있으면 화면에서 지운다. 파일 수는 5 + 조각 약 70 + 1 로
+   Zenodo 의 기록당 100 개 한도 안이다.
 
 올라간 파일이 맞는지는 Zenodo 가 보여 주는 md5 와 견준다:
 
@@ -83,7 +93,7 @@ Zenodo 는 한 번 Publish 하면 파일을 바꿀 수 없다(새 판을 내야 
 | geulpu-s40-engine-build.zip | `594582e6fbc7763f0d7a3b88d38901b0` |
 | MANIFEST.sha256 | `0f99804e8cabc6f20f6ae5b0e6d05b12` |
 | SHA256SUMS | `ef9ae1fd79e4da91d89bb30a7953bf2d` |
-| README.md | `da2535114446d4435c45df4e2591ed22` (논문 제목을 고친 2026-10-16 저녁 판 — 그 전 판을 올렸다면 지우고 다시 올린다) |
+| README.md | `8c0e9741bf47c573bbe80dde23083728` (조각 이어 붙이기 절을 더한 2026-10-17 판 — 스크립트가 md5 를 보고 알아서 다시 올린다) |
 
 ## 올린 뒤
 

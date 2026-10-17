@@ -151,6 +151,18 @@ at the commit above and `문서/결과/40단계/40_기록.txt`.
    describes the server, the capsule format and the CPU reference. The follower (`재기/따라40.py`) needs llama.cpp b11669 and an
    NVIDIA GPU.
 
+## If the archives appear as `.partNN` files
+
+Uploads of the three large archives kept breaking, so they may be stored as plain byte-range parts (`NAME.part00`, `NAME.part01`, …)
+with a `PARTS.txt` that lists every part's size and SHA-256. Reassemble before use — no special tool is needed:
+
+```
+cat geulpu-s40-follower.zip.part* > geulpu-s40-follower.zip          # Linux, macOS, Git Bash
+copy /b geulpu-s40-follower.zip.part* geulpu-s40-follower.zip        # Windows cmd
+```
+
+Then check the whole file against `SHA256SUMS`.
+
 ## Not included
 
 - Server and tool logs (they contain local file-system paths). The run record with hashes and timings is in the repository:

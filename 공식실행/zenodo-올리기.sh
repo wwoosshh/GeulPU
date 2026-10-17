@@ -1,14 +1,18 @@
 #!/bin/bash
-# Zenodo 초안(draft)에 파일을 명령줄로 올린다 — 브라우저 업로드가 끊길 때 쓴다. Git Bash · WSL 어디서나 된다(curl · python 필요).
+# Zenodo 초안(draft)에 파일을 명령줄로 올린다 — 브라우저 업로드가 끊길 때 쓴다. Git Bash · WSL 어디서나 된다(curl · python · split 필요).
 #
 #   export ZENODO_TOKEN=<개인 토큰>          # read -s -p "token: " ZENODO_TOKEN; echo; export ZENODO_TOKEN  (기록에 남지 않게)
 #   bash 공식실행/zenodo-올리기.sh <기록 번호> <파일 폴더> [파일…]
+#   PARTS=24m bash 공식실행/zenodo-올리기.sh <기록 번호> <파일 폴더>     # 큰 파일은 24 MB 조각으로 나눠 올린다(전송이 자꾸 끊길 때)
 #
 # 기록 번호: 초안 주소 zenodo.org/uploads/<번호> 의 번호(예약한 DOI 10.5281/zenodo.<번호> 와 같다).
 # 토큰: zenodo.org → 계정 → Applications → Personal access tokens → New token, 범위(scope) deposit:write.
 # 파일을 적지 않으면 폴더의 geulpu-s40-*.zip · MANIFEST.sha256 · SHA256SUMS · README.md 를 올린다.
-# 이미 Zenodo 에 같은 이름 · 크기 · md5 로 있는 파일은 건너뛴다. 변수 이름은 ASCII(Git Bash 는 한글 변수 이름을 못 받는다). 끊기면(502 등) 8 번까지 점점 길게 기다리며 다시 시도한다(10 초 → 2 분).
+# 이미 Zenodo 에 같은 이름 · 크기 · md5 로 있는 파일은 건너뛴다. 끊기면(502 등) 8 번까지 점점 길게 기다리며 다시 시도한다(10 초 → 2 분).
+# PARTS 를 주면 그보다 큰 파일은 <폴더>/parts/<이름>.partNN 으로 나눠(split) 조각마다 올리고, 이어 붙이는 법과 조각의 SHA-256 을 적은
+# PARTS.txt 도 올린다. 받는 쪽은 cat <이름>.part* > <이름> (Windows: copy /b) 로 되돌린다.
 # 길: 옛 deposit API(bucket 에 PUT)를 먼저 쓰고, 그 길이 막혀 있으면(404 · 410) 새 records API(files 등록 → content PUT → commit)로.
+# 변수 이름은 ASCII(Git Bash 는 한글 변수 이름을 못 받는다). 전송은 HTTP/1.1 · Expect 없이(중간 장비가 긴 PUT 을 끊는 일을 줄인다).
 set -uo pipefail
 : "${ZENODO_TOKEN:?ZENODO_TOKEN 환경 변수에 토큰을 넣어라}"
 REC="${1:?기록 번호}"
@@ -17,6 +21,8 @@ shift 2
 API="https://zenodo.org/api"
 AUTH="Authorization: Bearer $ZENODO_TOKEN"
 TRIES=8
+PARTS="${PARTS:-}"
+CURLUP=(curl --fail --progress-bar --http1.1 -H "Expect:" -H "$AUTH")
 
 # 돌아가는 파이썬 — Windows 의 python3 는 스토어 안내 껍데기일 수 있다
 PY=""
@@ -31,6 +37,11 @@ json() { "$PY" -c "import sys, json; d = json.load(open(sys.argv[1], encoding='u
 md5() { "$PY" -c "import sys, hashlib; h = hashlib.md5(); f = open(sys.argv[1], 'rb')
 for b in iter(lambda: f.read(1 << 24), b''): h.update(b)
 print(h.hexdigest())" "$1"; }
+sha256() { "$PY" -c "import sys, hashlib; h = hashlib.sha256(); f = open(sys.argv[1], 'rb')
+for b in iter(lambda: f.read(1 << 24), b''): h.update(b)
+print(h.hexdigest())" "$1"; }
+tobytes() { "$PY" -c "import sys; s = sys.argv[1].lower(); m = {'k': 1 << 10, 'm': 1 << 20, 'g': 1 << 30}
+print(int(float(s[:-1]) * m[s[-1]]) if s[-1] in m else int(s))" "$1"; }
 
 # ── 초안 정보 ──
 code="$(curl -sS -o "$TMP" -w '%{http_code}' -H "$AUTH" "$API/deposit/depositions/$REC")"
@@ -49,7 +60,7 @@ else
 fi
 
 # Zenodo 에 있는 파일 목록 → "이름 크기 md5" 줄들
-목록() {
+listing() {
   if [ $LEGACY = 1 ]; then
     curl -sS -o "$TMP" -H "$AUTH" "$API/deposit/depositions/$REC/files" && \
       json 'print("\n".join("%s %d %s" % (x["filename"], int(x["filesize"]), x["checksum"].replace("md5:", "")) for x in d))'
@@ -65,24 +76,60 @@ else
   set -- "${@/#/$DIR/}"
 fi
 
-올리기_옛() {  # 파일 → bucket/이름 (덮어씀)
-  curl --fail --progress-bar -H "$AUTH" --upload-file "$1" "$BUCKET/$2" -o /dev/null
+# ── 조각 나누기(PARTS) ──
+UPLOAD=()
+if [ -n "$PARTS" ]; then
+  LIMIT="$(tobytes "$PARTS")"
+  PDIR="$DIR/parts"
+  mkdir -p "$PDIR"
+  PTXT="$PDIR/PARTS.txt"
+  {
+    echo "Split archives — reassemble before use (each part is a plain byte range; no special tool needed):"
+    echo "  Linux / macOS / Git Bash:  cat NAME.part* > NAME"
+    echo "  Windows cmd:               copy /b NAME.part00 + NAME.part01 + ... NAME   (or: copy /b NAME.part* NAME)"
+    echo "Then check the whole file against SHA256SUMS. Part size: $PARTS."
+    echo
+  } > "$PTXT"
+  for f in "$@"; do
+    name="$(basename "$f")"
+    size="$(stat -c %s "$f" 2>/dev/null || wc -c < "$f")"
+    if [ "$size" -gt "$LIMIT" ]; then
+      if ! ls "$PDIR/$name.part00" >/dev/null 2>&1; then
+        echo "나눔: $name → $PDIR/$name.partNN ($PARTS)"
+        split -b "$PARTS" -d -a 2 "$f" "$PDIR/$name.part"
+      fi
+      echo "$name  $size bytes  sha256 $(sha256 "$f")" >> "$PTXT"
+      for p in "$PDIR/$name".part*; do
+        echo "  $(basename "$p")  $(stat -c %s "$p")  sha256 $(sha256 "$p")" >> "$PTXT"
+        UPLOAD+=("$p")
+      done
+      echo >> "$PTXT"
+    else
+      UPLOAD+=("$f")
+    fi
+  done
+  UPLOAD+=("$PTXT")
+else
+  UPLOAD=("$@")
+fi
+
+put_legacy() {  # 파일 → bucket/이름 (덮어씀)
+  "${CURLUP[@]}" --upload-file "$1" "$BUCKET/$2" -o /dev/null
 }
 
-올리기_새() {  # 이름 등록(있으면 지우고) → content PUT → commit
+put_new() {  # 이름 등록(있으면 지우고) → content PUT → commit
   local f="$1" name="$2" enc
   enc="$("$PY" -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$name")"
   curl -sS -o /dev/null -X DELETE -H "$AUTH" "$FILES/$enc" || true
   curl -sS -o "$TMP" -w '%{http_code}' -X POST -H "$AUTH" -H "Content-Type: application/json" \
        -d "[{\"key\": \"$name\"}]" "$FILES" | grep -qE '^20[01]$' || { echo "등록 실패: $(head -c 300 "$TMP")" >&2; return 1; }
-  curl --fail --progress-bar -H "$AUTH" -H "Content-Type: application/octet-stream" \
-       --upload-file "$f" "$FILES/$enc/content" -o /dev/null || return 1
+  "${CURLUP[@]}" -H "Content-Type: application/octet-stream" --upload-file "$f" "$FILES/$enc/content" -o /dev/null || return 1
   curl --fail -sS -o /dev/null -X POST -H "$AUTH" "$FILES/$enc/commit"
 }
 
 fail=0
-HAVE="$(목록 | tr -d '\r')"
-for f in "$@"; do
+HAVE="$(listing | tr -d '\r')"
+for f in "${UPLOAD[@]}"; do
   name="$(basename "$f")"
   size="$(stat -c %s "$f" 2>/dev/null || wc -c < "$f")"
   sum="$(md5 "$f")"
@@ -94,7 +141,7 @@ for f in "$@"; do
   wait=10
   for try in $(seq 1 $TRIES); do
     echo "== $name ($(du -h "$f" | cut -f1)) — 시도 $try/$TRIES"
-    if { [ $LEGACY = 1 ] && 올리기_옛 "$f" "$name"; } || { [ $LEGACY = 0 ] && 올리기_새 "$f" "$name"; }; then
+    if { [ $LEGACY = 1 ] && put_legacy "$f" "$name"; } || { [ $LEGACY = 0 ] && put_new "$f" "$name"; }; then
       ok=1; break
     fi
     echo "   끊김 — $wait 초 뒤 다시"
@@ -105,6 +152,6 @@ for f in "$@"; do
 done
 
 echo "== Zenodo 에 있는 파일(이름 · 크기 · md5):"
-목록
+listing | tr -d '\r'
 echo "docs/paper/data/zenodo.md 의 md5 표와 견주면 된다."
 exit $fail
