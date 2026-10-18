@@ -456,8 +456,9 @@ single anomaly injected into the previous answer did not raise symptoms in the n
 
 A stricter judge, defined after the human check and before re-computation, ignores foreign text inside quotes or brackets or
 followed by a Hangul gloss, and ignores Latin words that occur in the prompt. It agrees with the human labels on 19 of 20
-items (the items were used to design it, so this is not an independent check); a check on a fresh sample of 40 items is
-reported in Appendix~\ref{app:human2} \emph{[in progress]}. All conclusions hold: H1 31 new vs.\ 31 gone, H1$'$ 41 vs.\ 43,
+items (the items were used to design it, so this is not an independent check); on a fresh sample of 40 items, disjoint from
+those, the author agreed with the judge on all 40 for other-script text (35 of 40 counting symptoms of other kinds that the
+author also noticed; Appendix~\ref{app:human2}). All conclusions hold: H1 31 new vs.\ 31 gone, H1$'$ 41 vs.\ 43,
 propagation 78\% vs.\ 31\%. Only the rates move: the mixed-script trigger's other-script rate falls from 40\% to 18\%; the
 LCB rate from 16\% to 15\%.
 
@@ -498,7 +499,8 @@ enough to need such a baseline are too small to change what users see.
 Two 7B models of one family at Q8\_0, greedy decoding, one production engine (llama.cpp, default settings) on one GPU (RTX
 4070 Ti), mostly Korean prompts, and only engine-level loss: we did not test larger losses such as 4-bit key--value caches,
 4-bit weights (where \citet{patodiya2026} reports larger divergence), longer contexts or sampling. The judges are automatic;
-the other-script judge agreed with a human on 17 of 20 items, and the stricter judge was designed on those items. The
+the other-script judge agreed with a human on 17 of 20 items, and the stricter judge was designed on those items (a fresh sample of 40
+agreed 40/40 on other-script text, Appendix~\ref{app:human2}). The
 follower reproduces one realization of llama.cpp's batch arithmetic. V is coarser than llama.cpp's activation quantization.
 Propagation could not be measured for repetition and byte-split steps because the measure saturated. Closed frontier models
 could not be studied; the mechanisms (byte pieces, near-ties, the pull of an emitted token) are generic, but their rates there
@@ -882,7 +884,19 @@ Section~\ref{sec:tilt-results} understates llama.cpp's tilt relative to fp64 by 
 
 \section{Second human check of the strict judge}\label{app:human2}
 
-\emph{[In progress: 40 fresh items (20 judged positive and 20 negative by the strict judge of Section~\ref{sec:sensitivity},
-disjoint from the 20 used to design it) labelled by hand.]}
+After the strict judge of Section~\ref{sec:sensitivity} was defined, 40 fresh items were drawn (seed 41) from the Korean answers of
+G and L---20 judged positive and 20 negative by the strict judge, disjoint from the 20 items used to design it---and shown to the
+author with the question and a long excerpt (for positives the flagged passage with 400 characters of context, for negatives the
+first 1,200 and last 600 characters). The author was not blind to the judge's verdict.
+
+The author agreed with all 20 positives (two were answers in Chinese to questions that themselves contained Chinese words, one
+was an answer in JSON) and disagreed with 5 of the 20 negatives---but none of the five concerned other-script text, which is what
+the judge decides: two answers looped endlessly (S1), two copy-trigger answers replaced a Korean word with Latin garbage
+(촐랑 $\to$ \texttt{manhwal}, 쭈뼛쭈뼛 $\to$ 쭈\texttt{leanor}쭈\texttt{leanor}; S6---Latin letters are excluded from S2 by
+definition), and one long-form answer was shorter than requested (1,548 characters for 2,000), which is not a symptom in this
+study. On the question the judge answers---is there other-script text?---agreement was 40 of 40; counting any symptom the author
+saw, 35 of 40 (87.5\%). The registered criterion for this check (90\% agreement on the judge's own verdict, as in the first check)
+is met; the broad count is reported because it is what a reader obtains from the table as labelled. The five disagreements are
+themselves a reminder that the other-script judge is one symptom detector among several, not a quality score.
 
 \end{document}
