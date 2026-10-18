@@ -375,7 +375,7 @@ DeepSeek-R1-Distill-Qwen-7B Q8_0 을 받아 합성 수학 32 문제를 탐욕으
   저장소의 모듈 해시 표와 같음; llama.cpp b11669(커밋 620d2225c, Windows CUDA 13.4 빌드); 모델 Qwen2.5-7B-Instruct Q8_0(SHA-256 52c5bf14…)과
   DeepSeek-R1-Distill-Qwen-7B Q8_0(7307bfbb…); NVIDIA RTX 4070 Ti, 드라이버 616.56.
 - **결과**: `문서/결과/40단계/40_판정.json`(모든 수치), `40_사후_S2엄격.json`(엄격한 판정기), `사람확인.md`(사람 확인).
-- **원자료**: Zenodo, DOI [10.5281/zenodo.23417759](https://doi.org/10.5281/zenodo.23417759) (Woo, 2026) — zip 묶음 다섯(압축 1.7 GB,
+- **원자료**: 저장소의 GitHub 릴리스 [`s40-data`](https://github.com/wwoosshh/GeulPU/releases/tag/s40-data) (Woo, 2026) — zip 묶음 다섯(압축 1.7 GB,
   풀면 4.3 GB): G · V · L 의 모든 생성 토큰과 상위 20 로그 확률, 따라가기의 걸음마다의 로그 확률, 위험한 걸음, 억지 토큰 이어 쓰기, 오염
   대화, 보낸 토큰 번호, 실험에 쓴 엔진 실행 파일과 커널, 그리고 형식을 설명한 README 와 SHA-256 목록. G 가 낸 모든 사례는 지원하는 어느
   GPU 에서나 CPU 참조 구현에서 비트까지 다시 열 수 있다.
@@ -509,4 +509,4 @@ arXiv:2407.03211. · Xu, J. et al. (2022) Learning to break the loop: analyzing 
 arXiv:2206.02369. · Nasr, M. et al. (2023) Scalable extraction of training data from (production) language models, arXiv:2311.17035. ·
 Land, S. & Bartolo, M. (2024) Fishing for Magikarp: automatically detecting under-trained tokens in large language models, arXiv:2405.05417.
 · Cobbe, K. et al. (2021) Training verifiers to solve math word problems (gsm8k), arXiv:2110.14168. · Woo, S. (2026) Raw data — GeulPU
-stage 40: engine numerical loss and LLM failure symptoms [data set], Zenodo, doi:10.5281/zenodo.23417759.
+stage 40: engine numerical loss and LLM failure symptoms [data set], GitHub release s40-data, https://github.com/wwoosshh/GeulPU/releases/tag/s40-data.

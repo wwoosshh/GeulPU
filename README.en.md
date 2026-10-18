@@ -5,7 +5,8 @@ terms; English documents live in [docs/](docs/).*
 
 > In [stage 40](문서/40단계.md) (2026-10-16) we measured whether computational loss causes LLM failure symptoms (repetition loops,
 > unrelated-language output, broken spelling, wrong answers). Engine-level loss (llama.cpp, Q8_0) changes almost every answer but does not
-> increase the symptoms. This research stops here ([research log](docs/research-log.md)). The app guide below still applies.
+> increase the symptoms. This research stops here ([research log](docs/research-log.md)). The app guide below still applies. Paper draft (English and Korean, with
+> PDFs): [docs/paper/](docs/paper/) · raw data (1.7 GB): [release s40-data](https://github.com/wwoosshh/GeulPU/releases/tag/s40-data).
 
 GeulPU is a Windows app that runs language models such as Qwen3, Qwen2.5, DeepSeek-R1, Llama 3 and Mistral **on your own GPU**. There is no installer:
 unzip it, run `GeulPU.exe`, and a chat page opens in your browser. Models are downloaded from Hugging Face inside the app, and your

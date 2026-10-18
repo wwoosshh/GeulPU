@@ -1,5 +1,9 @@
 # Zenodo 올리기 — 40단계 원자료
 
+> **2026-10-18: Zenodo 는 포기했다.** 큰 zip 셋이 이틀 동안 브라우저로도 API 로도 502 로 끊겨(이 PC 의 회선은 150 MB 를 12 MB/s 로 끊김 없이
+> 올린다 — Zenodo 쪽 문제) 자료는 저장소의 GitHub 릴리스 [`s40-data`](https://github.com/wwoosshh/GeulPU/releases/tag/s40-data)에
+> 올렸다. 예약한 DOI 10.5281/zenodo.23417759 는 쓰지 않는다(초안은 공개되지 않은 채 남거나 지운다). 아래는 기록으로 남긴다.
+
 *저자가 Zenodo 에 올릴 때 보는 안내다. 묶음은 `공식실행/자료40.sh <작업 폴더> <낼 폴더>` 가 만든다(WSL Ubuntu — zip · sha256sum).*
 
 ## 올릴 파일 (낼 폴더에 있음)

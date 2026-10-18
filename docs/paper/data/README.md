@@ -7,7 +7,8 @@ repository: https://github.com/wwoosshh/GeulPU — paper draft in `docs/paper/`,
 what the repository cannot: every token the three engines generated and the per-step probabilities from which every number in
 the paper is computed.
 
-DOI: [10.5281/zenodo.23417759](https://doi.org/10.5281/zenodo.23417759). Repository commit used for the analysis: `0a5ab97`.
+Published as release **`s40-data`** of the repository: https://github.com/wwoosshh/GeulPU/releases/tag/s40-data (the archives are
+the release assets). Repository commit used for the analysis: `0a5ab97`.
 
 ## Archives
 
@@ -151,18 +152,6 @@ at the commit above and `문서/결과/40단계/40_기록.txt`.
    describes the server, the capsule format and the CPU reference. The follower (`재기/따라40.py`) needs llama.cpp b11669 and an
    NVIDIA GPU.
 
-## If the archives appear as `.partNN` files
-
-Uploads of the three large archives kept breaking, so they may be stored as plain byte-range parts (`NAME.part00`, `NAME.part01`, …)
-with a `PARTS.txt` that lists every part's size and SHA-256. Reassemble before use — no special tool is needed:
-
-```
-cat geulpu-s40-follower.zip.part* > geulpu-s40-follower.zip          # Linux, macOS, Git Bash
-copy /b geulpu-s40-follower.zip.part* geulpu-s40-follower.zip        # Windows cmd
-```
-
-Then check the whole file against `SHA256SUMS`.
-
 ## Not included
 
 - Server and tool logs (they contain local file-system paths). The run record with hashes and timings is in the repository:
@@ -181,5 +170,5 @@ Then check the whole file against `SHA256SUMS`.
 
 ## Citation
 
-Woo, S. (2026). *Raw data — GeulPU stage 40: engine numerical loss and LLM failure symptoms* [Data set]. Zenodo.
-https://doi.org/10.5281/zenodo.23417759
+Woo, S. (2026). *Raw data — GeulPU stage 40: engine numerical loss and LLM failure symptoms* [Data set]. GitHub release
+`s40-data`, https://github.com/wwoosshh/GeulPU/releases/tag/s40-data

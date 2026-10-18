@@ -4,7 +4,8 @@
 
 > 2026-10-16 의 [40단계](문서/40단계.md)에서 계산 손실이 LLM 의 실패 증상(반복 · 엉뚱한 언어 · 깨진 맞춤법 · 틀린 답)을 만드는지 쟀다 —
 > 엔진 수준의 손실(llama.cpp · Q8_0)은 답을 거의 다 바꾸지만 증상을 늘리지 않았다. 이 연구는 여기서 멈춘다([방향 전환](문서/방향전환.md)).
-> 아래의 앱 안내는 그대로 쓸 수 있다.
+> 아래의 앱 안내는 그대로 쓸 수 있다. 논문 초안(영문 · 한국어, PDF): [docs/paper/](docs/paper/) · 원자료(1.7 GB):
+> [릴리스 s40-data](https://github.com/wwoosshh/GeulPU/releases/tag/s40-data).
 
 GeulPU는 Qwen3 · Qwen2.5 · DeepSeek-R1 · Llama 3 · Mistral 같은 언어 모델을 **내 PC의 그래픽카드(GPU)에서** 돌리는 Windows 앱입니다. 설치 프로그램 없이
 zip을 풀고 `GeulPU.exe`를 실행하면 브라우저에 채팅 화면이 열립니다. 모델은 앱 안에서 Hugging Face로부터 받고, 대화는 이 PC 밖으로
