@@ -31,10 +31,12 @@ llama.cpp 는 답의 89 ~ 100 % 를 바꾸었지만, 증상은 생기는 만큼 
 생성을 다른 길로 보낼 수 있다.
 
 엔진의 계산이 출력을 바꾼다는 것은 이미 잘 알려져 있다. 묶음 크기 · GPU 수 · 엔진만 바꿔도 벤치마크 점수가 몇 점씩 움직이고(Yuan 외, 2025;
-Pape 외, 2026), 접두 캐시는 같은 요청을 갈라지게 하며(Patodiya, 2026), 한 기계 안의 변동을 없애는 결정 모드가 만들어졌다(He 외, 2025; Qin 외,
-2026). 알려지지 않은 것은 이 변동이 출력을 *망가뜨리는가* — 실패를 더 만드는가 — 아니면 *주사위를 다시 굴릴 뿐*인가 — 어떤 답은 나빠지고
-그만큼은 좋아지는가 — 다. 둘은 한 번의 실행에서는 구별할 수 없다. 둘이 갈리는 곳은 생기는 실패와 사라지는 실패의 균형이고, 결정 하나하나의
-수준에서는 흔들림이 비정상 토큰 쪽으로 치우쳐 있는가다.
+Pape 외, 2026), 같은 요청이라도 접두 캐시를 쓴 경로와 다시 계산한 경로가 갈라지며(Patodiya, 2026), 한 기계 안의 변동을 없애는 결정 모드가
+만들어졌다(He 외, 2025; Qin 외, 2026). 이 변동이 출력을 *망가뜨리는가* — 실패를 더 만드는가 — 아니면 *주사위를 다시 굴릴 뿐*인가 — 어떤 답은
+나빠지고 그만큼은 좋아지는가 — 는 한 가지 원인에서만 시험되었다: 캐시 경로의 갈림에 대해 GSM8K 의 McNemar 정확 검정은 정확도의 순변화를
+찾지 못했다(Patodiya, 2026). 엔진 자체의 계산 손실에 대해서는 아직 밝혀지지 않았고, 이 연구는 그 발견을 이 원인으로 넓힌다. 두 경우는 한 번의
+실행에서는 구별할 수 없다. 둘이 갈리는 곳은 생기는 실패와 사라지는 실패의 균형이고, 결정 하나하나의 수준에서는 흔들림이 비정상 토큰 쪽으로
+치우쳐 있는가다.
 
 그 치우침을 재려면 엔진 잡음이 없는 기준이 필요하다. 기준 자체에 잡음이 있으면 비정상 토큰이 고른 토큰에 가까운 결정을 고르는 일 자체가
 잡음에 달려, 재어지는 이동은 0 쪽으로 눌린다. 그래서 우리는 손실이 적힌 계약이 정한 만큼뿐이고 비트가 묶음 · 길 · GPU · 제조사에 달려 있지
@@ -58,8 +60,10 @@ Pape 외, 2026), 접두 캐시는 같은 요청을 갈라지게 하며(Patodiya,
 vLLM 과 SGLang 은 그에 바탕한 결정 모드를 실었다. Vosti 는 결정적 추론을 형식적으로 명세하고 엔진을 그 명세에 대해 검증하여, 실제 엔진의
 결정 모드가 어떤 실행 변화에서는 여전히 갈라짐을 보였다(Qin 외, 2026). Yuan 외(2025)는 DeepSeek-R1-Distill-Qwen-7B 의 정확도가 GPU 수 ·
 GPU 종류 · 묶음 크기에 따라 bfloat16 에서 최대 9 % 흔들린다고 보고했고, Pape 외(2026)는 엔진 선택만으로 벤치마크 점수가 최대 16.6 점
-움직임을 보였으며, Patodiya(2026)는 llama.cpp 의 접두 캐시가 되풀이한 요청을 갈라지게 하고 4 비트에서 더함을 보였다. 이 연구들은 분산이
-있음을 세웠다. 우리는 그 분산이 치우쳐 있는가를 묻는다.
+움직임을 보였으며, Patodiya(2026)는 같은 요청에서 접두 캐시를 쓴 경로와 다시 계산한 경로가 두 엔진 모두에서 갈라지고, 이 경로 갈림이 4 비트
+양자화에서 커지되 그 자리가 양자화된 실행 경로이며(4 비트 가중치를 16 비트 커널로 돌리면 커지지 않는다), GSM8K 정확도에는 McNemar 정확
+검정으로 잡히는 순변화를 남기지 않음을 보였다. 이 연구들은 분산이 있음을, 그리고 캐시 경로에서는 정확도의 순변화가 없음을 세웠다. 우리는
+그 분산이 치우쳐 있는가를 묻는다.
 
 **하드웨어를 가로지르는 비트 정확 추론.** CPU 에뮬레이터로 고치지 않은 vLLM · Transformers 가 여러 NVIDIA GPU 에서 내는 비트를 예측하여,
 엔진을 바꾸지 않고 검증할 수 있다(arXiv 2606.00279). 고정된 모양의 덧셈 차례는 선형층을 NVIDIA Ampere · Ada · Hopper 에서 같게 만든다(arXiv
@@ -302,7 +306,8 @@ R1-Distill 은 수학 문제의 86.7 % 를 맞혔고, 틀린 답 80 개 가운�
 사용자에게의 실용적 가치도 한정한다: 그런 기준이 있어야 보일 만큼 작은 효과는 사용자가 보는 것을 바꾸기에는 너무 작다.
 
 **한계.** 한 계열의 7B 모델 둘, Q8_0, 탐욕 디코딩, 실제 엔진 하나(llama.cpp, 기본 설정), GPU 하나(RTX 4070 Ti), 대부분 한국어 질문, 그리고
-엔진 수준의 손실만: 4 비트 키-값 캐시, 4 비트 가중치(Patodiya(2026)는 거기서 갈림이 더 크다고 보고했다), 더 긴 문맥, 뽑기 같은 더 큰 손실은
+엔진 수준의 손실만: 4 비트 키-값 캐시, 4 비트 양자화된 실행 경로(Patodiya(2026)는 거기서 경로 갈림이 더 크고, 그 원인이 4 비트 가중치 자체가
+아니라 양자화된 실행 경로에 있다고 보고했다), 더 긴 문맥, 뽑기 같은 더 큰 손실은
 시험하지 않았다. 판정기는 자동이다 — 다른 문자 판정기는 사람과 20 항목 중 17 에서 같았고, 엄격한 판정기는 그 항목들로 설계했다(새 표본 40 개에서는 다른 문자의 글에 대해 40/40 같았다 — 부록 F). 따라가기는
 llama.cpp 의 묶음 산술의 한 실현이다. V 는 llama.cpp 의 활성값 양자화보다 거칠다. 되풀이와 글자 조각 걸음의 번짐은 척도가 천장에 닿아 잴 수
 없었다. 닫힌 프런티어 모델은 연구할 수 없었다. 기제(바이트 조각 · 아슬아슬한 자리 · 나온 토큰의 끌림)는 일반적이지만 거기서의 비율은 모른다.
@@ -510,7 +515,7 @@ Qwen2.5-0.5B-Instruct(Q8_0) — fp64 가중치(4 GB)가 CPU 에 들어가는 가
 Qin, J. et al. (2026) Vosti: specifying, implementing and verifying deterministic LLM inference, arXiv:2609.38981. · Yuan, J. et al. (2025)
 Give me FP32 or give me death? Challenges and solutions for reproducible reasoning, arXiv:2506.09501. · Pape, D. et al. (2026) The silent
 hyperparameter: quantifying the impact of inference backends on LLM reproducibility, arXiv:2605.19537. · Patodiya, A. (2026) Same request,
-different answer: quantization amplifies cache-induced divergence in LLM serving, arXiv:2609.04748. · Bit-exact AI inference verification
+different answer: quantization amplifies cache-induced divergence in LLM serving, arXiv:2609.04748v2. · Bit-exact AI inference verification
 without performance tradeoffs, arXiv:2606.00279. · Cooper, L. et al. (2026) Accelerating the mitigation of LLM inference nondeterminism
 across GPU architectures, arXiv:2609.25624. · Chen, T.-R. (2026) Deterministic LLM inference across GPU kernels: power-of-two INT8
 quantization scales and the limits of tolerance-based conformance, arXiv:2609.00363. · Marchisio, K. et al. (2024) Understanding and

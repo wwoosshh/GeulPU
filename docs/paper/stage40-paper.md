@@ -35,11 +35,13 @@ Each of these choices perturbs the logits slightly, and a slightly different log
 path.
 
 That engine numerics change outputs is well established. Changing the batch size, the number of GPUs or the engine alone moves benchmark
-scores by several points (Yuan et al., 2025; Pape et al., 2026), prefix caching makes the same request diverge (Patodiya, 2026), and
-deterministic modes have been built to remove the variation on one machine (He et al., 2025; Qin et al., 2026). What is not established
-is whether this variation *degrades* the output — produces more failures — or only *re-rolls* it, turning some answers worse and as many
-better. The two are indistinguishable in a single run; they differ in the balance of failures that appear and disappear, and, at the
-level of single decisions, in whether the perturbation is biased toward abnormal tokens.
+scores by several points (Yuan et al., 2025; Pape et al., 2026), a prefix-cache hit and a recomputation of the same request diverge
+(Patodiya, 2026), and deterministic modes have been built to remove the variation on one machine (He et al., 2025; Qin et al., 2026).
+Whether such variation *degrades* the output — produces more failures — or only *re-rolls* it, turning some answers worse and as many
+better, has been tested for one source: for cache-path divergence, an exact McNemar test on GSM8K finds no detectable net change in
+accuracy (Patodiya, 2026). For the numerical loss of the engine itself it has not been established; this study extends the finding to
+that source. The two outcomes are indistinguishable in a single run; they differ in the balance of failures that appear and disappear,
+and, at the level of single decisions, in whether the perturbation is biased toward abnormal tokens.
 
 Measuring that bias needs a baseline without engine noise. If the reference itself is noisy, selecting the decisions where an abnormal
 token is close to the chosen one already depends on the noise, and the measured shift regresses toward zero. We therefore use as the
@@ -67,8 +69,10 @@ provide batch-invariant kernels; vLLM and SGLang ship deterministic modes based 
 and verifies an engine against the specification, showing that the production modes still diverge under some execution variations (Qin
 et al., 2026). Yuan et al. (2025) report accuracy swings of up to 9 % for DeepSeek-R1-Distill-Qwen-7B across GPU counts, GPU types and
 batch sizes in bfloat16; Pape et al. (2026) find that the choice of engine alone moves benchmark scores by up to 16.6 points; Patodiya
-(2026) shows that llama.cpp's prefix cache makes repeated requests diverge, more so at 4 bits. These works establish variance; we ask
-whether the variance is biased.
+(2026) shows that a prefix-cache hit and a recomputation of the same request diverge on two engines, that this path divergence rises
+with 4-bit quantization and lies in the quantized execution path (serving the 4-bit weights through 16-bit kernels shows no rise), and
+that it leaves GSM8K accuracy without a detectable net change under an exact McNemar test. These works establish variance and, for the
+cache path, no net change in accuracy; we ask whether the variance is biased.
 
 **Bit-exact inference across hardware.** A CPU emulator can predict the bits of unmodified vLLM and Transformers runs on several NVIDIA
 GPUs, enabling verification without changing the engine (arXiv 2606.00279). Fixed-shape reduction orders make linear layers identical
@@ -345,7 +349,8 @@ baseline are too small to change what users see.
 
 **Limitations.** Two 7B models of one family at Q8_0, greedy decoding, one production engine (llama.cpp, default settings) on one GPU
 (RTX 4070 Ti), mostly Korean prompts, and only engine-level loss: we did not test larger losses such as 4-bit key–value caches, 4-bit
-weights (where Patodiya (2026) reports larger divergence), longer contexts or sampling. The judges are automatic; the other-script judge
+quantized execution paths (where Patodiya (2026) reports larger path divergence and places its cause in the quantized execution path
+rather than in the 4-bit weights themselves), longer contexts or sampling. The judges are automatic; the other-script judge
 agreed with a human on 17 of 20 items, and the stricter judge was designed on those items (a fresh sample of 40 agreed 40/40 on
 other-script text, Appendix F). The follower reproduces one realization of
 llama.cpp's batch arithmetic. V is coarser than llama.cpp's activation quantization. Propagation could not be measured for repetition and
@@ -588,7 +593,7 @@ H2 split, the timeline of Section 4.6 and the wording of the title and conclusio
 Vosti: specifying, implementing and verifying deterministic LLM inference, arXiv:2609.38981. · Yuan, J. et al. (2025) Give me FP32 or give
 me death? Challenges and solutions for reproducible reasoning, arXiv:2506.09501. · Pape, D. et al. (2026) The silent hyperparameter:
 quantifying the impact of inference backends on LLM reproducibility, arXiv:2605.19537. · Patodiya, A. (2026) Same request, different
-answer: quantization amplifies cache-induced divergence in LLM serving, arXiv:2609.04748. · Bit-exact AI inference verification without
+answer: quantization amplifies cache-induced divergence in LLM serving, arXiv:2609.04748v2. · Bit-exact AI inference verification without
 performance tradeoffs, arXiv:2606.00279. · Cooper, L. et al. (2026) Accelerating the mitigation of LLM inference nondeterminism across GPU
 architectures, arXiv:2609.25624. · Chen, T.-R. (2026) Deterministic LLM inference across GPU kernels: power-of-two INT8 quantization scales
 and the limits of tolerance-based conformance, arXiv:2609.00363. · Marchisio, K. et al. (2024) Understanding and mitigating language
